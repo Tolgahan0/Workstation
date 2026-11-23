@@ -100,6 +100,11 @@ final class PanelModel: ObservableObject {
     // Ayarlar → zamanlanmış modlar
     @Published var schedule = ScheduleSettings.load()
     @Published var scheduleNext = ""
+
+    // Masaüstü → profiller
+    @Published var profiles: [WorkspaceProfile] = ProfileStore.load()
+    @Published var newProfileName = ""
+    @Published var profileNote: String?
     var toolsVisible: Bool { selectedTab == .tools && page == .main }
 
     /// Kart başına kaydırıcı modelleri (monitör anahtarına göre).
@@ -124,6 +129,9 @@ final class PanelModel: ObservableObject {
     var onRemoteShown: () -> Void = {}
     var onAutoSwitch: (AutoSwitchSettings) -> Void = { _ in }
     var onSchedule: (ScheduleSettings) -> Void = { _ in }
+    var onApplyProfile: (UUID) -> Void = { _ in }
+    var onSaveProfile: (String) -> Void = { _ in }
+    var onDeleteProfile: (UUID) -> Void = { _ in }
     var onFanMode: (FanMode) -> Void = { _ in }
 
     func selectPreset(_ id: String) {
@@ -403,6 +411,7 @@ private struct DesktopTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             DesktopReturnButton(model: model)
+            ProfilesCard(model: model)
             MonitorListHeader(model: model)
             DesktopModeHint(mode: model.mode)
             MonitorList(model: model)

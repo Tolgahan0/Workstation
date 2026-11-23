@@ -192,6 +192,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             if visible { self.startFanPolling() } else { self.stopFanPolling() }
         }
         m.onRemoteShown = { [weak self] in self?.refreshNetInfo() }
+        m.onApplyProfile = { [weak self] id in
+            guard let self = self, let p = self.panelModel.profiles.first(where: { $0.id == id }) else { return }
+            self.applyProfile(p, source: "panel")
+        }
+        m.onSaveProfile = { [weak self] name in self?.saveProfile(named: name) }
+        m.onDeleteProfile = { [weak self] id in
+            guard let self = self else { return }
+            var list = self.panelModel.profiles
+            list.removeAll { $0.id == id }
+            ProfileStore.save(list)
+            self.panelModel.profiles = list
+        }
         m.onSchedule = { [weak self] settings in
             guard let self = self else { return }
             let wakeChanged = settings.wakeEnabled != self.scheduleSettings.wakeEnabled
@@ -377,6 +389,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self.panelModel.loadingMonitors = false
         }
     }
+
+    /// Uzantı dosyalarından (profil uygulama) kendi değişikliğimizi işaretlemek için.
+    func beginOwnChangeForFeature() { beginOwnChange() }
+    func endOwnChangeForFeature() { endOwnChange() }
 
     private func beginOwnChange() {
         ownChangeInProgress += 1

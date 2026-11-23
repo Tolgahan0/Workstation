@@ -100,6 +100,15 @@ workstation-connect --wake-only
 - Geçişler geri sayım HUD'u ile yapılır (İptal ile vazgeçilebilir). Mod zaten aynıysa atlanır.
 - **Planlı uyanma** (isteğe bağlı): ilk Masaüstü/Remote kuralından 2 dk önce `sudo pmset repeat wakeorpoweron <günler> <saat>` yazılır. `pmset` yalnızca **tek** tekrar eden uyanma tutar; bu ayar sizin önceden kurduğunuz `pmset repeat` planının yerine geçer. Ayarı kapatınca (yalnızca bizim kurduğumuz) plan `pmset repeat cancel` ile silinir. Kontrol: `pmset -g sched`.
 
+## Çalışma alanı profilleri — 1.7.0
+
+**Masaüstü** sekmesinin üstünde *Profiller* kartı: monitör başına **aç/kapa** + **parlaklık** + **fan modu** adlandırılmış profil olarak kaydedilir (ör. "Kod": iki monitör %70, fan Otomatik; "Film": yalnızca büyük monitör %40).
+
+- Profil çipine tıklamak uygular; sağ tık → *Şu anki durumla güncelle* / *Sil*. Aynı adla kaydetmek üzerine yazar.
+- Remote/Uyku modundayken uygulanan profil fiziksel monitörleri **açmaz**; durumlar kaydedilir ve Masaüstü'ne dönünce uygulanır.
+- Pencere yerleşimi güvenlik/kararlılık için kaydedilmez.
+- URL: `workstation://profile/Kod` · CLI: `workstation profile Kod` (ad büyük/küçük harf, aksan ve boşluktan bağımsız eşleşir).
+
 ## Tools → Fan kontrolü (1.6.0)
 
 Panelde **Masaüstü / Uyku / Remote**'un sağında **Tools** sekmesi var. İlk araç, Macs Fan Control benzeri fan denetimi:

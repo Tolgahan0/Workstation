@@ -109,6 +109,31 @@ final class ModeController {
         }
     }
 
+    /// Profil uygular: monitör aç/kapa (istenen durum olarak kaydedilir; Remote/Uyku'da fiziksel monitör
+    /// AÇILMAZ, yalnızca kaydedilir) + parlaklık (Masaüstü'nde hemen, diğer modlarda kaydedilir).
+    func applyProfile(_ profile: WorkspaceProfile, mode: WorkMode, completion: @escaping ([String]) -> Void) {
+        queue.async {
+            var notes: [String] = []
+            let store = self.display.monitors.store
+            for (key, st) in profile.monitors.sorted(by: { $0.key < $1.key }) {
+                if store.state(for: key)?.enabled != st.enabled {
+                    if let n = self.display.setMonitorEnabled(key: key, enabled: st.enabled, mode: mode) { notes.append(n) }
+                }
+                if let b = st.brightness {
+                    if mode == .desktop && st.enabled {
+                        // Kaydırıcıyla aynı yol (birleştirici seri kuyruğu; DDC yazmaları çakışmaz).
+                        self.brightness.submit(key: key, value: b, final: true)
+                    } else {
+                        store.update(key) { $0.brightness = b }
+                    }
+                }
+            }
+            Log.info("Profil uygulandı: \(profile.name)\(notes.isEmpty ? "" : " (\(notes.joined(separator: "; ")))")")
+            let result = notes
+            DispatchQueue.main.async { completion(result) }
+        }
+    }
+
     /// Kaydırıcıdan: sürüklerken final=false (hız sınırlı), bırakınca final=true.
     func submitBrightness(key: String, value: Double, final: Bool) {
         brightness.submit(key: key, value: value, final: final)

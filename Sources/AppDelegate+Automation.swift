@@ -114,3 +114,36 @@ extension AppDelegate {
         }
     }
 }
+
+// MARK: - Profiller
+extension AppDelegate {
+
+    func saveProfile(named name: String) {
+        let desired = controller.display.monitors.store.all()
+        let p = WorkspaceProfile.make(name: name, desired: desired, fanMode: fans.preferredMode)
+        let list = ProfileStore.upsert(p, into: ProfileStore.load())
+        ProfileStore.save(list)
+        panelModel.profiles = list
+        panelModel.profileNote = "“\(name)” kaydedildi"
+        Log.info("Profil kaydedildi: \(name) (\(p.summary))")
+    }
+
+    /// Profili uygular (panel, URL, CLI). Remote/Uyku'da monitör durumları yalnızca kaydedilir.
+    func applyProfile(_ p: WorkspaceProfile, source: String) {
+        Log.info("Profil uygulanıyor: \(p.name) (kaynak: \(source), mod: \(currentMode.rawValue))")
+        panelModel.profileNote = "“\(p.name)” uygulanıyor…"
+        beginOwnChangeForFeature()
+        controller.applyProfile(p, mode: currentMode) { [weak self] notes in
+            guard let self = self else { return }
+            self.endOwnChangeForFeature()
+            self.panelModel.profileNote = notes.isEmpty ? "“\(p.name)” uygulandı" : notes.joined(separator: "; ")
+            self.refreshMonitors()
+        }
+        if let f = p.fanMode, f != fans.preferredMode {
+            panelModel.fanMode = f
+            fans.apply(f, reason: "profil \(p.name)") { [weak self] err in
+                if let e = err { self?.panelModel.fanNote = "Profil fan modu uygulanamadı: \(e)" }
+            }
+        }
+    }
+}
