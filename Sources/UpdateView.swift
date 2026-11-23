@@ -110,26 +110,29 @@ struct HelpersBanner: View {
 
     var body: some View {
         if updater.helpersOutdated || updater.helpersNote != nil {
-            HStack(spacing: 10) {
-                Image(systemName: updater.helpersOutdated ? "wrench.and.screwdriver.fill" : "checkmark.circle.fill")
-                    .font(.system(size: 16))
-                    .foregroundColor(updater.helpersOutdated ? .orange : .green)
-                VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: updater.helpersOutdated ? "wrench.and.screwdriver.fill" : "checkmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(updater.helpersOutdated ? .orange : .green)
                     Text(updater.helpersOutdated ? L("Yardımcılar güncel değil") : (updater.helpersNote ?? ""))
-                        .font(.system(size: 11, weight: .semibold))
-                    if updater.helpersOutdated {
-                        Text(updater.helpersNote ?? L("Fan kontrolü ve workstation komutu için; parolan bir kez sorulur."))
-                            .font(.system(size: 10)).foregroundColor(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                        .font(.system(size: 12, weight: .semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 if updater.helpersOutdated {
-                    if updater.helpersBusy {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        SmallButton(title: L("Yardımcıları güncelle"), icon: "lock.open", prominent: true, action: updater.onUpdateHelpers)
-                            .fixedSize()
+                    Text(updater.helpersNote ?? L("Fan kontrolü ve workstation komutu için; parolan bir kez sorulur."))
+                        .font(.system(size: 10)).foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack {
+                        Spacer(minLength: 0)
+                        if updater.helpersBusy {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            SmallButton(title: L("Yardımcıları güncelle"), icon: "lock.open", prominent: true, action: updater.onUpdateHelpers)
+                                .fixedSize()
+                        }
                     }
                 }
             }
