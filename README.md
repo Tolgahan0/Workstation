@@ -115,6 +115,12 @@ workstation-connect --wake-only
 
 > Not: Ekran Paylaşımı'nın "Yüksek Performans" modu sesi istemciye aktarabilir; bu ayar Mac mini'nin çıkış cihazını sessize aldığından aktarılan ses de kesilebilir. Uzaktan ses istiyorsanız kapalı bırakın.
 
+## Tools → Sistem ve Uyanık tut — 1.7.0
+
+- **Sistem kartı:** CPU %, RAM (kullanılan / toplam + bellek baskısı: Normal/Uyarı/Kritik), disk boş alanı (%10'un altında kırmızı), ağ ↓/↑ hızı. Değerler süreç içinden (mach `host_statistics`, `getifaddrs`, `sysctl`) okunur ve **yalnızca panel açık ve Tools sekmesi görünürken** fan okumasıyla aynı 1,5 sn'lik zamanlayıcıda yenilenir.
+- **Uyanık tut:** `IOPMAssertion` (PreventUserIdleSystemSleep) ile Mac boşta uyumaz; süre **1 sa / 3 sa / Kapatana dek**. Süre dolunca tek atımlık zamanlayıcı onayı bırakır. Uygulama kapanınca macOS onayı otomatik kaldırır. Kontrol: `pmset -g assertions`.
+- URL: `workstation://keepawake/on`, `workstation://keepawake/off`, `workstation://keepawake/on?hours=2` · CLI: `workstation keepawake on|off|1h|90m`.
+
 ## Tools → Fan kontrolü (1.6.0)
 
 Panelde **Masaüstü / Uyku / Remote**'un sağında **Tools** sekmesi var. İlk araç, Macs Fan Control benzeri fan denetimi:

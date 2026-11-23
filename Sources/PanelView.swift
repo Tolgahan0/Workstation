@@ -108,6 +108,12 @@ final class PanelModel: ObservableObject {
 
     // Ayarlar → ses
     @Published var muteInRemote: Bool = AudioControl.enabled
+
+    // Tools → sistem + uyanık tut
+    @Published var stats: SystemStatsSnapshot?
+    @Published var keepAwakeOn = false
+    @Published var keepAwakeUntil: Date?
+    @Published var keepAwakeDuration: KeepAwake.Duration = .oneHour
     var toolsVisible: Bool { selectedTab == .tools && page == .main }
 
     /// Kart başına kaydırıcı modelleri (monitör anahtarına göre).
@@ -136,6 +142,7 @@ final class PanelModel: ObservableObject {
     var onSaveProfile: (String) -> Void = { _ in }
     var onDeleteProfile: (UUID) -> Void = { _ in }
     var onMuteInRemote: (Bool) -> Void = { _ in }
+    var onKeepAwake: (Bool, KeepAwake.Duration) -> Void = { _, _ in }
     var onFanMode: (FanMode) -> Void = { _ in }
 
     func selectPreset(_ id: String) {
@@ -1024,6 +1031,9 @@ private struct ToolsTab: View {
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(text: "FAN KONTROLÜ")
             FanToolCard(model: model)
+            SectionTitle(text: "SİSTEM")
+            SystemStatsCard(model: model)
+            KeepAwakeCard(model: model)
         }
     }
 }

@@ -147,3 +147,22 @@ extension AppDelegate {
         }
     }
 }
+
+// MARK: - Tools → sistem istatistikleri
+extension AppDelegate {
+    /// Fan okumasıyla aynı zamanlayıcıdan (yalnızca panel açık + Tools görünürken) çağrılır.
+    func refreshSystemStats() {
+        let sampler = statsSampler
+        statsQueue.async { [weak self] in
+            let s = sampler.sample()
+            DispatchQueue.main.async {
+                guard let self = self, self.popover != nil else { return }
+                if self.panelModel.stats != s { self.panelModel.stats = s }
+                self.statsObserved(s)
+            }
+        }
+    }
+
+    /// Bildirim kontrolleri için kanca (7. özellik doldurur).
+    func statsObserved(_ s: SystemStatsSnapshot) {}
+}

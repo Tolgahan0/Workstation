@@ -39,6 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var scheduleTimer: Timer?
     /// Remote'ta ses kapatma (Ayarlar, varsayılan kapalı).
     let audio = AudioControl()
+    /// Tools → sistem istatistikleri (yalnızca Tools görünürken örneklenir) ve "Uyanık tut".
+    let statsSampler = SystemStatsSampler()
+    let statsQueue = DispatchQueue(label: "com.tolgahanayaz.workstationmode.stats", qos: .utility)
+    let keepAwake = KeepAwake()
     var scheduleSettings = ScheduleSettings.load()
     var lastScheduleCheck = Date()
 
@@ -199,6 +203,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self.applyProfile(p, source: "panel")
         }
         m.onSaveProfile = { [weak self] name in self?.saveProfile(named: name) }
+        m.onKeepAwake = { [weak self] on, duration in
+            guard let self = self else { return }
+            self.panelModel.keepAwakeDuration = duration
+            if on { self.keepAwake.enable(seconds: duration.seconds) } else { self.keepAwake.disable() }
+        }
+        keepAwake.onChange = { [weak self] in
+            guard let self = self else { return }
+            self.panelModel.keepAwakeOn = self.keepAwake.isOn
+            self.panelModel.keepAwakeUntil = self.keepAwake.until
+        }
         m.onMuteInRemote = { [weak self] on in
             guard let self = self else { return }
             AudioControl.enabled = on
@@ -352,6 +366,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func refreshFanStatus() {
         guard popover != nil else { return }
+        refreshSystemStats()
         fans.readStatus { [weak self] status in
             guard let self = self, self.popover != nil else { return }
             if self.panelModel.fanStatus != status { self.panelModel.fanStatus = status }
