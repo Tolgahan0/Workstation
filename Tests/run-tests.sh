@@ -11,7 +11,7 @@ SWIFTC=(swiftc)
 CORE=()
 for f in Shell Models SMC KeepAwake URLRoute Schedule Notifier SystemStats Profiles PowerManager NetworkInfo \
          AutoSwitch AudioControl BetterDisplayInstaller BrightnessCoalescer FanControl \
-         CleanerCore CleanerScanner CleanerExecutor CleanerCLI; do
+         CleanerCore CleanerScanner CleanerExecutor CleanerCLI UpdateCore Updater; do
   CORE+=("$ROOT/Sources/$f.swift")
 done
 "${SWIFTC[@]}" -swift-version 5 "${CORE[@]}" "$ROOT/Tests/CleanerTests/main.swift" -o "$OUT/cleaner-tests"

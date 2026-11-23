@@ -51,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var cleanerCancel: CancelToken?
     var cleanerTimer: Timer?
     var cleanerSpaceTimer: Timer?
+    var updateTimer: Timer?
     let cleanerQueue = DispatchQueue(label: "com.tolgahanayaz.workstationmode.cleaner", qos: .utility)
     var scheduleSettings = ScheduleSettings.load()
     var lastScheduleCheck = Date()
@@ -98,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         setupStatusItem()
         wirePanelModel()
         wireCleaner()
+        wireUpdater()
         registerObservers()
         updateUI()
 
@@ -676,6 +678,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self?.checkDiskSpace()
             self?.configureCleanerAuto()
             self?.cleanerSpaceCheck(reason: "uyanma")
+            self?.updateCheckAfterWake()
         }
         if currentMode != .sleep {
             DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in

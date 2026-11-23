@@ -9,7 +9,7 @@ func check(_ cond: @autoclosure () -> Bool, _ msg: String, file: String = #file,
 }
 
 let fm = FileManager.default
-let tmp = NSTemporaryDirectory() + "wm-cleaner-tests-" + UUID().uuidString.prefix(8)
+let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).resolvingSymlinksInPath().path + "/wm-cleaner-tests-" + UUID().uuidString.prefix(8)
 let home = tmp + "/home"
 try! fm.createDirectory(atPath: home, withIntermediateDirectories: true)
 CleanHistory.directoryOverride = URL(fileURLWithPath: tmp + "/state")
@@ -242,6 +242,54 @@ do {
 
     let text = CleanerCLI.render(report, home: home, verbose: true)
     check(text.contains("Toplam temizlenebilir"), "CLI çıktısı")
+}
+
+// MARK: Güncelleyici
+do {
+    func v(_ s: String) -> SemVer { SemVer(s)! }
+    check(v("1.8.0") > v("1.7.9"), "sürüm sıralaması")
+    check(v("v1.10.0") > v("1.9.3"), "çok haneli sürüm")
+    check(v("1.8.0") > v("1.8.0-beta.2"), "kararlı > ön sürüm")
+    check(v("1.8.0-beta.10") > v("1.8.0-beta.2"), "sayısal ön sürüm")
+    check(v("1.8.0-rc.1") > v("1.8.0-beta.9"), "rc > beta")
+    check(v("1.8") == v("1.8.0"), "eksik yama = 0")
+    check(SemVer("abc") == nil && SemVer("1.x") == nil && SemVer("") == nil, "geçersiz sürüm")
+    check(v("1.8.0+45") == v("1.8.0"), "derleme üst verisi yok sayılır")
+
+    let json = """
+    [{"tag_name":"v1.9.0-beta.1","prerelease":true,"draft":false,"assets":[]},
+     {"tag_name":"v2.0.0","prerelease":false,"draft":true,"assets":[]},
+     {"tag_name":"v1.8.0","name":"Workstation 1.8.0","body":"## Workstation 1.8.0\\n- Temizleyici\\n**Kurulum:** x","prerelease":false,
+      "html_url":"https://github.com/x/y/releases/tag/v1.8.0",
+      "assets":[{"name":"latest.json","url":"https://api.github.com/a/1","browser_download_url":"https://github.com/d/latest.json","size":10},
+                {"name":"Workstation-1.8.0.zip","url":"https://api.github.com/a/2","browser_download_url":"https://github.com/d/W.zip"}]},
+     {"tag_name":"v1.7.0","prerelease":false,"assets":[]}]
+    """
+    let rels = try! JSONDecoder().decode([GitHubRelease].self, from: json.data(using: .utf8)!)
+    check(UpdatePolicy.pick(rels, current: v("1.7.0"), beta: false)?.tag_name == "v1.8.0", "kararlı sürüm seçilir, taslak atlanır")
+    check(UpdatePolicy.pick(rels, current: v("1.7.0"), beta: true)?.tag_name == "v1.9.0-beta.1", "beta açıkken ön sürüm")
+    check(UpdatePolicy.pick(rels, current: v("1.8.0"), beta: false) == nil, "güncel → yok")
+    check(UpdatePolicy.pick(rels, current: v("1.9.0"), beta: true) == nil, "eski sürüme inilmez")
+    let r18 = rels[2]
+    check(r18.zipAsset?.name == "Workstation-1.8.0.zip" && r18.asset(named: "latest.json")?.url == "https://api.github.com/a/1", "dosyalar bulunur")
+    check(UpdatePolicy.shortNotes(r18.body) == "Workstation 1.8.0\n• Temizleyici", "notlar sadeleşir")
+
+    let m = try! JSONDecoder().decode(UpdateManifest.self, from: """
+    {"version":"1.8.0","build":"120","zip_name":"Workstation-1.8.0.zip","sha256":"\(String(repeating: "a", count: 64))","helper_version":"3","notes":""}
+    """.data(using: .utf8)!)
+    check(m.version == "1.8.0" && UpdatePolicy.isValidSHA256(m.sha256), "latest.json okunur")
+    check(!UpdatePolicy.isValidSHA256("abc") && !UpdatePolicy.isValidSHA256(String(repeating: "z", count: 64)), "geçersiz SHA")
+
+    let ud = UserDefaults(suiteName: "wm-test-\(UUID().uuidString)")!
+    check(UpdateSettings.load(ud) == UpdateSettings() && !UpdateSettings().autoInstall, "varsayılan: sadece haber ver")
+    var us = UpdateSettings(); us.beta = true; us.save(ud)
+    check(UpdateSettings.load(ud).beta, "ayar kaydı")
+
+    // Değiştirme betiği sözdizimi
+    let sp = tmp + "/swap.sh"
+    try! Updater.swapScript.write(toFile: sp, atomically: true, encoding: .utf8)
+    check(Shell.run("/bin/bash", ["-n", sp], timeout: 10).succeeded, "güncelleme betiği geçerli bash")
+    check(Updater.swapScript.contains("xattr -dr com.apple.quarantine") && Updater.swapScript.contains("WorkstationMode.app"), "betik karantina + eski uygulama")
 }
 
 try? fm.removeItem(atPath: tmp)

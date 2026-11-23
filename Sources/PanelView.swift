@@ -119,6 +119,8 @@ final class PanelModel: ObservableObject {
     @Published var notifySettings = NotificationSettings.load()
     /// Geliştirici Temizleyici (kendi yayınları olan ayrı model: tarama ilerlemesi tüm paneli yeniden çizmez).
     let cleaner = CleanerModel()
+    /// Güncelleyici (ayrı model: indirme durumu tüm paneli yeniden çizmez).
+    let updater = UpdateModel()
     var toolsVisible: Bool { selectedTab == .tools && page == .main }
 
     /// Kart başına kaydırıcı modelleri (monitör anahtarına göre).
@@ -255,6 +257,7 @@ private struct PanelHeader: View {
             AppIconView()
             HeaderTitle(subtitle: model.mode.title)
             Spacer()
+            UpdateBadge(updater: model.updater)
             StatusPill(transitioning: model.transitioning)
         }
     }
@@ -723,6 +726,8 @@ private struct SettingsCards: View {
             NotificationsCard(model: model)
             SectionTitle(text: "DİSK TEMİZLİĞİ")
             CleanerSettingsCard(cleaner: model.cleaner)
+            SectionTitle(text: "GÜNCELLEME")
+            UpdateSettingsCard(updater: model.updater, currentVersion: model.appVersion)
             SectionTitle(text: "DURUM")
             StatusGridCard(model: model)
             HStack {
