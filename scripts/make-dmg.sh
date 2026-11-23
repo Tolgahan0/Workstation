@@ -1,5 +1,5 @@
 #!/bin/bash
-# build/Workstation.app → dist/Workstation-<sürüm>.dmg + .zip + latest.json
+# build/Workstation.app → dist/Workstation-<sürüm>.dmg + .zip + latest.json + Workstation.dmg (sürümsüz kopya)
 #   scripts/make-dmg.sh <sürüm> [<build>] [<depo: sahip/ad>] [<notlar dosyası>]
 # DMG penceresi: açık arka plan, solda Workstation, ok, sağda Applications (sürükle-bırak kurulum).
 # Kurulum.command ve BENİOKU.txt pencerenin görünen alanının altında (aşağı kaydırınca) durur.
@@ -157,6 +157,8 @@ hdiutil convert "$RW" -format UDZO -imagekey zlib-level=9 -ov -o "$DIST/$NAME.dm
 ZIP_SHA=$(shasum -a 256 "$DIST/$NAME.zip" | cut -d' ' -f1)
 DMG_SHA=$(shasum -a 256 "$DIST/$NAME.dmg" | cut -d' ' -f1)
 (cd "$DIST" && shasum -a 256 "$NAME.zip" "$NAME.dmg" > SHA256SUMS.txt)
+# Sürümsüz kopya: site ve README doğrudan releases/latest/download/Workstation.dmg adresine bağlanır.
+cp "$DIST/$NAME.dmg" "$DIST/Workstation.dmg"
 HELPER_VERSION=""
 [[ -f "$APP/Contents/Resources/helper-version" ]] && HELPER_VERSION="$(cat "$APP/Contents/Resources/helper-version")"
 BASE="https://github.com/$REPO/releases/download/v$VERSION"
