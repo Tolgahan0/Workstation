@@ -1,0 +1,56 @@
+#!/bin/zsh
+# WorkstationMode yardımcı komutu (Mac mini / sunucu tarafı).
+# Kullanım (yerelde veya SSH ile):
+#   workstation remote [WxH | mba13 | mba15 | mbp14 | mbp16 | imac24]
+#   workstation sleep | desktop | status | log
+# Örnek: ssh studio workstation remote 1512x982
+# İstemci Mac'te otomatik çözünürlük için: workstation-connect studio
+
+APP="/Applications/WorkstationMode.app"
+BUNDLE_ID="com.tolgahanayaz.workstationmode"
+
+usage() {
+  echo "Kullanım: workstation remote [WxH|ön ayar] | sleep | desktop | status | log"
+  echo "  remote  → sanal ekran (verilen çözünürlük, yoksa uygulamadaki ön ayar) açık, fiziksel monitörler kapalı"
+  echo "            ön ayarlar: mba13 1470x956 · mba15 1710x1107 · mbp14 1512x982 · mbp16 1728x1117 · imac24 2240x1260"
+  echo "  sleep   → fiziksel monitörler kapalı, düşük güç, sistem uykusuna izin"
+  echo "  desktop → fiziksel monitörler açık, sanal ekran kapalı, normal güç"
+  echo "  status  → geçerli mod"
+  echo "  log     → son 40 günlük satırı"
+}
+
+case "${1:-}" in
+  remote|sleep|desktop)
+    MODE="$1"
+    QUERY=""
+    CLI_EXTRA=()
+    if [[ "$MODE" == "remote" && -n "${2:-}" ]]; then
+      ARG="${2:l}"
+      ARG="${ARG// /}"
+      ARG="${ARG//×/x}"
+      if [[ "$ARG" =~ '^[0-9]{3,5}x[0-9]{3,5}$' ]]; then
+        QUERY="?res=$ARG";    CLI_EXTRA=(--res "$ARG")
+      elif [[ "$ARG" =~ '^(mba13|mba15|mbp14|mbp16|imac24)$' ]]; then
+        QUERY="?preset=$ARG"; CLI_EXTRA=(--preset "$ARG")
+      else
+        echo "Geçersiz çözünürlük/ön ayar: $2" >&2; usage; exit 1
+      fi
+    fi
+    if /usr/bin/open -g "workstation://${MODE}${QUERY}"; then
+      echo "WorkstationMode → ${MODE}${QUERY:+ ($QUERY)} isteği gönderildi."
+    else
+      # Yedek yol: uygulamanın komut satırı argümanı
+      "$APP/Contents/MacOS/WorkstationMode" --mode "$MODE" "${CLI_EXTRA[@]}"
+    fi
+    ;;
+  status)
+    /usr/bin/defaults read "$BUNDLE_ID" currentMode 2>/dev/null || echo "desktop"
+    ;;
+  log)
+    /usr/bin/tail -n 40 "$HOME/Library/Logs/WorkstationMode.log"
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac

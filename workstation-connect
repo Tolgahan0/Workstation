@@ -1,0 +1,50 @@
+#!/bin/zsh
+# workstation-connect — BAĞLANAN Mac'te (MacBook vb.) çalıştırılır.
+# Bu Mac'in ekran boyutunu ("UI Looks like" / nokta çözünürlüğü) algılar, uzak Mac'i bu
+# çözünürlükte Remote moduna alır ve isteğe bağlı olarak Ekran Paylaşımı'nı açar.
+#
+# Kullanım:  workstation-connect [ssh-host] [--no-vnc] [--res WxH]
+#   ssh-host  ~/.ssh/config'teki ad (varsayılan: studio)
+#   --no-vnc  Ekran Paylaşımı'nı açma
+#   --res     Algılamayı atla, bu çözünürlüğü kullan
+# Ortam: WS_VNC_HOST → Ekran Paylaşımı için farklı adres (varsayılan: ssh-host ile aynı)
+
+HOST="studio"
+OPEN_VNC=1
+RES=""
+while (( $# > 0 )); do
+  case "$1" in
+    --no-vnc) OPEN_VNC=0 ;;
+    --res) shift; RES="${1:-}" ;;
+    --res=*) RES="${1#--res=}" ;;
+    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    *) HOST="$1" ;;
+  esac
+  shift
+done
+
+if [[ -z "$RES" ]]; then
+  # 1) Ana ekranın nokta (point) boyutu — Retina "Görünüm" ayarı ile aynı.
+  RES=$(/usr/bin/osascript -l JavaScript -e 'ObjC.import("AppKit"); var f = $.NSScreen.mainScreen.frame; Math.round(f.size.width) + "x" + Math.round(f.size.height)' 2>/dev/null)
+  # 2) Yedek: system_profiler "UI Looks like: 1512 x 982 @ 120.00Hz"
+  if [[ ! "$RES" =~ '^[0-9]+x[0-9]+$' ]]; then
+    RES=$(/usr/sbin/system_profiler SPDisplaysDataType 2>/dev/null \
+      | /usr/bin/awk -F': ' '/UI Looks like/ {print $2; exit}' \
+      | /usr/bin/sed -E 's/^([0-9]+) x ([0-9]+).*/\1x\2/')
+  fi
+fi
+if [[ ! "$RES" =~ '^[0-9]+x[0-9]+$' ]]; then
+  echo "Ekran boyutu algılanamadı; uzak Mac'teki ön ayar kullanılacak." >&2
+  RES=""
+fi
+
+echo "→ $HOST Remote moduna alınıyor${RES:+ ($RES)}…"
+if ! /usr/bin/ssh "$HOST" "/usr/local/bin/workstation remote $RES"; then
+  echo "SSH komutu başarısız. 'ssh $HOST' bağlantısını ve uzak Mac'te WorkstationMode kurulumunu kontrol edin." >&2
+  exit 1
+fi
+
+if (( OPEN_VNC )); then
+  sleep 3   # sanal ekranın oluşup fiziksel monitörlerin kapanması için
+  /usr/bin/open "vnc://${WS_VNC_HOST:-$HOST}"
+fi

@@ -1,0 +1,176 @@
+import Foundation
+
+/// Ekran ve güç işlerini seri bir arka plan kuyruğunda yürütür. AppDelegate (ana iş parçacığı)
+/// yalnızca bu sınıfın metotlarını çağırır; tamamlanma blokları ana kuyrukta çalışır.
+/// (Yalnızca Foundation; Linux'ta da derlenir.)
+final class ModeController {
+    let display = DisplayManager()
+    let power = PowerManager()
+    let installer = BetterDisplayInstaller()
+    /// Tüm ekran/güç geçişleri sırayla bu kuyrukta çalışır (menü donmaz, geçişler çakışmaz).
+    private let queue = DispatchQueue(label: "com.tolgahanayaz.workstationmode.work", qos: .userInitiated)
+    /// Parlaklık yazmaları: birleştirilmiş, hız sınırlı, tek seri kuyrukta.
+    private(set) var brightness: BrightnessCoalescer!
+
+    init() {
+        let monitors = display.monitors
+        brightness = BrightnessCoalescer(
+            interval: { key in
+                monitors.method(for: key) == .ddc ? BrightnessCoalescer.ddcInterval : BrightnessCoalescer.softwareInterval
+            },
+            apply: { key, value in monitors.setBrightness(key: key, percent: value) })
+    }
+
+    /// Açılış hazırlığı. BetterDisplay kuruluysa başlatılır ve CLI doğrulanır; kurulu değilse dokunulmaz
+    /// (Remote ilk kez başlatıldığında otomatik kurulur). Sanal ekran burada oluşturulmaz.
+    func prepare(completion: @escaping (_ bdInstalled: Bool, _ cliAvailable: Bool) -> Void) {
+        queue.async {
+            let installed = BetterDisplayInstaller.isInstalled
+            var cliOK = false
+            if installed {
+                self.display.ensureBetterDisplayRunning()
+                cliOK = self.display.isCLIAvailable()
+                if cliOK && !self.display.usesNativePhysicalControl { self.display.refreshPhysicalDisplays() }
+            } else {
+                Log.info("BetterDisplay kurulu değil; Remote başlatıldığında otomatik kurulacak.")
+            }
+            self.display.configureBackend()
+            Log.info("Fiziksel ekran yöntemi: \(self.display.methodDescription)")
+            let ok = cliOK
+            DispatchQueue.main.async { completion(installed, ok) }
+        }
+    }
+
+    /// Modu uygular. `resolution`: Remote için istemciden gelen çözünürlük (nil = seçili ön ayar).
+    /// completion: hata açıklaması veya nil.
+    func apply(_ mode: WorkMode, resolution: String? = nil, completion: @escaping (String?) -> Void) {
+        queue.async {
+            var error: String?
+            switch mode {
+            case .desktop:
+                error = self.display.applyDesktopLayout()
+                self.power.applyDesktopProfile()
+            case .sleep:
+                // Sanal ekran asla açılmaz; fiziksel ekranlar kesilir; minimum güç; ekranlar hemen uyur.
+                error = self.display.applySleepLayout()
+                self.power.applySleepProfile()
+                self.power.displaySleepNow()
+            case .remote:
+                // Mac uzaktan erişim için her durumda uyanık kalsın.
+                self.power.applyRemoteProfile()
+                if !BetterDisplayInstaller.isInstalled, let e = self.installer.installSync() {
+                    error = "BetterDisplay kurulamadı: \(e)"
+                } else {
+                    if let r = resolution.flatMap(RemotePreset.normalize) {
+                        RemoteResolution.lastClientResolution = r
+                    }
+                    DisplayManager.resolutionOverride = resolution.flatMap(RemotePreset.normalize)
+                    error = self.display.applyRemoteLayout()
+                    DisplayManager.resolutionOverride = nil
+                }
+            }
+            if let e = error { Log.error("\(mode.rawValue): \(e)") }
+            let result = error
+            DispatchQueue.main.async { completion(result) }
+        }
+    }
+
+    /// BetterDisplay'i kullanıcı isteğiyle (Ayarlar / Remote sekmesi) kurar.
+    func installBetterDisplay(completion: @escaping (String?) -> Void) {
+        queue.async {
+            let err = BetterDisplayInstaller.isInstalled ? nil : self.installer.installSync()
+            if err == nil { self.display.ensureBetterDisplayRunning() }
+            DispatchQueue.main.async { completion(err) }
+        }
+    }
+
+    /// İstenen monitör durumunu yeniden uygular (uyanma / ekran yeniden yapılandırması / açılış).
+    /// Remote/Uyku'da fiziksel monitörleri ASLA açmaz; Masaüstü'nde yalnızca istenen durumu "açık" olanları açar.
+    func reconcile(mode: WorkMode, applyBrightness: Bool, reason: String, completion: @escaping ([String]) -> Void) {
+        queue.async {
+            let notes = self.display.reconcileMonitors(mode: mode, applyBrightness: applyBrightness)
+            if !notes.isEmpty { Log.info("Uzlaştırma (\(reason)): \(notes.joined(separator: "; "))") }
+            DispatchQueue.main.async { completion(notes) }
+        }
+    }
+
+    /// Monitör kartları için anlık görüntü.
+    func monitorSnapshot(completion: @escaping ([MonitorSnapshot]) -> Void) {
+        queue.async {
+            let list = self.display.monitorSnapshot()
+            DispatchQueue.main.async { completion(list) }
+        }
+    }
+
+    func setMonitorEnabled(key: String, enabled: Bool, mode: WorkMode, completion: @escaping (String?) -> Void) {
+        queue.async {
+            let note = self.display.setMonitorEnabled(key: key, enabled: enabled, mode: mode)
+            DispatchQueue.main.async { completion(note) }
+        }
+    }
+
+    /// Kaydırıcıdan: sürüklerken final=false (hız sınırlı), bırakınca final=true.
+    func submitBrightness(key: String, value: Double, final: Bool) {
+        brightness.submit(key: key, value: value, final: final)
+    }
+
+    func setForceSoftware(key: String, _ force: Bool, completion: @escaping () -> Void) {
+        queue.async {
+            self.display.monitors.setForceSoftware(key: key, force)
+            self.brightness.reset(key: key)
+            DispatchQueue.main.async { completion() }
+        }
+    }
+
+    /// Ayarlar > Ekran kontrolü yöntemini değiştirir.
+    func setPhysicalMethod(_ m: PhysicalMethod, completion: @escaping () -> Void) {
+        queue.async {
+            self.display.setMethodPreference(m)
+            DispatchQueue.main.async { completion() }
+        }
+    }
+
+    /// Ayarlar bilgi ızgarası (arka planda toplanır).
+    func settingsInfo(completion: @escaping (SettingsInfo) -> Void) {
+        queue.async {
+            var info = SettingsInfo()
+            info.method = self.display.methodDescription
+            if BetterDisplayInstaller.isInstalled {
+                let version = BetterDisplayInstaller.installedVersion.map { "v\($0)" } ?? "kurulu"
+                let running = self.display.isBetterDisplayRunning()
+                info.betterDisplay = running ? "\(version) · çalışıyor" : "\(version) · kapalı"
+                if running {
+                    info.virtualScreen = self.display.isVirtualActive()
+                        ? "Açık · \(DisplayManager.virtualResolution)"
+                        : "Kapalı · \(DisplayManager.virtualResolution) hazır"
+                } else {
+                    info.virtualScreen = "Kapalı"
+                }
+            } else {
+                info.betterDisplay = "Kurulu değil"
+                info.virtualScreen = "BetterDisplay gerekli"
+            }
+            let list = self.display.monitorSnapshot()
+            let on = list.filter { $0.isActive }.count
+            info.monitors = list.isEmpty ? "Harici monitör yok"
+                : "\(list.count) monitör (\(on) açık) · " + list.map { $0.name }.joined(separator: ", ")
+            let pm = Shell.run("/usr/bin/pmset", ["-g"], timeout: 5)
+            info.power = pm.succeeded ? PmsetSummary.parse(pm.stdout) : "—"
+            let result = info
+            DispatchQueue.main.async { completion(result) }
+        }
+    }
+
+    func repairVirtualScreen() {
+        queue.async {
+            guard BetterDisplayInstaller.isInstalled else {
+                Log.warn("Sanal ekran onarımı: BetterDisplay kurulu değil.")
+                return
+            }
+            self.display.ensureBetterDisplayRunning()
+            self.display.ensureVirtualScreen()
+            self.display.applyVirtualAspect()
+            self.display.configureVirtualScreen()
+        }
+    }
+}
