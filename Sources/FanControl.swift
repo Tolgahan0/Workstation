@@ -75,7 +75,7 @@ final class FanController {
     // MARK: Yazma (yardımcı ile)
 
     private func runHelper(_ args: [String]) -> String? {
-        guard Self.helperInstalled else { return "Fan yardımcısı kurulu değil (install.sh'yi yeniden çalıştırın)" }
+        guard Self.helperInstalled else { return "Fan yardımcısı kurulu değil (DMG’deki Kurulum.command’ı ya da install.sh’yi çalıştır)" }
         let r = Shell.run("/usr/bin/sudo", ["-n", Self.helperPath] + args, timeout: 20)
         if r.succeeded { return nil }
         let msg = (r.stderr + " " + r.stdout).trimmingCharacters(in: .whitespacesAndNewlines)
