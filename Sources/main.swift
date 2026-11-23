@@ -46,8 +46,12 @@ func printUsage() {
       WorkstationMode --mode sleep                 Uyku / Gece
       WorkstationMode --mode desktop               Masaüstü
       WorkstationMode --status                     Geçerli modu yazdırır
+      WorkstationMode --clean [--dry-run]          Disk temizleyici: yalnızca tarar ve listeler
+      WorkstationMode --clean --yes                Seçili kategorileri temizler (her öğe silmeden önce yeniden denetlenir)
+      WorkstationMode --clean --auto               Otomatik moddaki güvenli kümeyi temizler
     URL: workstation://remote[?res=WxH] | workstation://sleep | workstation://desktop
          workstation://profile/<ad> | workstation://fan/auto|half|max | workstation://keepawake/on|off|3h
+         workstation://clean/scan | workstation://clean/auto
     """)
 }
 
@@ -89,6 +93,11 @@ func forwardModeAndExit(_ mode: WorkMode, resolution: String?) -> Never {
 // MARK: - Giriş noktası
 
 let arguments = CommandLine.arguments
+// Disk temizleyici: arayüz olmadan çalışır (SSH'tan da). Örn. `--clean --dry-run`, `--clean --yes`, `--clean --auto`.
+if arguments.contains("--clean") {
+    setvbuf(stdout, nil, _IOLBF, 0)
+    exit(CleanerCLI.run(arguments))
+}
 if arguments.contains("--help") || arguments.contains("-h") {
     printUsage()
     exit(0)

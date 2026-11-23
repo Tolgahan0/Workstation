@@ -4,6 +4,7 @@
 #   workstation remote [WxH | mba13 | mba15 | mbp14 | mbp16 | imac24]
 #   workstation sleep | desktop | status | log
 #   workstation profile <ad> | fan auto|half|max | keepawake on|off|1h|90m
+#   workstation clean [--dry-run | --yes | --auto] [--verbose]   (geliştirici disk temizleyici)
 #   workstation netinfo        (Wake-on-LAN için MAC / IP / yayın adresi; workstation-connect --setup kullanır)
 # Örnek: ssh studio workstation remote 1512x982
 # İstemci Mac'te otomatik çözünürlük için: workstation-connect studio
@@ -24,6 +25,8 @@ usage() {
   echo "  profile → kayıtlı çalışma alanı profilini uygula (monitörler + parlaklık + fan)"
   echo "  fan     → fan modu: auto (Otomatik) | half (Yarım) | max (Full Blast)"
   echo "  keepawake → Uyanık tut: on (süresiz) | off | 1h | 3h | 90m"
+  echo "  clean   → disk temizleyici: --dry-run (varsayılan, sadece listeler) | --yes (temizle) | --auto (güvenli küme)"
+  echo "            --verbose: atlanan öğeleri ve nedenlerini de göster · scan-app: taramayı uygulamada başlat"
 }
 
 # URL yolu bileşeni için yüzde kodlama (UTF-8 bayt bayt).
@@ -41,6 +44,12 @@ open_url() {
 }
 
 case "${1:-}" in
+  clean)
+    shift
+    if [[ "${1:-}" == "scan-app" ]]; then open_url "workstation://clean/scan"; exit 0; fi
+    [[ -x "$APP/Contents/MacOS/WorkstationMode" ]] || { echo "Uygulama bulunamadı: $APP" >&2; exit 1; }
+    exec "$APP/Contents/MacOS/WorkstationMode" --clean "$@"
+    ;;
   profile)
     [[ -n "${2:-}" ]] || { echo "Profil adı gerekli: workstation profile <ad>" >&2; exit 1; }
     shift

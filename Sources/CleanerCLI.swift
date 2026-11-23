@@ -45,7 +45,7 @@ enum CleanerCLI {
     static func run(_ args: [String]) -> Int32 {
         let m = mode(from: args)
         let verbose = args.contains("--verbose") || args.contains("-v")
-        let settings = CleanerSettings.load(UserDefaults(suiteName: "com.tolgahanayaz.workstationmode") ?? .standard)
+        let settings = CleanerSettings.load()
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let lock = CleanerLock()
         guard lock.acquire() else {

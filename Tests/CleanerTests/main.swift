@@ -85,6 +85,15 @@ do {
     check(CleanerRules.battery("Now drawing from 'AC Power'\n") == nil, "pil yok (Mac mini)")
 }
 
+// MARK: URL yolları
+do {
+    check(URLRoute.parse("workstation://clean/scan") == .clean(.scan), "clean/scan")
+    check(URLRoute.parse("workstation://clean/auto") == .clean(.auto), "clean/auto")
+    check(URLRoute.parse("workstation://clean") == .clean(.scan), "clean varsayılan")
+    check(URLRoute.parse("workstation://clean/sil") == nil, "bilinmeyen clean")
+    check(CleanerCLI.mode(from: ["x", "--clean"]) == .dryRun && CleanerCLI.mode(from: ["x", "--clean", "--yes"]) == .yes, "CLI modu")
+}
+
 // MARK: Otomatik mod
 do {
     var s = CleanerSettings()

@@ -5,11 +5,15 @@ import Foundation
 ///   workstation://profile/<ad>
 ///   workstation://fan/auto|half|max
 ///   workstation://keepawake/on|off[?hours=2|minutes=90] · workstation://keepawake/3h
+///   workstation://clean/scan · workstation://clean/auto
 enum URLRoute: Equatable {
+    enum CleanAction: Equatable { case scan, auto }
+
     case mode(WorkMode, resolution: String?)
     case profile(String)
     case fan(FanMode)
     case keepAwake(on: Bool, seconds: TimeInterval?)
+    case clean(CleanAction)
 
     static func parse(_ str: String, scheme: String = "workstation") -> URLRoute? {
         let full = str.contains("://") ? str : "\(scheme)://\(str)"
@@ -25,6 +29,12 @@ enum URLRoute: Equatable {
         case "profile", "profil":
             guard let name = pathParts.first ?? q("name"), !name.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
             return .profile(pathParts.isEmpty ? name : pathParts.joined(separator: "/"))
+        case "clean", "temizle", "cleaner":
+            switch (pathParts.first ?? "scan").lowercased() {
+            case "scan", "tara": return .clean(.scan)
+            case "auto", "otomatik", "run": return .clean(.auto)
+            default: return nil
+            }
         case "fan":
             guard let raw = pathParts.first ?? q("mode"), let m = fanMode(raw) else { return nil }
             return .fan(m)

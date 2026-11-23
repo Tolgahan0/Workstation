@@ -47,6 +47,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let notifier = Notifier()
     var notifySettings = NotificationSettings.load()
     var sigtermSource: DispatchSourceSignal?
+    // Geliştirici Temizleyici
+    var cleanerCancel: CancelToken?
+    let cleanerQueue = DispatchQueue(label: "com.tolgahanayaz.workstationmode.cleaner", qos: .utility)
     var scheduleSettings = ScheduleSettings.load()
     var lastScheduleCheck = Date()
 
@@ -92,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         setupStatusItem()
         wirePanelModel()
+        wireCleaner()
         registerObservers()
         updateUI()
 
@@ -216,7 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         m.onToolsVisible = { [weak self] visible in
             guard let self = self else { return }
-            if visible { self.startFanPolling() } else { self.stopFanPolling() }
+            if visible { self.startFanPolling(); self.refreshCleanerDisk() } else { self.stopFanPolling() }
         }
         m.onRemoteShown = { [weak self] in self?.refreshNetInfo() }
         m.onApplyProfile = { [weak self] id in
@@ -664,7 +668,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // Uykuda kaçırılan zamanlamalar: yalnızca son 2 dk içindekiler (ör. pmset ile planlı uyanma) çalıştırılır.
         lastScheduleCheck = max(lastScheduleCheck, Date().addingTimeInterval(-120))
         rescheduleModes(catchUp: true)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in self?.checkDiskSpace() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in
+            self?.checkDiskSpace()
+        }
         if currentMode != .sleep {
             DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
                 guard let self = self, self.currentMode != .sleep else { return }
@@ -730,6 +736,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             }
         case .keepAwake(let on, let seconds):
             if on { keepAwake.enable(seconds: seconds) } else { keepAwake.disable() }
+        case .clean(let action):
+            switch action {
+            case .scan: startCleanerScan(trigger: .url)
+            case .auto: startCleanerScan(trigger: .url, autoClean: true)
+            }
         }
     }
 

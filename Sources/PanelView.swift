@@ -8,7 +8,7 @@ import AppKit
 
 // MARK: - Görünüm modelleri
 
-enum PanelPage { case main, settings }
+enum PanelPage { case main, settings, cleaner }
 
 /// Üst sekmeler: üç mod + Araçlar.
 enum PanelTab: Hashable {
@@ -117,6 +117,8 @@ final class PanelModel: ObservableObject {
 
     // Ayarlar → bildirimler
     @Published var notifySettings = NotificationSettings.load()
+    /// Geliştirici Temizleyici (kendi yayınları olan ayrı model: tarama ilerlemesi tüm paneli yeniden çizmez).
+    let cleaner = CleanerModel()
     var toolsVisible: Bool { selectedTab == .tools && page == .main }
 
     /// Kart başına kaydırıcı modelleri (monitör anahtarına göre).
@@ -214,9 +216,12 @@ struct PanelView: View {
     @ObservedObject var model: PanelModel
 
     var body: some View {
-        let content: AnyView = model.page == .settings
-            ? AnyView(SettingsPage(model: model))
-            : AnyView(MainPage(model: model))
+        let content: AnyView
+        switch model.page {
+        case .settings: content = AnyView(SettingsPage(model: model))
+        case .cleaner: content = AnyView(CleanerPage(model: model))
+        case .main: content = AnyView(MainPage(model: model))
+        }
         return VStack(alignment: .leading, spacing: 14) {
             PanelHeader(model: model)
             content
@@ -1039,6 +1044,8 @@ private struct ToolsTab: View {
             SectionTitle(text: "SİSTEM")
             SystemStatsCard(model: model)
             KeepAwakeCard(model: model)
+            SectionTitle(text: "DİSK")
+            DiskCleanerCard(cleaner: model.cleaner)
         }
     }
 }

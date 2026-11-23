@@ -7,8 +7,12 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 SWIFTC=(swiftc)
 [[ "$(uname -s)" == "Darwin" ]] && SWIFTC=(xcrun swiftc)
-"${SWIFTC[@]}" -swift-version 5 \
-  "$ROOT/Sources/Shell.swift" "$ROOT/Sources/CleanerCore.swift" "$ROOT/Sources/CleanerScanner.swift" \
-  "$ROOT/Sources/CleanerExecutor.swift" "$ROOT/Sources/CleanerCLI.swift" \
-  "$ROOT/Tests/CleanerTests/main.swift" -o "$OUT/cleaner-tests"
+# AppKit/SwiftUI içermeyen tüm kaynaklar (Linux'ta da derlenir).
+CORE=()
+for f in Shell Models SMC KeepAwake URLRoute Schedule Notifier SystemStats Profiles PowerManager NetworkInfo \
+         AutoSwitch AudioControl BetterDisplayInstaller BrightnessCoalescer FanControl \
+         CleanerCore CleanerScanner CleanerExecutor CleanerCLI; do
+  CORE+=("$ROOT/Sources/$f.swift")
+done
+"${SWIFTC[@]}" -swift-version 5 "${CORE[@]}" "$ROOT/Tests/CleanerTests/main.swift" -o "$OUT/cleaner-tests"
 "$OUT/cleaner-tests"
