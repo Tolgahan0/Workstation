@@ -130,6 +130,20 @@ workstation-connect --wake-only
 - **Beklenmedik kapanma:** her açılışta "temiz çıkış" bayrağı kontrol edilir; önceki oturum çökme/zorla kapatma/elektrik kesintisiyle bittiyse bildirilir. Uygulama artık `SIGTERM` (`kill`, `pkill`) aldığında da temiz kapanır (fanlar otomatiğe döner).
 - Telefona anlık bildirim (push) bu sürümün kapsamında değil; ileride Pushover/ntfy gibi bir köprüyle eklenebilir.
 
+## Kestirmeler (Shortcuts) ve URL yolları — 1.7.0
+
+App Intents makro/Xcode gerektirdiği için (bu proje yalnızca Command Line Tools ile derlenir) Kestirmeler entegrasyonu **URL şeması** üzerinden yapılır: Kestirmeler › yeni kestirme › **"URL'yi Aç"** eylemi → aşağıdaki adreslerden biri. Siri ("Hey Siri, Remote") ve menü çubuğu/klavye kestirmeleri de bu kestirmeyi çalıştırabilir.
+
+| URL | İş |
+|---|---|
+| `workstation://desktop` · `workstation://sleep` | Mod değiştir |
+| `workstation://remote` · `workstation://remote?res=1512x982` · `workstation://remote?preset=mbp16` | Remote |
+| `workstation://profile/Kod` | Profili uygula (Türkçe karakter/boşluk için URL kodlama: `Kod%20%C3%87al%C4%B1%C5%9Fma`) |
+| `workstation://fan/auto` · `/half` · `/max` | Fan modu |
+| `workstation://keepawake/on` · `/off` · `/3h` · `/on?hours=2` · `/on?minutes=90` | Uyanık tut |
+
+Aynı işler terminal/SSH'den: `workstation profile Kod`, `workstation fan max`, `workstation keepawake 3h` (ör. `ssh studio workstation fan half`).
+
 ## Tools → Fan kontrolü (1.6.0)
 
 Panelde **Masaüstü / Uyku / Remote**'un sağında **Tools** sekmesi var. İlk araç, Macs Fan Control benzeri fan denetimi:

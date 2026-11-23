@@ -3,6 +3,7 @@
 # Kullanım (yerelde veya SSH ile):
 #   workstation remote [WxH | mba13 | mba15 | mbp14 | mbp16 | imac24]
 #   workstation sleep | desktop | status | log
+#   workstation profile <ad> | fan auto|half|max | keepawake on|off|1h|90m
 #   workstation netinfo        (Wake-on-LAN için MAC / IP / yayın adresi; workstation-connect --setup kullanır)
 # Örnek: ssh studio workstation remote 1512x982
 # İstemci Mac'te otomatik çözünürlük için: workstation-connect studio
@@ -12,6 +13,7 @@ BUNDLE_ID="com.tolgahanayaz.workstationmode"
 
 usage() {
   echo "Kullanım: workstation remote [WxH|ön ayar] | sleep | desktop | status | log | netinfo"
+  echo "          workstation profile <ad> | fan auto|half|max | keepawake on|off|1h|3h|90m"
   echo "  remote  → sanal ekran (verilen çözünürlük, yoksa uygulamadaki ön ayar) açık, fiziksel monitörler kapalı"
   echo "            ön ayarlar: mba13 1470x956 · mba15 1710x1107 · mbp14 1512x982 · mbp16 1728x1117 · imac24 2240x1260"
   echo "  sleep   → fiziksel monitörler kapalı, düşük güç, sistem uykusuna izin"
@@ -19,9 +21,42 @@ usage() {
   echo "  status  → geçerli mod"
   echo "  log     → son 40 günlük satırı"
   echo "  netinfo → Wake-on-LAN için MAC/IP/yayın adresi (KEY=değer)"
+  echo "  profile → kayıtlı çalışma alanı profilini uygula (monitörler + parlaklık + fan)"
+  echo "  fan     → fan modu: auto (Otomatik) | half (Yarım) | max (Full Blast)"
+  echo "  keepawake → Uyanık tut: on (süresiz) | off | 1h | 3h | 90m"
+}
+
+# URL yolu bileşeni için yüzde kodlama (UTF-8 bayt bayt).
+urlencode() {
+  local LC_ALL=C s="$1" out="" c i
+  for (( i = 1; i <= ${#s}; i++ )); do
+    c="${s[i]}"
+    if [[ "$c" == [A-Za-z0-9._~-] ]]; then out+="$c"; else out+=$(printf '%%%02X' "'$c"); fi
+  done
+  print -r -- "$out"
+}
+
+open_url() {
+  if /usr/bin/open -g "$1"; then echo "WorkstationMode → $1 isteği gönderildi."; else echo "Açılamadı: $1" >&2; exit 1; fi
 }
 
 case "${1:-}" in
+  profile)
+    [[ -n "${2:-}" ]] || { echo "Profil adı gerekli: workstation profile <ad>" >&2; exit 1; }
+    shift
+    open_url "workstation://profile/$(urlencode "$*")"
+    ;;
+  fan)
+    case "${2:-}" in
+      auto|half|max) open_url "workstation://fan/$2" ;;
+      *) echo "Kullanım: workstation fan auto|half|max" >&2; exit 1 ;;
+    esac
+    ;;
+  keepawake)
+    ARG="${2:-on}"
+    if [[ "$ARG" =~ '^(on|off|[0-9]+(\.[0-9]+)?[hm]?)$' ]]; then open_url "workstation://keepawake/$ARG"
+    else echo "Kullanım: workstation keepawake on|off|1h|3h|90m" >&2; exit 1; fi
+    ;;
   remote|sleep|desktop)
     MODE="$1"
     QUERY=""

@@ -55,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var countdownActive = false
     private var sleepModeEnteredAt = Date.distantPast
     private var pendingLaunch: (WorkMode, String?)?
+    var pendingRoutes: [URLRoute] = []
     var didFinishLaunching = false
     private var lastError: String?
     /// Uyku modunda fare/klavye girdisini yakalayıp Masaüstü'ne dönmek için global izleyici (yalnızca Uyku'da).
@@ -125,6 +126,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             if installed && !cliOK { self.showCLIWarning() }
             self.didFinishLaunching = true
             self.configureAutoSwitch()
+            let queued = self.pendingRoutes
+            self.pendingRoutes = []
+            for r in queued { self.dispatchRoute(r, source: "açılış URL'si") }
             self.lastScheduleCheck = Date()
             self.rescheduleModes(catchUp: false)
             if let pending = self.pendingLaunch {
@@ -687,42 +691,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     // MARK: URL scheme ve dağıtık bildirim
 
-    /// workstation://remote?res=1512x982 | workstation://remote?preset=mbp16 | workstation://sleep | workstation://desktop
-    private func parse(_ str: String) -> (WorkMode, String?)? {
-        guard let comps = URLComponents(string: str.contains("://") ? str : "\(urlScheme)://\(str)") else { return nil }
-        var candidate = comps.host ?? ""
-        if candidate.isEmpty || candidate == "mode" {
-            candidate = comps.path.split(separator: "/").last.map(String.init) ?? ""
-        }
-        guard let mode = WorkMode(argument: candidate) else { return nil }
-        var res: String?
-        for item in comps.queryItems ?? [] {
-            guard let v = item.value else { continue }
-            if item.name == "res" { res = RemotePreset.normalize(v) }
-            if item.name == "preset", let p = RemotePreset.preset(id: v.lowercased()), p.id != "auto" { res = p.resolution }
-        }
-        return (mode, res)
-    }
-
+    /// URL / dağıtık bildirim → URLRoute (bkz. URLRoute.swift).
     @objc func handleGetURL(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
         guard let str = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue else { return }
-        guard let parsed = parse(str) else {
+        guard let route = URLRoute.parse(str, scheme: urlScheme) else {
             Log.error("Bilinmeyen URL: \(str)")
             return
         }
-        let mode = parsed.0, res = parsed.1
         Log.info("URL alındı: \(str)")
-        if didFinishLaunching { requestMode(mode, source: "URL", resolution: res) }
-        else { pendingLaunch = (mode, res) }
+        dispatchRoute(route, source: "URL")
     }
 
     @objc private func distributedSetMode(_ note: Notification) {
-        guard let raw = note.object as? String, let parsed = parse(raw) else { return }
-        let mode = parsed.0, res = parsed.1
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            if self.didFinishLaunching { self.requestMode(mode, source: "dağıtık bildirim", resolution: res) }
-            else { self.pendingLaunch = (mode, res) }
+        guard let raw = note.object as? String, let route = URLRoute.parse(raw, scheme: urlScheme) else { return }
+        DispatchQueue.main.async { [weak self] in self?.dispatchRoute(route, source: "dağıtık bildirim") }
+    }
+
+    /// Açılış bitmeden gelen istekler sıraya alınır.
+    func dispatchRoute(_ route: URLRoute, source: String) {
+        guard didFinishLaunching else {
+            if case .mode(let m, let r) = route { pendingLaunch = (m, r) } else { pendingRoutes.append(route) }
+            return
+        }
+        switch route {
+        case .mode(let mode, let res):
+            requestMode(mode, source: source, resolution: res)
+        case .profile(let name):
+            if let p = ProfileStore.find(name, in: ProfileStore.load()) {
+                applyProfile(p, source: source)
+            } else {
+                Log.error("Profil bulunamadı: \(name)")
+                panelModel.profileNote = "Profil yok: \(name)"
+            }
+        case .fan(let mode):
+            panelModel.fanMode = mode
+            fans.apply(mode, reason: source) { [weak self] err in
+                if let e = err { self?.panelModel.fanNote = "Uygulanamadı: \(e)" }
+            }
+        case .keepAwake(let on, let seconds):
+            if on { keepAwake.enable(seconds: seconds) } else { keepAwake.disable() }
         }
     }
 
