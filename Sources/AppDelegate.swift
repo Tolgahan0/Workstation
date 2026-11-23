@@ -43,6 +43,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let statsSampler = SystemStatsSampler()
     let statsQueue = DispatchQueue(label: "com.tolgahanayaz.workstationmode.stats", qos: .utility)
     let keepAwake = KeepAwake()
+    /// Yerel bildirimler (aşırı ısınma, disk, beklenmedik kapanma).
+    let notifier = Notifier()
+    var notifySettings = NotificationSettings.load()
+    var sigtermSource: DispatchSourceSignal?
     var scheduleSettings = ScheduleSettings.load()
     var lastScheduleCheck = Date()
 
@@ -81,6 +85,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Log.info("WorkstationMode başlatıldı (pid \(ProcessInfo.processInfo.processIdentifier)).")
+        let unexpectedExit = CleanExit.checkAndArm()
+        installTerminationSignalHandler()
         currentMode = WorkMode(rawValue: UserDefaults.standard.string(forKey: currentModeKey) ?? "") ?? .desktop
 
         setupStatusItem()
@@ -98,9 +104,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         fans.onWatchdog = { [weak self] temp in
             guard let self = self else { return }
             self.panelModel.fanNote = "Sıcaklık \(Int(temp)) °C → güvenlik için Full Blast'a çıkarıldı."
+            self.notifyOverheat(temp, extra: "Fanlar Full Blast'a çıkarıldı.")
             self.refreshFanStatus()
         }
         fans.launchRecovery(reapply: currentMode != .sleep)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
+            guard let self = self else { return }
+            if unexpectedExit && self.notifySettings.unexpectedExit {
+                Log.warn("Önceki oturum beklenmedik şekilde bitti (temiz çıkış bayrağı yok)")
+                self.notifier.notify(kind: "unexpectedExit", title: "WorkstationMode beklenmedik şekilde kapanmıştı",
+                                     body: "Önceki oturum temiz kapanmadı (çökme, zorla kapatma veya elektrik kesintisi). Fanlar otomatiğe döndürüldü.")
+            }
+            self.checkDiskSpace()
+        }
         panelModel.fanMode = fans.preferredMode
 
         controller.prepare { [weak self] installed, cliOK in
@@ -133,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         Log.info("WorkstationMode kapanıyor (mod: \(currentMode.rawValue)). Ekran durumu değiştirilmedi.")
         // Güvenlik: fanlar asla manuel modda bırakılmaz (tercih saklı kalır, açılışta yeniden uygulanır).
         fans.resetSync(reason: "uygulama kapanıyor")
+        CleanExit.markClean()
     }
 
     // MARK: Menü çubuğu + popover
@@ -212,6 +229,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             guard let self = self else { return }
             self.panelModel.keepAwakeOn = self.keepAwake.isOn
             self.panelModel.keepAwakeUntil = self.keepAwake.until
+        }
+        m.onNotifySettings = { [weak self] settings in
+            guard let self = self else { return }
+            self.notifySettings = settings
+            self.panelModel.notifySettings = settings
+            settings.save()
         }
         m.onMuteInRemote = { [weak self] on in
             guard let self = self else { return }
@@ -370,6 +393,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         fans.readStatus { [weak self] status in
             guard let self = self, self.popover != nil else { return }
             if self.panelModel.fanStatus != status { self.panelModel.fanStatus = status }
+            if let t = NotificationPolicy.isOverheat(cpu: status.cpuTemp, gpu: status.gpuTemp) { self.notifyOverheat(t, extra: nil) }
         }
     }
 
@@ -636,6 +660,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // Uykuda kaçırılan zamanlamalar: yalnızca son 2 dk içindekiler (ör. pmset ile planlı uyanma) çalıştırılır.
         lastScheduleCheck = max(lastScheduleCheck, Date().addingTimeInterval(-120))
         rescheduleModes(catchUp: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in self?.checkDiskSpace() }
         if currentMode != .sleep {
             DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
                 guard let self = self, self.currentMode != .sleep else { return }

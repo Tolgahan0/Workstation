@@ -163,6 +163,46 @@ extension AppDelegate {
         }
     }
 
-    /// Bildirim kontrolleri için kanca (7. özellik doldurur).
-    func statsObserved(_ s: SystemStatsSnapshot) {}
+    /// Tools görünürken her örnekte: disk uyarısı (bildirim hız sınırlıdır).
+    func statsObserved(_ s: SystemStatsSnapshot) {
+        if NotificationPolicy.isLowDisk(free: s.diskFree, total: s.diskTotal) { notifyLowDisk(free: s.diskFree, total: s.diskTotal) }
+    }
+}
+
+// MARK: - Bildirimler
+extension AppDelegate {
+    /// Açılışta ve uyanınca bir kez (yoklama yok).
+    func checkDiskSpace() {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let d = SystemStatsSampler.disk()
+            DispatchQueue.main.async {
+                if NotificationPolicy.isLowDisk(free: d.0, total: d.1) { self?.notifyLowDisk(free: d.0, total: d.1) }
+            }
+        }
+    }
+
+    func notifyLowDisk(free: Int64?, total: Int64?) {
+        guard notifySettings.lowDisk, let f = free, let t = total, t > 0 else { return }
+        let pct = Int((Double(f) / Double(t) * 100).rounded())
+        notifier.notify(kind: "lowDisk", title: "Disk alanı azaldı",
+                        body: "Başlangıç diskinde yalnızca \(StatsFormat.bytes(Double(f))) (%\(pct)) boş alan kaldı.")
+    }
+
+    func notifyOverheat(_ temp: Double, extra: String?) {
+        guard notifySettings.overheat else { return }
+        notifier.notify(kind: "overheat", title: "Mac mini çok ısındı: \(Int(temp)) °C",
+                        body: "Sıcaklık \(Int(NotificationPolicy.overheatLimit)) °C'nin üstünde." + (extra.map { " " + $0 } ?? ""))
+    }
+
+    /// `kill`/`pkill` (SIGTERM) gelince de temiz kapan: fanlar otomatiğe, temiz çıkış bayrağı yazılır.
+    func installTerminationSignalHandler() {
+        signal(SIGTERM, SIG_IGN)
+        let src = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        src.setEventHandler {
+            Log.info("SIGTERM alındı → temiz kapanış")
+            NSApp.terminate(nil)
+        }
+        src.resume()
+        sigtermSource = src
+    }
 }

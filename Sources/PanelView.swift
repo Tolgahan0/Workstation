@@ -114,6 +114,9 @@ final class PanelModel: ObservableObject {
     @Published var keepAwakeOn = false
     @Published var keepAwakeUntil: Date?
     @Published var keepAwakeDuration: KeepAwake.Duration = .oneHour
+
+    // Ayarlar → bildirimler
+    @Published var notifySettings = NotificationSettings.load()
     var toolsVisible: Bool { selectedTab == .tools && page == .main }
 
     /// Kart başına kaydırıcı modelleri (monitör anahtarına göre).
@@ -143,6 +146,7 @@ final class PanelModel: ObservableObject {
     var onDeleteProfile: (UUID) -> Void = { _ in }
     var onMuteInRemote: (Bool) -> Void = { _ in }
     var onKeepAwake: (Bool, KeepAwake.Duration) -> Void = { _, _ in }
+    var onNotifySettings: (NotificationSettings) -> Void = { _ in }
     var onFanMode: (FanMode) -> Void = { _ in }
 
     func selectPreset(_ id: String) {
@@ -711,6 +715,7 @@ private struct SettingsCards: View {
             AutoSwitchCard(model: model)
             ScheduleCard(model: model)
             AudioCard(model: model)
+            NotificationsCard(model: model)
             SectionTitle(text: "DURUM")
             StatusGridCard(model: model)
             HStack {

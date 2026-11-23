@@ -121,6 +121,15 @@ workstation-connect --wake-only
 - **Uyanık tut:** `IOPMAssertion` (PreventUserIdleSystemSleep) ile Mac boşta uyumaz; süre **1 sa / 3 sa / Kapatana dek**. Süre dolunca tek atımlık zamanlayıcı onayı bırakır. Uygulama kapanınca macOS onayı otomatik kaldırır. Kontrol: `pmset -g assertions`.
 - URL: `workstation://keepawake/on`, `workstation://keepawake/off`, `workstation://keepawake/on?hours=2` · CLI: `workstation keepawake on|off|1h|90m`.
 
+## Bildirimler — 1.7.0
+
+**Ayarlar › Bildirimler** (yerel macOS bildirimleri; ilk bildirimde izin istenir):
+
+- **Aşırı ısınma (> 95 °C):** sıcaklık okunduğunda (Tools sekmesi açıkken veya Yarım modundaki bekçi tarafından) tetiklenir; 30 dk'da en fazla bir kez. Boşta ayrıca sıcaklık yoklanmaz.
+- **Disk < %10 boş:** açılışta, uyanınca ve Tools sekmesi açıkken kontrol edilir; 12 saatte en fazla bir kez.
+- **Beklenmedik kapanma:** her açılışta "temiz çıkış" bayrağı kontrol edilir; önceki oturum çökme/zorla kapatma/elektrik kesintisiyle bittiyse bildirilir. Uygulama artık `SIGTERM` (`kill`, `pkill`) aldığında da temiz kapanır (fanlar otomatiğe döner).
+- Telefona anlık bildirim (push) bu sürümün kapsamında değil; ileride Pushover/ntfy gibi bir köprüyle eklenebilir.
+
 ## Tools → Fan kontrolü (1.6.0)
 
 Panelde **Masaüstü / Uyku / Remote**'un sağında **Tools** sekmesi var. İlk araç, Macs Fan Control benzeri fan denetimi:

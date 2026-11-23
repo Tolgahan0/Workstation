@@ -266,3 +266,29 @@ struct AudioCard: View {
         .cardStyle()
     }
 }
+
+// MARK: - Bildirimler
+
+struct NotificationsCard: View {
+    @ObservedObject var model: PanelModel
+
+    private func binding(_ path: WritableKeyPath<NotificationSettings, Bool>) -> Binding<Bool> {
+        let m: PanelModel = model
+        return Binding<Bool>(get: { m.notifySettings[keyPath: path] }, set: { v in
+            var s = m.notifySettings
+            s[keyPath: path] = v
+            m.onNotifySettings(s)
+        })
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CardTitleRow(icon: "bell.badge", title: "Bildirimler",
+                         subtitle: "Yerel macOS bildirimleri (telefona anlık bildirim şimdilik yok)")
+            ToggleRow(title: "Aşırı ısınma (> 95 °C)", isOn: binding(\.overheat))
+            ToggleRow(title: "Disk boş alanı < %10", isOn: binding(\.lowDisk))
+            ToggleRow(title: "Beklenmedik kapanma (açılışta)", isOn: binding(\.unexpectedExit))
+        }
+        .cardStyle()
+    }
+}

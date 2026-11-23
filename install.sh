@@ -74,7 +74,7 @@ info "Swift kaynakları derleniyor…"
 ARCH="$(uname -m)"   # arm64 (Apple Silicon) veya x86_64
 xcrun swiftc -O -swift-version 5 \
   -target "$ARCH-apple-macos13.0" \
-  -framework Cocoa -framework SwiftUI -framework IOKit -framework CoreGraphics -framework CoreAudio \
+  -framework Cocoa -framework SwiftUI -framework IOKit -framework CoreGraphics -framework CoreAudio -framework UserNotifications \
   "$SCRIPT_DIR"/Sources/*.swift \
   -o "$BUILD_DIR/$APP_NAME"
 ok "Derleme tamam."
