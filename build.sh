@@ -57,7 +57,7 @@ FAN_OK=1
 FBINS=()
 for a in "${ARCHS[@]}"; do
   if xcrun swiftc -O -swift-version 5 -target "$a-apple-macos13.0" -framework IOKit \
-       "$ROOT/Tools/FanHelper/main.swift" "$ROOT/Sources/SMC.swift" -o "$TMP/wm-fanhelper-$a" 2>"$TMP/fan-$a.log"; then
+       "$ROOT/Tools/FanHelper/main.swift" "$ROOT/Sources/SMC.swift" "$ROOT/Sources/L10n.swift" -o "$TMP/wm-fanhelper-$a" 2>"$TMP/fan-$a.log"; then
     FBINS+=("$TMP/wm-fanhelper-$a")
   else
     FAN_OK=0; warn "wm-fanhelper ($a) derlenemedi: $(tail -n 3 "$TMP/fan-$a.log")"
@@ -78,7 +78,7 @@ plutil -lint "$STAGE/Contents/Info.plist" >/dev/null
 
 if [[ $FAN_OK == 1 ]]; then
   cp "$TMP/wm-fanhelper" "$STAGE/Contents/Resources/wm-fanhelper"
-  cat "$ROOT/Tools/FanHelper/main.swift" "$ROOT/Sources/SMC.swift" | shasum -a 256 | cut -c1-16 > "$STAGE/Contents/Resources/helper-version"
+  cat "$ROOT/Tools/FanHelper/main.swift" "$ROOT/Sources/SMC.swift" "$ROOT/Sources/L10n.swift" | shasum -a 256 | cut -c1-16 > "$STAGE/Contents/Resources/helper-version"
 fi
 install -m 0755 "$ROOT/workstation" "$STAGE/Contents/Resources/bin/workstation"
 install -m 0755 "$ROOT/workstation-connect" "$STAGE/Contents/Resources/bin/workstation-connect"
@@ -88,7 +88,7 @@ install -m 0755 "$ROOT/scripts/install-helper.sh" "$STAGE/Contents/Resources/ins
 info "Uygulama simgesi oluşturuluyor…"
 NATIVE="$(uname -m)"
 if xcrun swiftc -O -swift-version 5 -target "$NATIVE-apple-macos13.0" -framework Cocoa \
-     "$ROOT/Tools/MakeIcon/main.swift" "$ROOT/Sources/IconRenderer.swift" "$ROOT/Sources/Models.swift" \
+     "$ROOT/Tools/MakeIcon/main.swift" "$ROOT/Sources/IconRenderer.swift" "$ROOT/Sources/Models.swift" "$ROOT/Sources/L10n.swift" \
      -o "$TMP/MakeIcon" 2>"$TMP/makeicon.log" \
    && "$TMP/MakeIcon" "$TMP/AppIcon.iconset" >/dev/null \
    && iconutil -c icns "$TMP/AppIcon.iconset" -o "$STAGE/Contents/Resources/AppIcon.icns"; then
