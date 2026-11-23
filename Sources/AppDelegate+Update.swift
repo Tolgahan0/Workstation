@@ -13,6 +13,11 @@ extension AppDelegate {
         u.onCheck = { [weak self] in self?.checkForUpdates(manual: true) }
         u.onInstall = { [weak self] in self?.installUpdate(automatic: false) }
         u.onOpenSettings = { [weak self] in self?.panelModel.page = .settings }
+        u.onUpdateHelpers = { [weak self] in self?.updateHelpers() }
+        notifier.onClick = { [weak self] kind in
+            if kind == "update" || kind == "helpers" { self?.openPanel() }
+        }
+        refreshHelperState(afterLaunch: true)
         u.onSettings = { [weak self] s in
             let betaChanged = s.beta != u.settings.beta
             s.save()
@@ -29,7 +34,7 @@ extension AppDelegate {
         scheduleUpdateCheck(after: 20)
     }
 
-    /// Tek seferlik zamanlayıcı; her kontrolden sonra 24 saat sonrasına yeniden kurulur.
+    /// Tek seferlik zamanlayıcı; her kontrolden sonra 6 saat sonrasına yeniden kurulur.
     func scheduleUpdateCheck(after delay: TimeInterval) {
         updateTimer?.invalidate()
         let t = Timer(timeInterval: max(5, delay), repeats: false) { [weak self] _ in
@@ -40,7 +45,7 @@ extension AppDelegate {
         updateTimer = t
     }
 
-    /// Uykudan uyanınca: son kontrol 24 saatten eskiyse kısa süre sonra kontrol et.
+    /// Uykudan uyanınca: son kontrol 6 saatten eskiyse kısa süre sonra kontrol et.
     func updateCheckAfterWake() {
         let last = panelModel.updater.lastChecked ?? .distantPast
         if Date().timeIntervalSince(last) > UpdatePolicy.checkInterval { scheduleUpdateCheck(after: 60) }
@@ -62,19 +67,25 @@ extension AppDelegate {
                 self.scheduleUpdateCheck(after: UpdatePolicy.checkInterval)
                 switch result {
                 case .success(let c?):
-                    let isNew = u.candidate?.version != c.version
                     u.candidate = c
                     u.phase = .available
+                    u.progress = nil
+                    self.setUpdateIcon(true)
                     Log.info("Güncelleme bulundu: \(c.version)")
+                    let notifiedKey = "updateNotifiedVersion"
+                    let firstTime = UpdatePolicy.shouldNotify(version: c.version,
+                                                              lastNotified: UserDefaults.standard.string(forKey: notifiedKey))
                     if u.settings.autoInstall && self.currentMode != .remote && !self.isTransitioning {
                         self.installUpdate(automatic: true)
-                    } else if isNew && !manual {
-                        self.notifier.notify(kind: "update", title: L("Workstation %@ hazır", c.version),
-                                             body: L("Güncellemek için menü çubuğundaki simgeye tıkla."))
+                    } else if firstTime {
+                        UserDefaults.standard.set(c.version, forKey: notifiedKey)
+                        self.notifier.notify(kind: "update", title: L("Workstation %@ hazır — güncellemek için tıkla", c.version),
+                                             body: L("Tek tıkla indirir, doğrular, kurar ve yeniden açar."))
                     }
                 case .success(nil):
                     u.candidate = nil
                     u.phase = manual ? .upToDate : .idle
+                    self.setUpdateIcon(false)
                 case .failure(let e):
                     Log.warn("Güncelleme kontrolü başarısız: \(e.localizedDescription)")
                     if manual || u.phase == .checking {
@@ -93,13 +104,15 @@ extension AppDelegate {
             return
         }
         u.phase = .working(L("İndiriliyor…"))
+        u.progress = nil
         let engine = Updater(bundleID: Bundle.main.bundleIdentifier ?? "com.tolgahanayaz.workstationmode",
                              currentVersion: currentAppVersion, settings: u.settings)
         let dest = Bundle.main.bundlePath
         Log.info("Güncelleme başlıyor: \(currentAppVersion) → \(c.version) (\(automatic ? "otomatik" : "elle"))")
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             do {
-                let app = try engine.prepare(c) { s in DispatchQueue.main.async { u.phase = .working(s) } }
+                let app = try engine.prepare(c, progress: { s in DispatchQueue.main.async { u.phase = .working(s) } },
+                                             fraction: { f in DispatchQueue.main.async { u.progress = f } })
                 DispatchQueue.main.async {
                     guard let self = self else { return }
                     // Kurulumdan hemen önce yeniden kontrol: bu arada Remote'a geçildiyse otomatik kurulum ertelenir.
@@ -119,6 +132,63 @@ extension AppDelegate {
             } catch {
                 Log.warn("Güncelleme başarısız: \(error.localizedDescription)")
                 DispatchQueue.main.async { u.phase = .failed(error.localizedDescription) }
+            }
+        }
+    }
+
+    // MARK: Yardımcılar (fan yardımcısı + workstation komutu)
+
+    /// Kurulu yardımcılar eskiyse panelde "Yardımcıları güncelle" gösterir; güncellemeden sonraki ilk açılışta bir kez sorar.
+    func refreshHelperState(afterLaunch: Bool) {
+        let u = panelModel.updater
+        let app = URL(fileURLWithPath: Bundle.main.bundlePath)
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let outdated = Bundle.main.bundlePath.hasSuffix(".app") && Updater.helpersOutdated(app: app)
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                u.helpersOutdated = outdated
+                guard afterLaunch else { return }
+                let key = "lastLaunchedVersion"
+                let previous = UserDefaults.standard.string(forKey: key)
+                UserDefaults.standard.set(self.currentAppVersion, forKey: key)
+                if outdated && previous != nil && previous != self.currentAppVersion {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.askToUpdateHelpers() }
+                }
+            }
+        }
+    }
+
+    /// Güncellemeden sonra tek tıklık soru: macOS'un standart yönetici parolası penceresi (Terminal gerekmez).
+    func askToUpdateHelpers() {
+        let a = NSAlert()
+        a.messageText = L("Yardımcıları güncelle")
+        a.informativeText = L("Workstation %@ sürümüne güncellendi. Fan kontrolü, parolasız mod geçişi ve workstation komutu da güncellenmeli. macOS yönetici parolanı bir kez soracak.", currentAppVersion)
+        a.addButton(withTitle: L("Yardımcıları güncelle"))
+        a.addButton(withTitle: L("Sonra"))
+        NSApp.activate(ignoringOtherApps: true)
+        if a.runModal() == .alertFirstButtonReturn { updateHelpers() }
+    }
+
+    func updateHelpers() {
+        let u = panelModel.updater
+        guard !u.helpersBusy else { return }
+        u.helpersBusy = true
+        u.helpersNote = nil
+        let script = Updater.helperInstallAppleScript(app: Bundle.main.bundlePath, user: NSUserName())
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let r = Shell.run("/usr/bin/osascript", ["-e", script], timeout: 300)
+            DispatchQueue.main.async {
+                u.helpersBusy = false
+                if r.succeeded {
+                    Log.info("Yardımcılar güncellendi")
+                    u.helpersNote = L("Yardımcılar güncellendi")
+                } else if r.stderr.contains("-128") {
+                    u.helpersNote = L("İptal edildi")
+                } else {
+                    Log.warn("Yardımcılar güncellenemedi: \(r.stderr)")
+                    u.helpersNote = L("Güncellenemedi: %@", r.stderr.trimmingCharacters(in: .whitespacesAndNewlines))
+                }
+                self?.refreshHelperState(afterLaunch: false)
             }
         }
     }

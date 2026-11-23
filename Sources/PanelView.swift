@@ -236,6 +236,8 @@ struct PanelView: View {
         }
         return VStack(alignment: .leading, spacing: 14) {
             PanelHeader(model: model)
+            UpdateBanner(updater: model.updater, currentVersion: model.appVersion)
+            HelpersBanner(updater: model.updater)
             content.frame(width: PanelLayout.contentWidth, alignment: .leading)
         }
         .padding(PanelLayout.padding)
@@ -268,7 +270,6 @@ private struct PanelHeader: View {
             AppIconView()
             HeaderTitle(subtitle: model.mode.title)
             Spacer()
-            UpdateBadge(updater: model.updater)
             StatusPill(transitioning: model.transitioning)
         }
     }

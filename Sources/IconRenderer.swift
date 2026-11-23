@@ -151,7 +151,8 @@ enum IconRenderer {
 
     /// Menü çubuğu kalınlığını tam kullanan şablon Mac mini simgesi. Tek renk; macOS menü
     /// çubuğunun açık/koyu görünümüne göre otomatik renklendirir. Mod rozeti ayrı bir katmandır.
-    static func menuBarImage(thickness: CGFloat) -> NSImage {
+    /// tint nil: şablon (menü çubuğu rengine uyar). tint verilirse simgenin tamamı o renkte (ör. güncelleme var → kırmızı).
+    static func menuBarImage(thickness: CGFloat, tint: NSColor? = nil) -> NSImage {
         let height = max(16, thickness - 2)          // ~20–22 pt: menü çubuğuna sığan en büyük boy
         let maxWidth = height * 1.75
         let symbol = macMiniSymbol()
@@ -173,12 +174,19 @@ enum IconRenderer {
             } else {
                 drawMacMiniFallback(in: target)
             }
+            if let t = tint {
+                t.set()
+                r.fill(using: .sourceAtop)
+            }
             return true
         }
-        image.isTemplate = true
+        image.isTemplate = tint == nil
         image.accessibilityDescription = "Workstation"
         return image
     }
+
+    /// Güncelleme varken menü çubuğu simgesinin rengi (açık ve koyu menü çubuğunda okunur).
+    static let updateTint = NSColor.systemRed
 
     /// Mod rozeti rengi: Masaüstü yok · Uyku mavi · Remote yeşil · geçiş sarı.
     static func badgeColor(mode: WorkMode, busy: Bool) -> NSColor? {

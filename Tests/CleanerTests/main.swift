@@ -315,6 +315,25 @@ do {
     check(back.rules.count == 2 && back.rules.allSatisfy { !$0.enabled } && back.wakeEnabled, "kapalı durum kalıcı")
 }
 
+// MARK: Güncelleme bildirimi, depo adı, test beslemesi
+do {
+    check(UpdatePolicy.checkInterval == 6 * 3600, "6 saatte bir kontrol")
+    check(UpdatePolicy.shouldNotify(version: "1.9.1", lastNotified: nil), "ilk kez bildir")
+    check(!UpdatePolicy.shouldNotify(version: "1.9.1", lastNotified: "1.9.1"), "aynı sürüm için bir kez")
+    check(UpdatePolicy.shouldNotify(version: "1.9.2", lastNotified: "1.9.1"), "yeni sürüm yeniden bildirilir")
+    check(UpdateSettings().repo == "Tolgahan0/Workstation", "asıl depo adı")
+    let ud = UserDefaults(suiteName: "wm-upd-\(UUID().uuidString)")!
+    var old = UpdateSettings(); old.repo = "Tolgahan0/workstation"; old.save(ud)
+    check(UpdateSettings.load(ud).repo == "Tolgahan0/Workstation", "eski depo adı taşınır")
+    check(UpdatePolicy.feedOverride(ud, env: [:]) == nil, "besleme yoksa nil")
+    ud.set("/tmp/x/latest.json", forKey: "updateFeedURL")
+    check(UpdatePolicy.feedOverride(ud, env: [:])?.isFileURL == true, "yerel besleme")
+    check(UpdatePolicy.feedOverride(ud, env: ["WORKSTATION_UPDATE_FEED": "https://e.com/l.json"])?.host == "e.com", "ortam değişkeni önceliklidir")
+    let asx = Updater.helperInstallAppleScript(app: "/Applications/Work \"x\".app", user: "ayaz")
+    check(asx.hasSuffix("with administrator privileges") && asx.contains("quoted form of \"/Applications/Work \\\"x\\\".app/Contents/Resources/install-helper.sh\""), "AppleScript tırnaklama")
+    check(!Updater.swapScript.contains("with administrator privileges\" >/dev/null"), "betik yardımcı için parola penceresi açmaz")
+}
+
 // MARK: Dil
 do {
     check(L10n.isTurkish, "test ortamı Türkçe")

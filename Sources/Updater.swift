@@ -49,7 +49,7 @@ final class Updater {
         case http(Int), noManifest, badManifest, noZip, checksum, badBundle(String), signature, io(String)
         var errorDescription: String? {
             switch self {
-            case .http(let c): return c == 404 ? L("Yayın bulunamadı (depo özelse anahtar gerekir)") : L("Sunucu hatası (%@)", c)
+            case .http(let c): return c == 404 ? L("Yayın bulunamadı") : L("Sunucu hatası (%@)", c)
             case .noManifest: return L("Yayında latest.json yok")
             case .badManifest: return L("latest.json okunamadı")
             case .noZip: return L("Yayında uygulama dosyası yok")
@@ -107,10 +107,10 @@ final class Updater {
         return try result.get()
     }
 
-    private func download(_ req: URLRequest, to dest: URL) throws {
+    private func download(_ req: URLRequest, to dest: URL, fraction: ((Double) -> Void)? = nil) throws {
         let sem = DispatchSemaphore(value: 0)
         var failure: Error?
-        session.downloadTask(with: req) { tmp, resp, err in
+        let task = session.downloadTask(with: req) { tmp, resp, err in
             if let e = err { failure = e }
             else if let h = resp as? HTTPURLResponse, !(200..<300).contains(h.statusCode) { failure = UpdateError.http(h.statusCode) }
             else if let t = tmp {
@@ -118,8 +118,14 @@ final class Updater {
                 do { try FileManager.default.moveItem(at: t, to: dest) } catch { failure = error }
             }
             sem.signal()
-        }.resume()
+        }
+        var obs: NSKeyValueObservation?
+        if let f = fraction {
+            obs = task.progress.observe(\.fractionCompleted, options: [.new]) { p, _ in f(p.fractionCompleted) }
+        }
+        task.resume()
         _ = sem.wait(timeout: .now() + 620)
+        obs?.invalidate()
         if let f = failure { throw f }
     }
 
@@ -133,6 +139,7 @@ final class Updater {
     /// Arka planda çağrılır. nil = güncel.
     func check() throws -> Candidate? {
         guard let current = SemVer(currentVersion) else { return nil }
+        if let feed = UpdatePolicy.feedOverride() { return try checkFeed(feed, current: current) }
         let base = "https://api.github.com/repos/\(settings.repo)/releases"
         let url = URL(string: settings.beta ? base + "?per_page=15" : base + "/latest")!
         let data = try fetch(request(url, accept: "application/vnd.github+json"))
@@ -152,17 +159,28 @@ final class Updater {
                          zipAPIURL: z.url, zipURL: z.browser_download_url, pageURL: rel.html_url)
     }
 
+    /// Tek bir latest.json'dan (yerel dosya ya da adres) aday — test ve aynalar için.
+    private func checkFeed(_ url: URL, current: SemVer) throws -> Candidate? {
+        let data = url.isFileURL ? try Data(contentsOf: url) : try fetch(request(url, accept: "application/json"))
+        guard let m = try? JSONDecoder().decode(UpdateManifest.self, from: data), UpdatePolicy.isValidSHA256(m.sha256),
+              let v = SemVer(m.version) else { throw UpdateError.badManifest }
+        guard v > current, settings.beta || !v.isPrerelease else { return nil }
+        guard let zip = m.zip_url else { throw UpdateError.noZip }
+        return Candidate(version: v.description, notes: UpdatePolicy.shortNotes(m.notes), manifest: m,
+                         zipAPIURL: nil, zipURL: zip, pageURL: nil)
+    }
+
     // MARK: Kurulum (yalnızca macOS)
 
     /// İndir + doğrula; hazır .app yolunu döner.
-    func prepare(_ c: Candidate, progress: (String) -> Void) throws -> URL {
+    func prepare(_ c: Candidate, progress: (String) -> Void, fraction: ((Double) -> Void)? = nil) throws -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("workstation-update-\(c.version)", isDirectory: true)
         try? FileManager.default.removeItem(at: dir)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let zip = dir.appendingPathComponent("Workstation.zip")
         progress(L("İndiriliyor…"))
         guard let req = assetRequest(apiURL: c.zipAPIURL, browserURL: c.zipURL) else { throw UpdateError.noZip }
-        try download(req, to: zip)
+        try download(req, to: zip, fraction: fraction)
         progress(L("Doğrulanıyor…"))
         let sum = Shell.run("/usr/bin/shasum", ["-a", "256", zip.path], timeout: 60)
         let got = sum.stdout.split(separator: " ").first.map(String.init)?.lowercased() ?? ""
@@ -181,6 +199,29 @@ final class Updater {
         let cs = Shell.run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path], timeout: 60)
         guard cs.succeeded else { throw UpdateError.signature }
         return app
+    }
+
+    static let installedHelper = "/usr/local/libexec/wm-fanhelper"
+    static let installedCLI = "/usr/local/bin/workstation"
+
+    /// Kurulu yardımcılar (fan yardımcısı ya da `workstation` komutu) bu uygulamanınkinden eski mi?
+    /// Hiç kurulmamışsa false (kullanıcı kurmamayı seçmiş olabilir; ısrar etmeyiz).
+    static func helpersOutdated(app: URL, fm: FileManager = .default) -> Bool {
+        let res = app.appendingPathComponent("Contents/Resources")
+        let helperInstalled = fm.fileExists(atPath: installedHelper)
+        let cliInstalled = fm.fileExists(atPath: installedCLI)
+        guard helperInstalled || cliInstalled else { return false }
+        if helperInstalled && fm.fileExists(atPath: res.appendingPathComponent("wm-fanhelper").path) && helperChanged(newApp: app) { return true }
+        let bundledCLI = res.appendingPathComponent("bin/workstation").path
+        if cliInstalled, fm.fileExists(atPath: bundledCLI), !fm.contentsEqual(atPath: bundledCLI, andPath: installedCLI) { return true }
+        return false
+    }
+
+    /// AppleScript'in standart yönetici parolası penceresiyle install-helper.sh'i çalıştırır (Terminal gerekmez).
+    static func helperInstallAppleScript(app: String, user: String) -> String {
+        func q(_ s: String) -> String { "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\"" }
+        let script = app + "/Contents/Resources/install-helper.sh"
+        return "do shell script quoted form of \(q(script)) & \" \" & quoted form of \(q(app)) & \" \" & quoted form of \(q(user)) with administrator privileges"
     }
 
     /// Yardımcı (fan) yeniden kurulmalı mı?
@@ -221,9 +262,8 @@ final class Updater {
         fi
         if [[ "$HELPER" == "1" ]]; then
           log "fan yardımcısı güncelleniyor"
-          sudo -n "$DEST/Contents/Resources/install-helper.sh" "$DEST" "$USER_NAME" >/dev/null 2>&1 || \\
-          /usr/bin/osascript -e "do shell script quoted form of \\"$DEST/Contents/Resources/install-helper.sh\\" & \\" \\" & quoted form of \\"$DEST\\" & \\" $USER_NAME\\" with administrator privileges" >/dev/null 2>&1 \\
-            || log "fan yardımcısı güncellenemedi (kurulumu tekrar çalıştırabilirsin)"
+          sudo -n "$DEST/Contents/Resources/install-helper.sh" "$DEST" "$USER_NAME" >/dev/null 2>&1 \\
+            || log "yardımcılar için parola gerekiyor; uygulama 'Yardımcıları güncelle' penceresini gösterecek"
         fi
         /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST" >/dev/null 2>&1
         open "$DEST"

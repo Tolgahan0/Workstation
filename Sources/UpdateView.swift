@@ -20,6 +20,13 @@ final class UpdateModel: ObservableObject {
     @Published var hasToken = false
     @Published var tokenDraft = ""
     @Published var showToken = false
+    /// İndirme ilerlemesi (0…1); bilinmiyorsa nil.
+    @Published var progress: Double?
+    /// Kurulu fan yardımcısı / workstation komutu bu sürümden eski.
+    @Published var helpersOutdated = false
+    @Published var helpersBusy = false
+    @Published var helpersNote: String?
+    var onUpdateHelpers: () -> Void = {}
 
     var onCheck: () -> Void = {}
     var onInstall: () -> Void = {}
@@ -30,6 +37,107 @@ final class UpdateModel: ObservableObject {
     var busy: Bool {
         if case .working = phase { return true }
         return phase == .checking
+    }
+}
+
+/// Panelin üstünde (başlığın altında) büyük "Yeni sürüm" şeridi: tek tıkla indir → doğrula → kur → yeniden aç.
+struct UpdateBanner: View {
+    @ObservedObject var updater: UpdateModel
+    let currentVersion: String
+
+    private var working: String? {
+        if case .working(let s) = updater.phase { return s }
+        return nil
+    }
+    private var failure: String? {
+        if case .failed(let s) = updater.phase { return s }
+        return nil
+    }
+
+    var body: some View {
+        if let c = updater.candidate {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .center, spacing: 10) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(Color(nsColor: IconRenderer.updateTint))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(L("Yeni sürüm %@", c.version)).font(.system(size: 13, weight: .semibold))
+                        Text(working ?? L("Şu an %@ · tek tıkla güncellenir", currentVersion))
+                            .font(.system(size: 10)).foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    if working == nil {
+                        Button(action: updater.onInstall) {
+                            Text(failure == nil ? L("Güncelle") : L("Tekrar dene"))
+                                .font(.system(size: 12, weight: .semibold))
+                                .padding(.horizontal, 12).padding(.vertical, 5)
+                                .background(Capsule().fill(Color(nsColor: IconRenderer.updateTint)))
+                                .foregroundColor(.white)
+                        }
+                        .buttonStyle(.plain)
+                        .fixedSize()
+                        .help(L("İndirir, SHA-256 ile doğrular, kurar ve yeniden açar"))
+                    }
+                }
+                if working != nil {
+                    if let p = updater.progress, p > 0, p < 1 {
+                        ProgressView(value: p).progressViewStyle(.linear)
+                    } else {
+                        ProgressView().progressViewStyle(.linear)
+                    }
+                }
+                if let f = failure {
+                    Text(f).font(.system(size: 10)).foregroundColor(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(nsColor: IconRenderer.updateTint).opacity(0.14)))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color(nsColor: IconRenderer.updateTint).opacity(0.45), lineWidth: 1))
+            .transaction { $0.animation = nil }
+        }
+    }
+}
+
+/// Yardımcılar eskiyse: tek tıkla macOS'un yönetici parolası penceresiyle güncelle.
+struct HelpersBanner: View {
+    @ObservedObject var updater: UpdateModel
+
+    var body: some View {
+        if updater.helpersOutdated || updater.helpersNote != nil {
+            HStack(spacing: 10) {
+                Image(systemName: updater.helpersOutdated ? "wrench.and.screwdriver.fill" : "checkmark.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(updater.helpersOutdated ? .orange : .green)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(updater.helpersOutdated ? L("Yardımcılar güncel değil") : (updater.helpersNote ?? ""))
+                        .font(.system(size: 11, weight: .semibold))
+                    if updater.helpersOutdated {
+                        Text(updater.helpersNote ?? L("Fan kontrolü ve workstation komutu için; parolan bir kez sorulur."))
+                            .font(.system(size: 10)).foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if updater.helpersOutdated {
+                    if updater.helpersBusy {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        SmallButton(title: L("Yardımcıları güncelle"), icon: "lock.open", prominent: true, action: updater.onUpdateHelpers)
+                            .fixedSize()
+                    }
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.orange.opacity(updater.helpersOutdated ? 0.12 : 0.0)))
+            .transaction { $0.animation = nil }
+        }
     }
 }
 
@@ -69,7 +177,7 @@ struct UpdateSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitleRow(icon: "arrow.down.circle", title: L("Güncellemeler"),
-                         subtitle: L("Şu an %@ kullanıyorsun. Günde bir kez yeni sürüm var mı diye bakılır.", currentVersion))
+                         subtitle: L("Şu an %@ kullanıyorsun. Açılışta ve 6 saatte bir yeni sürüm var mı diye bakılır.", currentVersion))
             UpdateStatusRow(updater: updater)
             if let c = updater.candidate, updater.phase == .available || isWorking {
                 UpdateNotesBox(candidate: c)
@@ -158,7 +266,7 @@ private struct UpdateTokenRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(updater.hasToken ? L("GitHub anahtarı kayıtlı (Anahtar Zinciri'nde)") : L("Depo gizliyse GitHub anahtarı gerekir"))
+                Text(updater.hasToken ? L("GitHub anahtarı kayıtlı (Anahtar Zinciri'nde)") : L("GitHub anahtarı gerekmez (isteğe bağlı)"))
                     .font(.system(size: 10)).foregroundColor(.secondary)
                 Spacer()
                 Button(updater.showToken ? L("Vazgeç") : (updater.hasToken ? L("Değiştir") : L("Ekle"))) {

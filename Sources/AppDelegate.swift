@@ -24,6 +24,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let logWindow = LogWindowController()
     /// Simge üzerindeki renkli mod noktası (simgenin kendisi şablon/tek renk kalır).
     private var badgeView: StatusBadgeView?
+    /// Yeni sürüm varken simgenin tamamı kırmızı (şablon değil); güncellenince normale döner.
+    private(set) var updateIconRed = false
 
     let controller = ModeController()
     /// Uyku / Remote öncesi geri sayım (HUD). Yalnızca sayarken zamanlayıcı vardır.
@@ -319,6 +321,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
     }
 
+    /// Güncelleme var → kırmızı simge; yok → normal şablon simge.
+    func setUpdateIcon(_ red: Bool) {
+        guard red != updateIconRed, let button = statusItem?.button else { return }
+        updateIconRed = red
+        button.image = IconRenderer.menuBarImage(thickness: NSStatusBar.system.thickness, tint: red ? IconRenderer.updateTint : nil)
+        updateUI()
+    }
+
+    /// Paneli programla aç (ör. güncelleme bildirimine tıklanınca).
+    func openPanel() {
+        if let p = popover, p.isShown { return }
+        guard let button = statusItem?.button else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        showPopover(relativeTo: button)
+    }
+
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
         if let p = popover, p.isShown {
             p.performClose(sender)
@@ -488,7 +506,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func updateUI() {
         if let button = statusItem?.button {
             badgeView?.color = IconRenderer.badgeColor(mode: currentMode, busy: isTransitioning || countdownActive)
-            button.toolTip = "Workstation: \(currentMode.title)\(lastError.map { " – ⚠︎ \($0)" } ?? "")"
+            let upd = panelModel.updater.candidate.map { " – " + L("Yeni sürüm %@", $0.version) } ?? ""
+            button.toolTip = "Workstation: \(currentMode.title)\(lastError.map { " – ⚠︎ \($0)" } ?? "")\(upd)"
         }
         if panelModel.mode != currentMode { panelModel.mode = currentMode }
         if panelModel.transitioning != isTransitioning { panelModel.transitioning = isTransitioning }

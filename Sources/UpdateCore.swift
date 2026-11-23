@@ -83,11 +83,14 @@ struct UpdateSettings: Codable, Equatable {
     /// false = sadece haber ver (varsayılan)
     var autoInstall = false
     var beta = false
-    var repo = "Tolgahan0/workstation"
+    var repo = "Tolgahan0/Workstation"
 
     static let key = "updateSettings"
+    static let canonicalRepo = "Tolgahan0/Workstation"
     static func load(_ d: UserDefaults = .standard) -> UpdateSettings {
-        guard let data = d.data(forKey: key), let s = try? JSONDecoder().decode(UpdateSettings.self, from: data) else { return UpdateSettings() }
+        guard let data = d.data(forKey: key), var s = try? JSONDecoder().decode(UpdateSettings.self, from: data) else { return UpdateSettings() }
+        // Depo adı değişti (workstation → Workstation): yönlendirme çalışsa da asıl adı kullan.
+        if s.repo.lowercased() == canonicalRepo.lowercased() { s.repo = canonicalRepo }
         return s
     }
     func save(_ d: UserDefaults = .standard) {
@@ -96,7 +99,19 @@ struct UpdateSettings: Codable, Equatable {
 }
 
 enum UpdatePolicy {
-    static let checkInterval: TimeInterval = 24 * 3600
+    /// Açılışta + 6 saatte bir (tek zamanlayıcı, yoklama yok).
+    static let checkInterval: TimeInterval = 6 * 3600
+
+    /// Aynı sürüm için yalnızca bir kez bildirim.
+    static func shouldNotify(version: String, lastNotified: String?) -> Bool { version != lastNotified }
+
+    /// Test/geliştirme: UserDefaults "updateFeedURL" ya da WORKSTATION_UPDATE_FEED → doğrudan bir latest.json.
+    static func feedOverride(_ d: UserDefaults = .standard, env: [String: String] = ProcessInfo.processInfo.environment) -> URL? {
+        let raw = env["WORKSTATION_UPDATE_FEED"] ?? d.string(forKey: "updateFeedURL")
+        guard let r = raw?.trimmingCharacters(in: .whitespaces), !r.isEmpty else { return nil }
+        if r.hasPrefix("/") { return URL(fileURLWithPath: r) }
+        return URL(string: r)
+    }
 
     /// Yayın listesinden kurulacak en yeni sürüm (taslaklar hariç; beta kapalıysa ön sürümler hariç).
     static func pick(_ releases: [GitHubRelease], current: SemVer, beta: Bool) -> GitHubRelease? {

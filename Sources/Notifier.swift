@@ -75,6 +75,8 @@ enum CleanExit {
 final class Notifier: NSObject {
     private let defaults = UserDefaults.standard
     private var authorized: Bool?
+    /// Bildirime tıklanınca (tür ile). Ör. "update" → paneli aç.
+    var onClick: ((String) -> Void)?
 
     func notify(kind: String, title: String, body: String) {
         let now = Date()
@@ -96,6 +98,7 @@ final class Notifier: NSObject {
             content.title = title
             content.body = body
             content.sound = .default
+            content.userInfo = ["kind": kind]
             let req = UNNotificationRequest(identifier: "\(kind)-\(Int(now.timeIntervalSince1970))", content: content, trigger: nil)
             center.add(req) { err in
                 if let e = err { Log.warn("Bildirim gönderilemedi: \(e.localizedDescription)") }
@@ -111,6 +114,14 @@ extension Notifier: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .sound])
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        let kind = response.notification.request.content.userInfo["kind"] as? String
+            ?? String(response.notification.request.identifier.split(separator: "-").first ?? "")
+        DispatchQueue.main.async { [weak self] in self?.onClick?(kind) }
+        completionHandler()
     }
 }
 #endif

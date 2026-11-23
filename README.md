@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Tolgahan0/workstation/releases/latest"><img alt="Sürüm" src="https://img.shields.io/github/v/release/Tolgahan0/workstation?label=s%C3%BCr%C3%BCm&color=2f6fde"></a>
-  <a href="https://github.com/Tolgahan0/workstation/releases/latest/download/Workstation.dmg"><img alt="İndir: Workstation.dmg" src="https://img.shields.io/badge/indir-Workstation.dmg-0071e3?logo=apple"></a>
+  <a href="https://github.com/Tolgahan0/Workstation/releases/latest"><img alt="Sürüm" src="https://img.shields.io/github/v/release/Tolgahan0/Workstation?label=s%C3%BCr%C3%BCm&color=2f6fde"></a>
+  <a href="https://github.com/Tolgahan0/Workstation/releases/latest/download/Workstation.dmg"><img alt="İndir: Workstation.dmg" src="https://img.shields.io/badge/indir-Workstation.dmg-0071e3?logo=apple"></a>
   <img alt="macOS 13+" src="https://img.shields.io/badge/macOS-13%2B-111?logo=apple">
   <img alt="Apple Silicon ve Intel" src="https://img.shields.io/badge/Apple%20Silicon%20%2B%20Intel-evrensel-555">
   <img alt="Swift 5" src="https://img.shields.io/badge/Swift-5-F05138?logo=swift&logoColor=white">
@@ -42,7 +42,7 @@ Boştayken arka planda dönen bir şey yok: her şey bir olay olunca (uyanma, ba
 
 <p align="center"><img src="docs/screenshots/dmg-window.png" alt="DMG penceresi: Workstation'ı Applications'a sürükle" width="520"></p>
 
-1. **[Workstation.dmg'yi indir](https://github.com/Tolgahan0/workstation/releases/latest/download/Workstation.dmg)** (her zaman son sürüm) ve aç. Eski sürümler: [Releases](https://github.com/Tolgahan0/workstation/releases).
+1. **[Workstation.dmg'yi indir](https://github.com/Tolgahan0/Workstation/releases/latest/download/Workstation.dmg)** (her zaman son sürüm) ve aç. Eski sürümler: [Releases](https://github.com/Tolgahan0/Workstation/releases).
 2. **Workstation**'ı sağdaki **Applications** klasörüne sürükle.
 3. Applications'ta Workstation'a **sağ tıkla › Aç**. İlk seferde macOS "geliştirici doğrulanamadı" diyebilir; yine **Aç**'a bas. Menü çubuğunda Mac mini simgesi belirir.
 4. **Önerilir — bir kez:** DMG penceresinde **aşağı kaydır**, **`Kurulum.command`** dosyasına **sağ tıkla › Aç**. Mac parolan bir kez sorulur ve şunlar kurulur:
@@ -62,7 +62,7 @@ Boştayken arka planda dönen bir şey yok: her şey bir olay olunca (uyanma, ba
 Yalnızca Xcode Command Line Tools gerekir (Xcode gerekmez):
 
 ```bash
-git clone https://github.com/Tolgahan0/workstation.git && cd workstation
+git clone https://github.com/Tolgahan0/Workstation.git && cd workstation
 ./install.sh      # sudo olmadan çalıştır; parola bir kez sorulur
 ```
 
@@ -262,4 +262,4 @@ türetilmiş sürümler de aynı lisansla, kaynak koduyla birlikte dağıtılmal
 
 ### English summary
 
-**Workstation** is a macOS menu bar app for a Mac mini that switches between **Desktop**, **Sleep** and **Remote** modes in one click. Remote turns off the physical monitors and creates a HiDPI virtual display sized to the connecting MacBook. It also includes fan control, a **safe developer disk cleaner** and an **auto-updater** that works through GitHub Releases. The cleaner re-checks open files, running processes, git-tracked files and project activity right before each delete, and moves items to the Trash by default. The updater verifies SHA-256, bundle id and code signature before it swaps the app. Website: https://tolgahan0.github.io/Workstation/. Install from the DMG ([download the latest Workstation.dmg](https://github.com/Tolgahan0/workstation/releases/latest/download/Workstation.dmg)): drag Workstation to Applications, right-click › Open, then run `Kurulum.command` once for fan control, password-less mode switching and the CLI, or run `./install.sh` from source (Command Line Tools only). Publish a release by pushing a `v*` tag. The UI, menu, notifications and CLI are English unless the first preferred macOS language is Turkish. The `site/` folder is a static site that deploys to Vercel with Root Directory `site` and no build step. Licensed under GPL-3.0.
+**Workstation** is a macOS menu bar app for a Mac mini that switches between **Desktop**, **Sleep** and **Remote** modes in one click. Remote turns off the physical monitors and creates a HiDPI virtual display sized to the connecting MacBook. It also includes fan control, a **safe developer disk cleaner** and an **auto-updater** that works through GitHub Releases. The cleaner re-checks open files, running processes, git-tracked files and project activity right before each delete, and moves items to the Trash by default. The updater verifies SHA-256, bundle id and code signature before it swaps the app. Website: https://tolgahan0.github.io/Workstation/. Install from the DMG ([download the latest Workstation.dmg](https://github.com/Tolgahan0/Workstation/releases/latest/download/Workstation.dmg)): drag Workstation to Applications, right-click › Open, then run `Kurulum.command` once for fan control, password-less mode switching and the CLI, or run `./install.sh` from source (Command Line Tools only). Publish a release by pushing a `v*` tag. The UI, menu, notifications and CLI are English unless the first preferred macOS language is Turkish. The `site/` folder is a static site that deploys to Vercel with Root Directory `site` and no build step. Licensed under GPL-3.0.

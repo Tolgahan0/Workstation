@@ -9,7 +9,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="${1:?sürüm}"
 BUILD_NUM="${2:-0}"
-REPO="${3:-Tolgahan0/workstation}"
+REPO="${3:-Tolgahan0/Workstation}"
 NOTES_FILE="${4:-}"
 APP="$ROOT/build/Workstation.app"
 DIST="$ROOT/dist"
