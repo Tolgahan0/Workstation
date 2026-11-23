@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Workstation yardımcı komutu (Mac mini / sunucu tarafı).
 # Kullanım (yerelde veya SSH ile):
-#   workstation remote [WxH | mba13 | mba15 | mbp14 | mbp16 | imac24]
+#   workstation remote [WxH | mba13 | mba15 | mbp14 | mbp14n | mbp16 | mbp16n | imac24]
 #   workstation sleep | desktop | status | log
 #   workstation profile <ad> | fan auto|half|max | keepawake on|off|1h|90m
 #   workstation clean [--dry-run | --yes | --auto] [--verbose]   (geliştirici disk temizleyici)
@@ -25,7 +25,7 @@ usage() {
   t "Kullanım: workstation remote [WxH|ön ayar] | sleep | desktop | status | log | netinfo" "Usage: workstation remote [WxH|preset] | sleep | desktop | status | log | netinfo"
   t "          workstation profile <ad> | fan auto|half|max | keepawake on|off|1h|3h|90m" "          workstation profile <name> | fan auto|half|max | keepawake on|off|1h|3h|90m"
   t "  remote  → sanal ekran (verilen çözünürlük, yoksa uygulamadaki ön ayar) açık, fiziksel monitörler kapalı" "  remote  → virtual screen on (given resolution, or the preset in the app), physical monitors off"
-  t "            ön ayarlar: mba13 1470x956 · mba15 1710x1107 · mbp14 1512x982 · mbp16 1728x1117 · imac24 2240x1260" "            presets: mba13 1470x956 · mba15 1710x1107 · mbp14 1512x982 · mbp16 1728x1117 · imac24 2240x1260"
+  t "            ön ayarlar: mba13 1470x956 · mba15 1710x1107 · mbp14 1512x982 · mbp14n 1512x945 · mbp16 1728x1117 · mbp16n 1728x1080 · imac24 2240x1260" "            presets: mba13 1470x956 · mba15 1710x1107 · mbp14 1512x982 · mbp14n 1512x945 · mbp16 1728x1117 · mbp16n 1728x1080 · imac24 2240x1260"
   t "  sleep   → fiziksel monitörler kapalı, düşük güç, sistem uykusuna izin" "  sleep   → physical monitors off, low power, system sleep allowed"
   t "  desktop → fiziksel monitörler açık, sanal ekran kapalı, normal güç" "  desktop → physical monitors on, virtual screen off, normal power"
   t "  status  → geçerli mod" "  status  → current mode"
@@ -85,7 +85,7 @@ case "${1:-}" in
       ARG="${ARG//×/x}"
       if [[ "$ARG" =~ '^[0-9]{3,5}x[0-9]{3,5}$' ]]; then
         QUERY="?res=$ARG";    CLI_EXTRA=(--res "$ARG")
-      elif [[ "$ARG" =~ '^(mba13|mba15|mbp14|mbp16|imac24)$' ]]; then
+      elif [[ "$ARG" =~ '^(mba13|mba15|mbp14|mbp14n|mbp16|mbp16n|imac24)$' ]]; then
         QUERY="?preset=$ARG"; CLI_EXTRA=(--preset "$ARG")
       else
         t "Geçersiz çözünürlük/ön ayar: $2" "Invalid resolution/preset: $2" >&2; usage; exit 1

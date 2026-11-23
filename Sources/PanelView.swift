@@ -55,7 +55,19 @@ final class PanelModel: ObservableObject {
         }
     }
     @Published var transitioning = false
-    @Published var statusNote: String?
+    /// Panel içi durum/uyarı şeritleri 5 sn sonra kendiliğinden kaybolur (ayrıntı günlükte kalır).
+    @Published var statusNote: String? { didSet { autoDismiss("status", statusNote) { $0.statusNote = nil } } }
+    static let noteLifetime: TimeInterval = 5
+    private var noteGeneration: [String: Int] = [:]
+    private func autoDismiss(_ id: String, _ value: String?, clear: @escaping (PanelModel) -> Void) {
+        guard value != nil else { return }
+        let g = (noteGeneration[id] ?? 0) + 1
+        noteGeneration[id] = g
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.noteLifetime) { [weak self] in
+            guard let self = self, self.noteGeneration[id] == g else { return }
+            clear(self)
+        }
+    }
     @Published var monitors: [MonitorSnapshot] = [] {
         didSet { syncCardModels() }
     }
@@ -85,7 +97,7 @@ final class PanelModel: ObservableObject {
     @Published var fanStatus: FanStatus?
     @Published var fanMode: FanMode = .auto
     @Published var fanApplying = false
-    @Published var fanNote: String?
+    @Published var fanNote: String? { didSet { autoDismiss("fan", fanNote) { $0.fanNote = nil } } }
     @Published var fanHelperInstalled: Bool = FanController.helperInstalled
     /// Popover açık mı (kapalıyken fan animasyonu durdurulur).
     @Published var panelOpen = false
@@ -104,7 +116,7 @@ final class PanelModel: ObservableObject {
     // Masaüstü → profiller
     @Published var profiles: [WorkspaceProfile] = ProfileStore.load()
     @Published var newProfileName = ""
-    @Published var profileNote: String?
+    @Published var profileNote: String? { didSet { autoDismiss("profile", profileNote) { $0.profileNote = nil } } }
 
     // Ayarlar → ses
     @Published var muteInRemote: Bool = AudioControl.enabled

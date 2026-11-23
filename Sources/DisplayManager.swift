@@ -312,16 +312,35 @@ final class DisplayManager {
         }
     }
 
-    func setVirtualResolution() {
+    /// Sanal ekranın şu anki çözünürlüğü (BetterDisplay; "1512x982").
+    func currentVirtualResolution() -> String? {
+        let r = cli(["get", "-name=\(Self.virtualScreenName)", "-resolution"], timeout: 5, logFailure: false)
+        guard r.succeeded else { return nil }
+        return RemotePreset.normalize(r.stdout.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// Çözünürlüğü ayarlar. BetterDisplay zaten o çözünürlükteyken de "Failed." döner; bu yüzden önce okunur,
+    /// her denemeden sonra yeniden okunur ve yalnızca gerçekten tutmazsa hata yazılır.
+    @discardableResult
+    func setVirtualResolution() -> Bool {
         let res = Self.virtualResolution
-        var r = cli(["set", "-name=\(Self.virtualScreenName)", "-resolution=\(res)", "-hiDPI=on"])
-        if !r.succeeded {
-            // Liste henüz güncellenmemiş olabilir: yapılandırıp bir kez daha dene.
+        if currentVirtualResolution() == res {
+            Log.info("\(Self.virtualScreenName) zaten \(res) HiDPI.")
+            return true
+        }
+        for attempt in 1...3 {
+            let r = cli(["set", "-name=\(Self.virtualScreenName)", "-resolution=\(res)", "-hiDPI=on"], logFailure: false)
+            Thread.sleep(forTimeInterval: 0.8)
+            if r.succeeded || currentVirtualResolution() == res {
+                Log.info("\(Self.virtualScreenName) çözünürlüğü \(res) HiDPI olarak ayarlandı (deneme \(attempt)).")
+                return true
+            }
+            // Liste henüz güncellenmemiş ya da ekran yeni bağlanmış olabilir: yapılandırıp bekle.
             configureVirtualScreen()
             Thread.sleep(forTimeInterval: 1)
-            r = cli(["set", "-name=\(Self.virtualScreenName)", "-resolution=\(res)", "-hiDPI=on"])
         }
-        if r.succeeded { Log.info("\(Self.virtualScreenName) çözünürlüğü \(res) HiDPI olarak ayarlandı.") }
+        Log.error("\(Self.virtualScreenName) çözünürlüğü \(res) yapılamadı (şu an: \(currentVirtualResolution() ?? "?")).")
+        return false
     }
 
     /// Sanal ekranın macOS tarafından gerçekten bağlandığını bekler (en fazla `timeout` sn).
@@ -463,6 +482,24 @@ final class DisplayManager {
         [Self.virtualScreenName, "dummy"] + (defaults.stringArray(forKey: "excludedDisplays") ?? [])
     }
 
+    /// BetterDisplay varsayılan olarak SON fiziksel monitörün bağlantısını kesmeyi reddeder (sanal ekranlar sayılmaz)
+    /// ve "Failed." döner. Remote'ta tek monitör de kesilebilsin diye "displayAllowDisconnectAll" açılır.
+    /// Ayar BetterDisplay yeniden başlayınca okunur; bu yüzden değiştiyse BetterDisplay bir kez yeniden başlatılır.
+    static let betterDisplayDomain = "pro.betterdisplay.BetterDisplay"
+    func ensureDisconnectAllAllowed() {
+        let read = Shell.run("/usr/bin/defaults", ["read", Self.betterDisplayDomain, "displayAllowDisconnectAll"], timeout: 5)
+        if read.succeeded && read.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "1" { return }
+        Log.info("BetterDisplay: tek/son monitörün de kesilebilmesi için 'displayAllowDisconnectAll' açılıyor")
+        Shell.run("/usr/bin/defaults", ["write", Self.betterDisplayDomain, "displayAllowDisconnectAll", "-bool", "true"], timeout: 5)
+        guard isBetterDisplayRunning() else { return }
+        Log.info("BetterDisplay ayarı okuması için yeniden başlatılıyor…")
+        Shell.run("/usr/bin/osascript", ["-e", "quit app \"BetterDisplay\""], timeout: 10)
+        for _ in 0..<20 where isBetterDisplayRunning() { Thread.sleep(forTimeInterval: 0.25) }
+        if isBetterDisplayRunning() { Shell.run("/usr/bin/pkill", ["-x", "BetterDisplay"], timeout: 5); Thread.sleep(forTimeInterval: 1) }
+        ensureBetterDisplayRunning()
+        Thread.sleep(forTimeInterval: 2)
+    }
+
     func isBetterDisplayRunning() -> Bool {
         Shell.run("/usr/bin/pgrep", ["-x", "BetterDisplay"], timeout: 5).succeeded
     }
@@ -590,6 +627,7 @@ final class DisplayManager {
         guard isCLIAvailable() else {
             return L("BetterDisplay CLI kapalı: BetterDisplay > Settings > Application > Integration > CLI erişimini açın")
         }
+        if resolvedMethod == .betterDisplay { ensureDisconnectAllAllowed() }
         Log.info("Remote sanal ekran çözünürlüğü: \(Self.virtualResolution) HiDPI")
         ensureVirtualScreen()
         applyVirtualAspect()
@@ -604,7 +642,27 @@ final class DisplayManager {
             return L("Sanal ekran açılamadı (BetterDisplay Pro / CLI?) – fiziksel ekranlar açık bırakıldı")
         }
         physical.rememberVirtualHardware(named: Self.virtualScreenName, ids: betterDisplayNonPhysicalIDs())
-        return setPhysicalConnected(false) ? nil : L("Fiziksel ekranlar kesilemedi (günlüğe bakın)")
+        // Sanal ekran ana ekran olsun (menü çubuğu ve Dock orada; Ekran Paylaşımı onu gösterir).
+        cli(["set", "-name=\(Self.virtualScreenName)", "-main=on"], timeout: 5, logFailure: false)
+        // Tüm fiziksel monitörleri kes (aynalananlar dahil), sonra gerçekten kesildiğini doğrula; gerekirse yeniden dene.
+        _ = setPhysicalConnected(false)
+        var lit = activeNativePhysicalDisplays()
+        var attempt = 1
+        while !lit.isEmpty && attempt < 3 {
+            Log.warn("Remote: hâlâ açık fiziksel ekran var (\(lit.map { $0.label }.joined(separator: ", "))), yeniden deneniyor (\(attempt + 1)/3)")
+            Thread.sleep(forTimeInterval: 1.5)
+            _ = setPhysicalConnected(false)
+            lit = activeNativePhysicalDisplays()
+            attempt += 1
+        }
+        // Çözünürlük, monitörler kesildikten sonra bir kez daha doğrulanır (macOS yeniden yerleşim yapabilir).
+        if currentVirtualResolution() != Self.virtualResolution { setVirtualResolution() }
+        if lit.isEmpty {
+            Log.info("Remote: yalnızca \(Self.virtualScreenName) açık (\(Self.virtualResolution) HiDPI).")
+            return nil
+        }
+        Log.error("Remote: şu monitörler kesilemedi: \(lit.map { $0.label }.joined(separator: ", "))")
+        return L("Fiziksel ekranlar kesilemedi (günlüğe bakın)")
     }
 
     /// Desktop: her monitörü KENDİ istenen durumuna döndür (kullanıcının kapattığı kapalı kalır),
@@ -621,7 +679,17 @@ final class DisplayManager {
         }
         Thread.sleep(forTimeInterval: 1)
         if isBetterDisplayRunning() { setVirtualConnected(false) }
-        return ok ? nil : L("Bazı fiziksel ekranlar açılamadı (günlüğe bakın)")
+        guard usesNativePhysicalControl else { return ok ? nil : L("Bazı fiziksel ekranlar açılamadı (günlüğe bakın)") }
+        // Sanal ekran kapanınca (aynalanan) monitörler kendi moduna döner; bekle ve istenen durumu bir kez daha uygula.
+        var active = !activeNativePhysicalDisplays().isEmpty
+        for _ in 0..<10 where !active {
+            Thread.sleep(forTimeInterval: 0.3)
+            active = !activeNativePhysicalDisplays().isEmpty
+        }
+        Thread.sleep(forTimeInterval: 1)
+        monitors.reconcile(mode: .desktop, virtualActive: false, applyBrightness: false,
+                           excludedIDs: betterDisplayNonPhysicalIDs(), excludedNames: excludedNames)
+        return !activeNativePhysicalDisplays().isEmpty ? nil : L("Bazı fiziksel ekranlar açılamadı (günlüğe bakın)")
     }
 
     /// Sleep: sanal ekran ASLA açılmaz/oluşturulmaz; açıksa kapatılır. Fiziksel ekranlar kesilir.

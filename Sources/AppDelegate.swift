@@ -66,6 +66,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var pendingRoutes: [URLRoute] = []
     var didFinishLaunching = false
     private var lastError: String?
+    /// Panelde en son gösterilen hata (aynı hata her arayüz yenilemesinde yeniden gösterilmesin).
+    private var shownError: String?
     /// Uyku modunda fare/klavye girdisini yakalayıp Masaüstü'ne dönmek için global izleyici (yalnızca Uyku'da).
     private var sleepInputMonitor: Any?
 
@@ -221,7 +223,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self?.controller.installBetterDisplay { [weak self] err in
                 guard let self = self else { return }
                 self.panelModel.bdInstalled = BetterDisplayInstaller.isInstalled
-                if let e = err { self.panelModel.statusNote = "Sanal ekran aracı kurulamadı. Ayrıntı günlükte."; Log.warn("BetterDisplay: \(e)") }
+                if let e = err { self.panelModel.statusNote = L("Sanal ekran aracı kurulamadı. Ayrıntı günlükte."); Log.warn("BetterDisplay: \(e)") }
             }
         }
         m.onQuit = { NSApp.terminate(nil) }
@@ -511,7 +513,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         if panelModel.mode != currentMode { panelModel.mode = currentMode }
         if panelModel.transitioning != isTransitioning { panelModel.transitioning = isTransitioning }
-        if let err = lastError, panelModel.statusNote != err { panelModel.statusNote = err }
+        // Hata yalnızca ilk kez gösterilir; şerit 5 sn sonra kaybolur (menü simgesinin ipucunda kalır).
+        if let err = lastError, err != shownError { shownError = err; panelModel.statusNote = err }
+        if lastError == nil { shownError = nil }
     }
 
     // MARK: Mod geçişi

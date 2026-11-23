@@ -113,7 +113,7 @@ final class PhysicalDisplayController {
         return onlineDisplayIDs().compactMap { id -> PhysicalDisplayRecord? in
             if CGDisplayIsBuiltin(id) != 0 { return nil }
             if excludedIDs.contains(id) { return nil }
-            if activeOnly && CGDisplayIsActive(id) == 0 { return nil }
+            if activeOnly && !Self.isLit(id) { return nil }
             let r = record(for: id, names: names)
             let n = r.name.lowercased()
             if lowered.contains(where: { n.contains($0) }) { return nil }
@@ -175,6 +175,10 @@ final class PhysicalDisplayController {
         }
         var ok = true
         for id in ids {
+            // Aynalanan bir monitör önce aynadan çıkarılır (yoksa macOS yapılandırmayı reddedebilir).
+            if !enabled && CGDisplayIsInMirrorSet(id) != 0 {
+                _ = CGConfigureDisplayMirrorOfDisplay(cfg, id, kCGNullDirectDisplay)
+            }
             let err = fn(cfg, id, enabled)
             if err != .success {
                 ok = false
@@ -201,6 +205,12 @@ final class PhysicalDisplayController {
             Log.warn("BetterDisplay şu ekranları \(enabled ? "açamadı" : "kapatamadı"): \(remaining.map { $0.label }.joined(separator: ", ")) → sistem API'si deneniyor")
         }
         guard Self.isAvailable else { return false }
+        // BetterDisplay kapatamadıysa sistem API'siyle KAPATMA denenmez: bazı kurulumlarda (macOS 26, HDMI)
+        // CGSConfigureDisplayEnabled kapalı monitörleri geri getirip hepsini aynalıyor. Açma için yedek kalır.
+        if !enabled && externalSwitch != nil && !defaults.bool(forKey: "systemDisableFallback") {
+            Log.warn("Sistem API'siyle kapatma atlandı (güvenli değil): \(remaining.map { $0.label }.joined(separator: ", "))")
+            return false
+        }
         lastBackend = Self.apiDescription
         var ok = configure(remaining.map { $0.id }, enabled: enabled)
         if !ok && remaining.count > 1 {
@@ -220,7 +230,7 @@ final class PhysicalDisplayController {
         }
         saveRemembered(remembered) // önce kaydet: işlem yarıda kalsa bile geri açılabilsin
 
-        let targets = displays.filter { CGDisplayIsActive($0.id) != 0 }
+        let targets = displays.filter { Self.isLit($0.id) }
         guard !targets.isEmpty else {
             Log.info("Kapatma atlandı (zaten kapalı): \(displays.map { $0.label }.joined(separator: ", "))")
             return true
@@ -233,11 +243,11 @@ final class PhysicalDisplayController {
     /// Yalnızca verilen ekranları etkinleştirir (diğerlerine dokunmaz) ve etkinleşenleri hatırlanan listeden çıkarır.
     @discardableResult
     func enable(_ displays: [PhysicalDisplayRecord]) -> Bool {
-        let targets = displays.filter { CGDisplayIsActive($0.id) == 0 }
+        let targets = displays.filter { !Self.isLit($0.id) }
         guard !targets.isEmpty else { return true }
         let ok = switchDisplays(targets, enabled: true)
         Thread.sleep(forTimeInterval: 0.5)
-        let nowActive = targets.filter { CGDisplayIsActive($0.id) != 0 }
+        let nowActive = targets.filter { Self.isLit($0.id) }
         var remembered = loadRemembered()
         remembered.removeAll { r in nowActive.contains { $0.id == r.id || $0.sameHardware(r) } }
         saveRemembered(remembered)
@@ -245,7 +255,13 @@ final class PhysicalDisplayController {
         return ok && nowActive.count == targets.count
     }
 
-    func isActive(_ id: UInt32) -> Bool { CGDisplayIsActive(id) != 0 }
+    func isActive(_ id: UInt32) -> Bool { Self.isLit(id) }
+
+    /// Ekran gerçekten görüntü veriyor mu? Bir ayna kümesinin (ör. sanal ekranın aynası) üyesi olan
+    /// monitörler için CGDisplayIsActive 0 döner ama monitör AÇIKTIR; bu yüzden ayna üyeliği de sayılır.
+    static func isLit(_ id: CGDirectDisplayID) -> Bool {
+        CGDisplayIsOnline(id) != 0 && (CGDisplayIsActive(id) != 0 || CGDisplayIsInMirrorSet(id) != 0)
+    }
 
     /// Hatırlanan ve şu an etkin olmayan tüm fiziksel ekranları yeniden etkinleştirir.
     @discardableResult
@@ -265,10 +281,10 @@ final class PhysicalDisplayController {
         }
         // Hatırlanmamış ama çevrimiçi ve etkin olmayan fiziksel ekranlar (ör. önceki oturumdan kalan).
         for r in physicalDisplays(excludedIDs: excludedIDs, excludedNames: excludedNames, activeOnly: false)
-        where CGDisplayIsActive(r.id) == 0 {
+        where !Self.isLit(r.id) {
             targets.insert(r.id)
         }
-        targets = targets.filter { CGDisplayIsActive($0) == 0 }
+        targets = targets.filter { !Self.isLit($0) }
         guard !targets.isEmpty else {
             forgetRemembered()
             return true
@@ -282,7 +298,7 @@ final class PhysicalDisplayController {
         }
         _ = switchDisplays(targetRecords, enabled: true)
         Thread.sleep(forTimeInterval: 1)
-        let stillOff = targets.filter { CGDisplayIsActive($0) == 0 }
+        let stillOff = targets.filter { !Self.isLit($0) }
         if stillOff.isEmpty {
             forgetRemembered()
         } else {

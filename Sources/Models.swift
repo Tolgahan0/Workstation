@@ -288,7 +288,10 @@ struct RemotePreset: Identifiable, Equatable {
         RemotePreset(id: "mba13", title: "MacBook Air 13\"", width: 1470, height: 956),
         RemotePreset(id: "mba15", title: "MacBook Air 15\"", width: 1710, height: 1107),
         RemotePreset(id: "mbp14", title: "MacBook Pro 14\"", width: 1512, height: 982),
+        // Ekran Paylaşımı tam ekranda çentiğin altını kullanır: bu boyut siyah kenar bırakmadan doldurur.
+        RemotePreset(id: "mbp14n", title: L("MacBook Pro 14\" · çentik altı"), width: 1512, height: 945),
         RemotePreset(id: "mbp16", title: "MacBook Pro 16\"", width: 1728, height: 1117),
+        RemotePreset(id: "mbp16n", title: L("MacBook Pro 16\" · çentik altı"), width: 1728, height: 1080),
         RemotePreset(id: "imac24", title: "iMac 24\"", width: 2240, height: 1260),
     ]
     static let fallback = all.first { $0.id == "mbp14" }!

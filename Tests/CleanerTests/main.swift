@@ -334,6 +334,14 @@ do {
     check(!Updater.swapScript.contains("with administrator privileges\" >/dev/null"), "betik yardımcı için parola penceresi açmaz")
 }
 
+// MARK: Remote ön ayarları (çentik altı)
+do {
+    check(RemotePreset.preset(matching: "1512x945")?.id == "mbp14n", "14 inç çentik altı ön ayarı")
+    check(RemotePreset.preset(matching: "1728x1080")?.id == "mbp16n", "16 inç çentik altı ön ayarı")
+    check(RemotePreset.aspect(of: "1512x945").map { $0 == (8, 5) } == true, "1512x945 → 8:5")
+    check(RemotePreset.fallback.resolution == "1512x982", "varsayılan 14 inç tam boy")
+}
+
 // MARK: Dil
 do {
     check(L10n.isTurkish, "test ortamı Türkçe")
