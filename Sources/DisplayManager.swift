@@ -373,8 +373,8 @@ final class DisplayManager {
     var methodDescription: String {
         let pref = PhysicalMethod.preference
         let resolved = resolvedMethod
-        let name = resolved == .betterDisplay ? "BetterDisplay (connected)" : "Sistem API (CoreGraphics)"
-        return pref == .auto ? "\(name) · otomatik" : name
+        let name = resolved == .betterDisplay ? "BetterDisplay ile" : "macOS'un kendi yöntemiyle"
+        return pref == .auto ? "\(name) (otomatik seçildi)" : name
     }
 
     /// Her ekran işleminden önce arka ucu seçer.

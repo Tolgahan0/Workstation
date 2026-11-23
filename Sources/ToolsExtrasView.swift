@@ -110,10 +110,10 @@ struct KeepAwakeCard: View {
                 f.dateFormat = "HH:mm"
                 subtitle = "Açık · \(f.string(from: u))'e kadar"
             } else {
-                subtitle = "Açık · siz kapatana dek"
+                subtitle = "Açık · sen kapatana kadar"
             }
         } else {
-            subtitle = "Mac boşta uykuya geçmez (ekran yine kararabilir)"
+            subtitle = "Uzun bir iş bitene kadar Mac uyumaz"
         }
         return VStack(alignment: .leading, spacing: 8) {
             HStack {

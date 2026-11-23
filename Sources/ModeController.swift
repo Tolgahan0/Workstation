@@ -163,21 +163,21 @@ final class ModeController {
             if BetterDisplayInstaller.isInstalled {
                 let version = BetterDisplayInstaller.installedVersion.map { "v\($0)" } ?? "kurulu"
                 let running = self.display.isBetterDisplayRunning()
-                info.betterDisplay = running ? "\(version) · çalışıyor" : "\(version) · kapalı"
+                info.betterDisplay = running ? "Hazır (\(version))" : "Kurulu, kapalı (\(version))"
                 if running {
                     info.virtualScreen = self.display.isVirtualActive()
-                        ? "Açık · \(DisplayManager.virtualResolution)"
-                        : "Kapalı · \(DisplayManager.virtualResolution) hazır"
+                        ? "Açık"
+                        : "Kapalı"
                 } else {
                     info.virtualScreen = "Kapalı"
                 }
             } else {
                 info.betterDisplay = "Kurulu değil"
-                info.virtualScreen = "BetterDisplay gerekli"
+                info.virtualScreen = "Sanal ekran aracı gerekli"
             }
             let list = self.display.monitorSnapshot()
             let on = list.filter { $0.isActive }.count
-            info.monitors = list.isEmpty ? "Harici monitör yok"
+            info.monitors = list.isEmpty ? "Bağlı monitör yok"
                 : "\(list.count) monitör (\(on) açık) · " + list.map { $0.name }.joined(separator: ", ")
             let pm = Shell.run("/usr/bin/pmset", ["-g"], timeout: 5)
             info.power = pm.succeeded ? PmsetSummary.parse(pm.stdout) : "—"

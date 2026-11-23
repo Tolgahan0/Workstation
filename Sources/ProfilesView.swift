@@ -26,7 +26,7 @@ private struct ProfileChips: View {
 
     var body: some View {
         if model.profiles.isEmpty {
-            Text("Henüz profil yok. Monitörleri/parlaklığı/fanı ayarlayıp bir ad vererek kaydedin.")
+            Text("Henüz profil yok. Monitörleri, parlaklığı ve fanı istediğin gibi ayarla, sonra bir ad verip kaydet.")
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

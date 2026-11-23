@@ -110,8 +110,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // Fan: önceki oturum manuel modda çöktüyse reset; Uyku modunda değilsek tercih edilen modu uygula.
         fans.onWatchdog = { [weak self] temp in
             guard let self = self else { return }
-            self.panelModel.fanNote = "Sıcaklık \(Int(temp)) °C → güvenlik için Full Blast'a çıkarıldı."
-            self.notifyOverheat(temp, extra: "Fanlar Full Blast'a çıkarıldı.")
+            self.panelModel.fanNote = "Mac çok ısındı (\(Int(temp)) °C), fanlar güvenlik için tam hıza alındı."
+            self.notifyOverheat(temp, extra: "Fanlar tam hıza alındı.")
             self.refreshFanStatus()
         }
         fans.launchRecovery(reapply: currentMode != .sleep)
@@ -119,8 +119,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             guard let self = self else { return }
             if unexpectedExit && self.notifySettings.unexpectedExit {
                 Log.warn("Önceki oturum beklenmedik şekilde bitti (temiz çıkış bayrağı yok)")
-                self.notifier.notify(kind: "unexpectedExit", title: "WorkstationMode beklenmedik şekilde kapanmıştı",
-                                     body: "Önceki oturum temiz kapanmadı (çökme, zorla kapatma veya elektrik kesintisi). Fanlar otomatiğe döndürüldü.")
+                self.notifier.notify(kind: "unexpectedExit", title: "Workstation beklenmedik şekilde kapanmıştı",
+                                     body: "Uygulama ya da Mac düzgün kapanmamış (elektrik kesintisi olabilir). Her şey normale döndürüldü.")
             }
             self.checkDiskSpace()
             self.configureCleanerAuto()
@@ -213,7 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self?.controller.installBetterDisplay { [weak self] err in
                 guard let self = self else { return }
                 self.panelModel.bdInstalled = BetterDisplayInstaller.isInstalled
-                if let e = err { self.panelModel.statusNote = "BetterDisplay: \(e)" }
+                if let e = err { self.panelModel.statusNote = "Sanal ekran aracı kurulamadı. Ayrıntı günlükte."; Log.warn("BetterDisplay: \(e)") }
             }
         }
         m.onQuit = { NSApp.terminate(nil) }
@@ -289,7 +289,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 guard let self = self else { return }
                 self.panelModel.fanApplying = false
                 if let e = err {
-                    self.panelModel.fanNote = "Uygulanamadı, otomatiğe dönüldü: \(e)"
+                    self.panelModel.fanNote = "Fan ayarı yapılamadı, Mac'in kendi ayarına dönüldü."; Log.warn("Fan: \(e)")
                 }
                 self.refreshFanStatus()
             }
@@ -738,7 +738,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case .fan(let mode):
             panelModel.fanMode = mode
             fans.apply(mode, reason: source) { [weak self] err in
-                if let e = err { self?.panelModel.fanNote = "Uygulanamadı: \(e)" }
+                if let e = err { self?.panelModel.fanNote = "Fan ayarı yapılamadı."; Log.warn("Fan: \(e)") }
             }
         case .keepAwake(let on, let seconds):
             if on { keepAwake.enable(seconds: seconds) } else { keepAwake.disable() }
@@ -754,10 +754,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func showCLIWarning() {
         let alert = NSAlert()
-        alert.messageText = "BetterDisplay CLI erişimi kapalı"
+        alert.messageText = "Sanal ekran aracına bir izin vermen gerekiyor"
         alert.informativeText = """
-        WorkstationMode, Remote modundaki sanal ekranı BetterDisplay CLI ile yönetir.
-        BetterDisplay > Settings > Application > Integration bölümünde CLI erişimini açın.
+        Remote'taki sanal ekranı BetterDisplay açıyor. Bir kerelik olarak BetterDisplay'i aç, \
+        Ayarlar › Application › Integration bölümünde "CLI" seçeneğini işaretle.
         """
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Tamam")

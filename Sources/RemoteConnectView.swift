@@ -9,7 +9,7 @@ struct WakeConnectCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Uyandır ve bağlan (MacBook'tan)", systemImage: "wifi.router")
+            Label("Uzaktan uyandır ve bağlan", systemImage: "wifi.router")
                 .font(.system(size: 12, weight: .semibold))
             WakeConnectBody(info: model.netInfo)
         }
@@ -27,7 +27,7 @@ private struct WakeConnectBody: View {
                 CopyLine(label: "MAC", value: n.mac.isEmpty ? "bulunamadı" : n.mac, copy: n.mac)
                 CopyLine(label: "IP", value: n.ip.isEmpty ? "—" : n.ip, copy: n.ip)
                 CopyLine(label: "Komut", value: n.connectCommand, copy: n.connectCommand)
-                Text("Komutu MacBook'ta Terminal'de çalıştırın: uyuyorsa Wake-on-LAN ile uyandırır, Remote'a alır ve Ekran Paylaşımı'nı açar.")
+                Text("Bu komutu bağlanacağın Mac'te Terminal'e yapıştır. Bu Mac uyuyorsa uyanır, Remote'a geçer ve ekranı açılır.")
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -35,7 +35,7 @@ private struct WakeConnectBody: View {
         } else {
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small).scaleEffect(0.6)
-                Text("Ağ bilgisi okunuyor… (workstation komutu kurulu olmalı)")
+                Text("Ağ bilgisi okunuyor…")
                     .font(.system(size: 10)).foregroundColor(.secondary)
             }
         }

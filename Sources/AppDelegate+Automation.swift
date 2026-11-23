@@ -142,7 +142,7 @@ extension AppDelegate {
         if let f = p.fanMode, f != fans.preferredMode {
             panelModel.fanMode = f
             fans.apply(f, reason: "profil \(p.name)") { [weak self] err in
-                if let e = err { self?.panelModel.fanNote = "Profil fan modu uygulanamadı: \(e)" }
+                if let e = err { self?.panelModel.fanNote = "Profildeki fan ayarı uygulanamadı."; Log.warn("Profil fan: \(e)") }
             }
         }
     }
@@ -185,13 +185,13 @@ extension AppDelegate {
         guard notifySettings.lowDisk, let f = free, let t = total, t > 0 else { return }
         let pct = Int((Double(f) / Double(t) * 100).rounded())
         notifier.notify(kind: "lowDisk", title: "Disk alanı azaldı",
-                        body: "Başlangıç diskinde yalnızca \(StatsFormat.bytes(Double(f))) (%\(pct)) boş alan kaldı.")
+                        body: "Diskte sadece \(StatsFormat.bytes(Double(f))) (%\(pct)) boş yer kaldı. Tools › Disk'ten temizleyebilirsin.")
     }
 
     func notifyOverheat(_ temp: Double, extra: String?) {
         guard notifySettings.overheat else { return }
         notifier.notify(kind: "overheat", title: "Mac mini çok ısındı: \(Int(temp)) °C",
-                        body: "Sıcaklık \(Int(NotificationPolicy.overheatLimit)) °C'nin üstünde." + (extra.map { " " + $0 } ?? ""))
+                        body: "Mac çok ısındı. Havalandırmasının açık olduğundan emin ol." + (extra.map { " " + $0 } ?? ""))
     }
 
     /// `kill`/`pkill` (SIGTERM) gelince de temiz kapan: fanlar otomatiğe, temiz çıkış bayrağı yazılır.

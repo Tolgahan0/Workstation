@@ -7,9 +7,9 @@ enum WorkMode: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .desktop: return "Masaüstü Modu"
-        case .sleep: return "Uyku / Gece Modu"
-        case .remote: return "Remote (14\" MacBook Pro) Modu"
+        case .desktop: return "Masaüstü"
+        case .sleep: return "Uyku"
+        case .remote: return "Remote"
         }
     }
 
@@ -383,7 +383,7 @@ enum PhysicalMethod: String, CaseIterable, Identifiable {
         switch self {
         case .auto: return "Otomatik"
         case .betterDisplay: return "BetterDisplay"
-        case .system: return "Sistem API"
+        case .system: return "macOS"
         }
     }
 
@@ -415,14 +415,10 @@ enum PmsetSummary {
             guard parts.count >= 2 else { continue }
             values[parts[0]] = parts[1]
         }
-        func minutes(_ k: String, _ label: String) -> String? {
-            guard let v = values[k] else { return nil }
-            return v == "0" ? "\(label) kapalı" : "\(label) \(v) dk"
-        }
         var out: [String] = []
-        if let s = minutes("sleep", "uyku") { out.append(s) }
-        if let s = minutes("displaysleep", "ekran") { out.append(s) }
-        if let lp = values["lowpowermode"] { out.append(lp == "1" ? "düşük güç açık" : "düşük güç kapalı") }
+        if let v = values["sleep"] { out.append(v == "0" ? "Mac uyumaz" : "Mac \(v) dk sonra uyur") }
+        if let v = values["displaysleep"] { out.append(v == "0" ? "ekran kararmaz" : "ekran \(v) dk sonra kararır") }
+        if let lp = values["lowpowermode"] { out.append(lp == "1" ? "enerji tasarrufu açık" : "enerji tasarrufu kapalı") }
         return out.isEmpty ? "—" : out.joined(separator: " · ")
     }
 }

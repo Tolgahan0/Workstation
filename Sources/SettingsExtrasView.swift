@@ -57,10 +57,10 @@ struct AutoSwitchCard: View {
         let s: AutoSwitchSettings = model.autoSwitch
         return VStack(alignment: .leading, spacing: 8) {
             CardTitleRow(icon: "dot.radiowaves.left.and.right", title: "Otomatik mod geçişi",
-                         subtitle: "Ekran Paylaşımı bağlanınca Remote; oturum bitince seçilen moda dön")
-            ToggleRow(title: "Uzak oturumda otomatik Remote", isOn: binding(\.enabled))
+                         subtitle: "Biri uzaktan bağlanınca Remote açılır, bağlantı bitince seçtiğin moda dönülür")
+            ToggleRow(title: "Uzaktan bağlanınca Remote'a geç", isOn: binding(\.enabled))
             if s.enabled {
-                ToggleRow(title: "SSH oturumlarını da say", isOn: binding(\.includeSSH))
+                ToggleRow(title: "Terminal (SSH) bağlantılarını da say", isOn: binding(\.includeSSH))
                 AutoSwitchAfterRow(model: model, after: binding(\.after), minutes: binding(\.idleMinutes))
                 Text(model.autoSwitchStatus)
                     .font(.system(size: 10))
@@ -127,7 +127,7 @@ struct ScheduleCard: View {
         let rules: [ScheduleRule] = model.schedule.rules
         return VStack(alignment: .leading, spacing: 8) {
             CardTitleRow(icon: "calendar.badge.clock", title: "Zamanlanmış modlar",
-                         subtitle: "Belirli saat ve günlerde modu değiştir (geri sayım HUD'u gösterilir)")
+                         subtitle: "Seçtiğin gün ve saatlerde mod kendiliğinden değişir")
             ForEach(rules) { (r: ScheduleRule) in
                 ScheduleRuleRow(model: model, rule: r)
                 Divider().opacity(0.2)
@@ -142,7 +142,7 @@ struct ScheduleCard: View {
                 Spacer()
                 Text(model.scheduleNext).font(.system(size: 10)).foregroundColor(.secondary)
             }
-            ToggleRow(title: "Planlı uyanma (pmset repeat, ilk Masaüstü/Remote kuralından 2 dk önce)", isOn: wakeBinding)
+            ToggleRow(title: "Mac uyuyorsa o saatten biraz önce uyandır", isOn: wakeBinding)
         }
         .cardStyle()
     }
@@ -260,8 +260,8 @@ struct AudioCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitleRow(icon: "speaker.slash", title: "Ses",
-                         subtitle: "Remote'ta Mac mini hoparlörü sessize alınır, Masaüstü'nde geri açılır")
-            ToggleRow(title: "Remote modunda Mac mini sesini kapat", isOn: binding)
+                         subtitle: "Remote'tayken Mac'in sesi kısılır, Masaüstüne dönünce geri gelir")
+            ToggleRow(title: "Remote'ta sesi kapat", isOn: binding)
         }
         .cardStyle()
     }
@@ -284,10 +284,10 @@ struct NotificationsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitleRow(icon: "bell.badge", title: "Bildirimler",
-                         subtitle: "Yerel macOS bildirimleri (telefona anlık bildirim şimdilik yok)")
-            ToggleRow(title: "Aşırı ısınma (> 95 °C)", isOn: binding(\.overheat))
-            ToggleRow(title: "Disk boş alanı < %10", isOn: binding(\.lowDisk))
-            ToggleRow(title: "Beklenmedik kapanma (açılışta)", isOn: binding(\.unexpectedExit))
+                         subtitle: "Önemli bir şey olunca Mac'te bildirim gelir")
+            ToggleRow(title: "Mac çok ısınırsa", isOn: binding(\.overheat))
+            ToggleRow(title: "Disk dolmak üzereyse", isOn: binding(\.lowDisk))
+            ToggleRow(title: "Uygulama beklenmedik şekilde kapandıysa", isOn: binding(\.unexpectedExit))
         }
         .cardStyle()
     }
