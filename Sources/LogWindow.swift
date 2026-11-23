@@ -188,7 +188,7 @@ final class LogWindowController: NSObject, NSWindowDelegate {
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 460),
                          styleMask: [.titled, .closable, .miniaturizable, .resizable],
                          backing: .buffered, defer: true)
-        w.title = "WorkstationMode – Günlük"
+        w.title = "Workstation – Günlük"
         w.isReleasedWhenClosed = false
         w.appearance = NSAppearance(named: .darkAqua)
         w.contentView = NSHostingView(rootView: view)

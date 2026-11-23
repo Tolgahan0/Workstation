@@ -176,7 +176,7 @@ enum IconRenderer {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = "WorkstationMode"
+        image.accessibilityDescription = "Workstation"
         return image
     }
 

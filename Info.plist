@@ -5,15 +5,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>tr</string>
 	<key>CFBundleExecutable</key>
-	<string>WorkstationMode</string>
+	<string>Workstation</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.tolgahanayaz.workstationmode</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>WorkstationMode</string>
+	<string>Workstation</string>
 	<key>CFBundleDisplayName</key>
-	<string>WorkstationMode</string>
+	<string>Workstation</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

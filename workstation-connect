@@ -162,7 +162,7 @@ fi
 # --- 3) Remote + Ekran Paylaşımı ----------------------------------------------------
 echo "→ $HOST Remote moduna alınıyor${RES:+ ($RES)}…"
 if ! /usr/bin/ssh "$HOST" "/usr/local/bin/workstation remote $RES"; then
-  echo "SSH komutu başarısız. 'ssh $HOST' bağlantısını ve uzak Mac'te WorkstationMode kurulumunu kontrol edin." >&2
+  echo "SSH komutu başarısız. 'ssh $HOST' bağlantısını ve uzak Mac'te Workstation kurulumunu kontrol edin." >&2
   exit 1
 fi
 

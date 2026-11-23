@@ -1,5 +1,5 @@
 #!/bin/bash
-# WorkstationMode — ortam hazırlığı
+# Workstation — ortam hazırlığı
 #  1) Homebrew (/opt/homebrew/bin/brew) yoksa kurar ve ~/.zprofile'a shellenv satırını ekler
 #  2) BetterDisplay (/Applications/BetterDisplay.app) yoksa `brew install --cask betterdisplay` ile kurar
 #  3) BetterDisplay CLI erişimini doğrular; kapalıysa uyarır
@@ -91,7 +91,7 @@ else
   warn "Lütfen BetterDisplay > Settings > Application > Integration bölümünde"
   warn "'Enable CLI / URL scheme' (CLI erişimi) seçeneğini AÇIN, sonra bu betiği tekrar çalıştırın."
   [[ -s "$CLI_OUT" ]] && { warn "CLI çıktısı:"; sed 's/^/    /' "$CLI_OUT" >&2; }
-  /usr/bin/osascript -e 'display dialog "BetterDisplay CLI erişimi kapalı görünüyor.\n\nBetterDisplay > Settings > Application (Integration) bölümünde \"Enable CLI / URL scheme\" kutucuğunu açın ve kurulumu tekrar çalıştırın." with title "WorkstationMode" buttons {"Tamam"} default button 1 with icon caution' >/dev/null 2>&1 || true
+  /usr/bin/osascript -e 'display dialog "BetterDisplay CLI erişimi kapalı görünüyor.\n\nBetterDisplay > Settings > Application (Integration) bölümünde \"Enable CLI / URL scheme\" kutucuğunu açın ve kurulumu tekrar çalıştırın." with title "Workstation" buttons {"Tamam"} default button 1 with icon caution' >/dev/null 2>&1 || true
   /usr/bin/open -a "$BD_APP" || true
 fi
 rm -f "$CLI_OUT"

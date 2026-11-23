@@ -89,7 +89,7 @@ final class Notifier: NSObject {
         center.requestAuthorization(options: [.alert, .sound]) { granted, error in
             if let e = error { Log.warn("Bildirim izni hatası: \(e.localizedDescription)") }
             guard granted else {
-                Log.warn("Bildirim izni yok (Sistem Ayarları › Bildirimler › WorkstationMode)")
+                Log.warn("Bildirim izni yok (Sistem Ayarları › Bildirimler › Workstation)")
                 return
             }
             let content = UNMutableNotificationContent()

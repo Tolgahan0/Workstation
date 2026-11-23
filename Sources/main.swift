@@ -5,7 +5,7 @@ let urlScheme = "workstation"
 let setModeNotification = Notification.Name("com.tolgahanayaz.workstationmode.setMode")
 let currentModeKey = "currentMode"
 
-// MARK: - Komut satırı (ör. `WorkstationMode --mode remote --res 1512x982`)
+// MARK: - Komut satırı (ör. `Workstation --mode remote --res 1512x982`)
 
 /// `--mode X`, `--mode=X`, `--remote`, `--sleep`, `--desktop` biçimlerini destekler.
 func modeFromArguments(_ args: [String]) -> WorkMode? {
@@ -40,15 +40,15 @@ func resolutionFromArguments(_ args: [String]) -> String? {
 func printUsage() {
     print("""
     Kullanım:
-      WorkstationMode                              Menü çubuğu uygulamasını başlatır
-      WorkstationMode --mode remote [--res WxH]    Remote (isteğe bağlı istemci çözünürlüğü, ör. 1512x982)
-      WorkstationMode --mode remote --preset mbp16 Ön ayar: mba13 mba15 mbp14 mbp16 imac24
-      WorkstationMode --mode sleep                 Uyku / Gece
-      WorkstationMode --mode desktop               Masaüstü
-      WorkstationMode --status                     Geçerli modu yazdırır
-      WorkstationMode --clean [--dry-run]          Disk temizleyici: yalnızca tarar ve listeler
-      WorkstationMode --clean --yes                Seçili kategorileri temizler (her öğe silmeden önce yeniden denetlenir)
-      WorkstationMode --clean --auto               Otomatik moddaki güvenli kümeyi temizler
+      Workstation                              Menü çubuğu uygulamasını başlatır
+      Workstation --mode remote [--res WxH]    Remote (isteğe bağlı istemci çözünürlüğü, ör. 1512x982)
+      Workstation --mode remote --preset mbp16 Ön ayar: mba13 mba15 mbp14 mbp16 imac24
+      Workstation --mode sleep                 Uyku / Gece
+      Workstation --mode desktop               Masaüstü
+      Workstation --status                     Geçerli modu yazdırır
+      Workstation --clean [--dry-run]          Disk temizleyici: yalnızca tarar ve listeler
+      Workstation --clean --yes                Seçili kategorileri temizler (her öğe silmeden önce yeniden denetlenir)
+      Workstation --clean --auto               Otomatik moddaki güvenli kümeyi temizler
     URL: workstation://remote[?res=WxH] | workstation://sleep | workstation://desktop
          workstation://profile/<ad> | workstation://fan/auto|half|max | workstation://keepawake/on|off|3h
          workstation://clean/scan | workstation://clean/auto
@@ -78,7 +78,7 @@ func forwardModeAndExit(_ mode: WorkMode, resolution: String?) -> Never {
         let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
             .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
         if others.isEmpty {
-            FileHandle.standardError.write("Hata: \(url) açılamadı ve çalışan WorkstationMode bulunamadı.\n".data(using: .utf8)!)
+            FileHandle.standardError.write("Hata: \(url) açılamadı ve çalışan Workstation bulunamadı.\n".data(using: .utf8)!)
             exit(1)
         }
         let object = resolution.map { "\(mode.rawValue)?res=\($0)" } ?? mode.rawValue
@@ -86,7 +86,7 @@ func forwardModeAndExit(_ mode: WorkMode, resolution: String?) -> Never {
             setModeNotification, object: object, userInfo: nil, deliverImmediately: true)
         RunLoop.current.run(until: Date().addingTimeInterval(0.5))
     }
-    print("WorkstationMode → \(mode.title)\(resolution.map { " (\($0))" } ?? "") isteği gönderildi.")
+    print("Workstation → \(mode.title)\(resolution.map { " (\($0))" } ?? "") isteği gönderildi.")
     exit(0)
 }
 
@@ -114,7 +114,7 @@ if let requested = modeFromArguments(arguments) {
 let runningInstances = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
     .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
 if !runningInstances.isEmpty {
-    NSLog("WorkstationMode zaten çalışıyor; bu örnek kapanıyor.")
+    NSLog("Workstation zaten çalışıyor; bu örnek kapanıyor.")
     exit(0)
 }
 

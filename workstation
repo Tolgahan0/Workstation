@@ -1,5 +1,5 @@
 #!/bin/zsh
-# WorkstationMode yardımcı komutu (Mac mini / sunucu tarafı).
+# Workstation yardımcı komutu (Mac mini / sunucu tarafı).
 # Kullanım (yerelde veya SSH ile):
 #   workstation remote [WxH | mba13 | mba15 | mbp14 | mbp16 | imac24]
 #   workstation sleep | desktop | status | log
@@ -9,7 +9,7 @@
 # Örnek: ssh studio workstation remote 1512x982
 # İstemci Mac'te otomatik çözünürlük için: workstation-connect studio
 
-APP="/Applications/WorkstationMode.app"
+APP="/Applications/Workstation.app"
 BUNDLE_ID="com.tolgahanayaz.workstationmode"
 
 usage() {
@@ -40,15 +40,15 @@ urlencode() {
 }
 
 open_url() {
-  if /usr/bin/open -g "$1"; then echo "WorkstationMode → $1 isteği gönderildi."; else echo "Açılamadı: $1" >&2; exit 1; fi
+  if /usr/bin/open -g "$1"; then echo "Workstation → $1 isteği gönderildi."; else echo "Açılamadı: $1" >&2; exit 1; fi
 }
 
 case "${1:-}" in
   clean)
     shift
     if [[ "${1:-}" == "scan-app" ]]; then open_url "workstation://clean/scan"; exit 0; fi
-    [[ -x "$APP/Contents/MacOS/WorkstationMode" ]] || { echo "Uygulama bulunamadı: $APP" >&2; exit 1; }
-    exec "$APP/Contents/MacOS/WorkstationMode" --clean "$@"
+    [[ -x "$APP/Contents/MacOS/Workstation" ]] || { echo "Uygulama bulunamadı: $APP" >&2; exit 1; }
+    exec "$APP/Contents/MacOS/Workstation" --clean "$@"
     ;;
   profile)
     [[ -n "${2:-}" ]] || { echo "Profil adı gerekli: workstation profile <ad>" >&2; exit 1; }
@@ -83,10 +83,10 @@ case "${1:-}" in
       fi
     fi
     if /usr/bin/open -g "workstation://${MODE}${QUERY}"; then
-      echo "WorkstationMode → ${MODE}${QUERY:+ ($QUERY)} isteği gönderildi."
+      echo "Workstation → ${MODE}${QUERY:+ ($QUERY)} isteği gönderildi."
     else
       # Yedek yol: uygulamanın komut satırı argümanı
-      "$APP/Contents/MacOS/WorkstationMode" --mode "$MODE" "${CLI_EXTRA[@]}"
+      "$APP/Contents/MacOS/Workstation" --mode "$MODE" "${CLI_EXTRA[@]}"
     fi
     ;;
   status)
@@ -149,7 +149,7 @@ case "${1:-}" in
     echo "HOSTNAME=$(/usr/sbin/scutil --get LocalHostName 2>/dev/null).local"
     ;;
   log)
-    /usr/bin/tail -n 40 "$HOME/Library/Logs/WorkstationMode.log"
+    /usr/bin/tail -n 40 "$HOME/Library/Logs/Workstation.log"
     ;;
   *)
     usage

@@ -274,7 +274,7 @@ private struct HeaderTitle: View {
     let subtitle: String
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("WorkstationMode").font(.system(size: 15, weight: .bold))
+            Text("Workstation").font(.system(size: 15, weight: .bold))
             Text(subtitle).font(.system(size: 12)).foregroundColor(.secondary)
         }
     }
@@ -341,7 +341,7 @@ private struct QuitButton: View {
     @ObservedObject var model: PanelModel
     var body: some View {
         Button(action: { model.onQuit() }) {
-            Label("Çık", systemImage: "power")
+            Label("Workstation'dan çık", systemImage: "power")
         }
         .buttonStyle(.plain)
         .foregroundColor(Color.red.opacity(0.9))

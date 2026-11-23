@@ -90,7 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        Log.info("WorkstationMode başlatıldı (pid \(ProcessInfo.processInfo.processIdentifier)).")
+        Log.info("Workstation başlatıldı (pid \(ProcessInfo.processInfo.processIdentifier)).")
         let unexpectedExit = CleanExit.checkAndArm()
         installTerminationSignalHandler()
         currentMode = WorkMode(rawValue: UserDefaults.standard.string(forKey: currentModeKey) ?? "") ?? .desktop
@@ -158,7 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        Log.info("WorkstationMode kapanıyor (mod: \(currentMode.rawValue)). Ekran durumu değiştirilmedi.")
+        Log.info("Workstation kapanıyor (mod: \(currentMode.rawValue)). Ekran durumu değiştirilmedi.")
         // Güvenlik: fanlar asla manuel modda bırakılmaz (tercih saklı kalır, açılışta yeniden uygulanır).
         fans.resetSync(reason: "uygulama kapanıyor")
         CleanExit.markClean()
@@ -482,7 +482,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func updateUI() {
         if let button = statusItem?.button {
             badgeView?.color = IconRenderer.badgeColor(mode: currentMode, busy: isTransitioning || countdownActive)
-            button.toolTip = "WorkstationMode: \(currentMode.title)\(lastError.map { " – ⚠︎ \($0)" } ?? "")"
+            button.toolTip = "Workstation: \(currentMode.title)\(lastError.map { " – ⚠︎ \($0)" } ?? "")"
         }
         if panelModel.mode != currentMode { panelModel.mode = currentMode }
         if panelModel.transitioning != isTransitioning { panelModel.transitioning = isTransitioning }

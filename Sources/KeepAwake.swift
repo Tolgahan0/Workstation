@@ -51,7 +51,7 @@ final class KeepAwake {
             var id: IOPMAssertionID = 0
             let r = IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
                                                 IOPMAssertionLevel(kIOPMAssertionLevelOn),
-                                                "WorkstationMode: Uyanık tut" as CFString, &id)
+                                                "Workstation: Uyanık tut" as CFString, &id)
             guard r == kIOReturnSuccess else {
                 Log.error("Uyanık tut: IOPMAssertion oluşturulamadı (\(r))")
                 return

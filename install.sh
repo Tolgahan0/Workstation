@@ -1,10 +1,10 @@
 #!/bin/bash
-# WorkstationMode — tek adımlık kurulum
+# Workstation — tek adımlık kurulum
 #   ./install.sh
 # Yapılanlar:
 #   1) setup_env.sh: Homebrew + BetterDisplay kontrolü/kurulumu, CLI doğrulaması
 #   2) Xcode Command Line Tools kontrolü
-#   3) Swift kaynaklarını derleyip /Applications/WorkstationMode.app paketini oluşturma + ad-hoc imza
+#   3) Swift kaynaklarını derleyip /Applications/Workstation.app paketini oluşturma + ad-hoc imza
 #   4) /usr/local/libexec/wm-fanhelper (fan yardımcısı, root:wheel 755) +
 #      /etc/sudoers.d/workstation_toggle  →  <kullanıcı> ALL=(root) NOPASSWD: /usr/bin/pmset, /usr/local/libexec/wm-fanhelper
 #   5) workstation:// URL scheme kaydı (lsregister)
@@ -13,7 +13,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_NAME="WorkstationMode"
+APP_NAME="Workstation"
 APP_PATH="/Applications/${APP_NAME}.app"
 BUNDLE_ID="com.tolgahanayaz.workstationmode"
 SUDOERS_FILE="/etc/sudoers.d/workstation_toggle"
@@ -114,6 +114,17 @@ info "Ad-hoc imzalanıyor…"
 codesign --force --deep -s - "$STAGE"
 codesign --verify --verbose=1 "$STAGE" >/dev/null 2>&1 && ok "İmza doğrulandı."
 
+# Eski adla (WorkstationMode.app) kurulmuş sürüm: kapat, Login Items'tan çıkar ve sil.
+OLD_APP="/Applications/WorkstationMode.app"
+if [[ -d "$OLD_APP" ]] || pgrep -x WorkstationMode >/dev/null 2>&1; then
+  info "Eski WorkstationMode.app kaldırılıyor (ayarlar korunur)…"
+  pkill -x WorkstationMode 2>/dev/null || true
+  osascript -e 'tell application "System Events" to delete (every login item whose name is "WorkstationMode")' >/dev/null 2>&1 || true
+  sleep 1
+  rm -rf "$OLD_APP" 2>/dev/null || sudo rm -rf "$OLD_APP"
+  ok "Eski uygulama kaldırıldı."
+fi
+
 # Çalışan eski sürümü kapat ve yenisini /Applications'a kopyala.
 if pgrep -x "$APP_NAME" >/dev/null 2>&1; then
   info "Çalışan $APP_NAME kapatılıyor…"
@@ -148,13 +159,13 @@ info "Parolasız pmset / fan yardımcısı izni ayarlanıyor: $SUDOERS_FILE"
 TMP_SUDOERS="$(mktemp -t workstation_toggle)"
 if [[ "$FANHELPER_OK" == 1 ]]; then
   cat > "$TMP_SUDOERS" <<SUDOERS
-# WorkstationMode: mod geçişlerinde pmset'in ve fan yardımcısının parola sormadan çalışması için.
+# Workstation: mod geçişlerinde pmset'in ve fan yardımcısının parola sormadan çalışması için.
 # wm-fanhelper yalnızca: status | set <fan|all> auto|half|max | reset kabul eder.
 $TARGET_USER ALL=(root) NOPASSWD: /usr/bin/pmset, $FANHELPER_DST
 SUDOERS
 else
   cat > "$TMP_SUDOERS" <<SUDOERS
-# WorkstationMode: mod geçişlerinde pmset'in parola sormadan çalışması için
+# Workstation: mod geçişlerinde pmset'in parola sormadan çalışması için
 $TARGET_USER ALL=(root) NOPASSWD: /usr/bin/pmset
 SUDOERS
 fi
@@ -198,7 +209,7 @@ ok "Yardımcı komutlar hazır: workstation remote [WxH|ön ayar] | sleep | desk
 
 # --- 7) Login Items + başlatma -----------------------------------------------
 info "Login Items'a ekleniyor (System Events için izin istenebilir)…"
-if osascript -e 'tell application "System Events" to get the name of every login item' 2>/dev/null | grep -q "$APP_NAME"; then
+if osascript -e 'tell application "System Events" to get the name of every login item' 2>/dev/null | tr ',' '\n' | sed 's/^ *//' | grep -qx "$APP_NAME"; then
   ok "Zaten Login Items'ta."
 else
   if osascript -e "tell application \"System Events\" to make login item at end with properties {path:\"$APP_PATH\", hidden:true}" >/dev/null; then
@@ -214,12 +225,12 @@ sleep 2
 if pgrep -x "$APP_NAME" >/dev/null 2>&1; then
   ok "$APP_NAME menü çubuğunda çalışıyor."
 else
-  warn "$APP_NAME başlatılamadı; günlük: ~/Library/Logs/WorkstationMode.log"
+  warn "$APP_NAME başlatılamadı; günlük: ~/Library/Logs/Workstation.log"
 fi
 
 cat <<DONE
 
-Kurulum tamamlandı (WorkstationMode 1.7.0).
+Kurulum tamamlandı (Workstation 1.7.0).
   Menü çubuğu simgesi:  tek renk Mac mini (rozet: mavi=Uyku · yeşil=Remote · sarı=geçiş)
   Uzaktan:             ssh <host> workstation remote [WxH|mbp14…] | sleep | desktop | status
                        ssh <host> workstation profile <ad> | fan auto|half|max | keepawake on|off|3h
@@ -227,5 +238,5 @@ Kurulum tamamlandı (WorkstationMode 1.7.0).
                          workstation-connect --setup <host>   (MAC/yayın adresini ~/.config/workstation/config'e yazar)
                        ve her seferinde: workstation-connect   (Wake-on-LAN → Remote → Ekran Paylaşımı)
   Kestirmeler / URL:   workstation://remote · workstation://profile/<ad> · workstation://fan/max · workstation://keepawake/on
-  Günlük:              ~/Library/Logs/WorkstationMode.log
+  Günlük:              ~/Library/Logs/Workstation.log
 DONE

@@ -113,7 +113,7 @@ enum Log {
         let logs = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Logs", isDirectory: true)
         try? FileManager.default.createDirectory(at: logs, withIntermediateDirectories: true)
-        return logs.appendingPathComponent("WorkstationMode.log")
+        return logs.appendingPathComponent("Workstation.log")
     }()
 
     private static let queue = DispatchQueue(label: "com.tolgahanayaz.workstationmode.log", qos: .utility)
@@ -137,7 +137,7 @@ enum Log {
     }
 
     private static func write(_ level: LogLevel, _ message: String) {
-        NSLog("[WorkstationMode] %@: %@", level.rawValue, message)
+        NSLog("[Workstation] %@: %@", level.rawValue, message)
         let now = Date()
         queue.async {
             let time = formatter.string(from: now)

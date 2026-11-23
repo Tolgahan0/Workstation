@@ -68,7 +68,7 @@ final class PowerManager {
         guard remoteActivity == nil else { return }
         remoteActivity = ProcessInfo.processInfo.beginActivity(
             options: [.idleSystemSleepDisabled, .suddenTerminationDisabled, .automaticTerminationDisabled],
-            reason: "WorkstationMode Remote modu: Mac mini uykuya geçmemeli")
+            reason: "Workstation Remote modu: Mac mini uykuya geçmemeli")
         Log.info("Remote uyku engelleme etkinliği başlatıldı.")
         #endif
     }

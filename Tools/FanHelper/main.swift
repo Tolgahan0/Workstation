@@ -1,6 +1,6 @@
 import Foundation
 
-// wm-fanhelper — WorkstationMode fan yardımcısı (root olarak sudo ile çalışır).
+// wm-fanhelper — Workstation fan yardımcısı (root olarak sudo ile çalışır).
 // Kabul edilen komutlar YALNIZCA:
 //   status                         → JSON durum
 //   set <fanIndex|all> auto|half|max

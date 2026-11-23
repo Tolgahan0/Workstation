@@ -120,7 +120,7 @@ final class BetterDisplayInstaller: NSObject, URLSessionDownloadDelegate {
     /// GitHub API: son sürümdeki ilk .dmg varlığının indirme adresi.
     private func latestDMGURL() -> URL? {
         var request = URLRequest(url: Self.releasesAPI, timeoutInterval: 30)
-        request.setValue("WorkstationMode", forHTTPHeaderField: "User-Agent")
+        request.setValue("Workstation", forHTTPHeaderField: "User-Agent")
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         let done = DispatchSemaphore(value: 0)
         final class Box: @unchecked Sendable { var url: URL? }
