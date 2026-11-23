@@ -93,18 +93,56 @@ case "${1:-}" in
     /usr/bin/defaults read "$BUNDLE_ID" currentMode 2>/dev/null || echo "desktop"
     ;;
   netinfo)
-    # Wake-on-LAN kablolu arabirimde güvenilirdir: önce "Ethernet" donanım portu, yoksa varsayılan rota.
-    ETH=$(/usr/sbin/networksetup -listallhardwareports 2>/dev/null \
-      | /usr/bin/awk '/^Hardware Port: .*Ethernet/{f=1;next} f&&/^Device:/{print $2; exit}')
+    # Wake-on-LAN için GERÇEK donanım MAC'i gerekir. Sanal / gizlilik adresleri (00:00…, 02:…, yerel yönetimli)
+    # atlanır; kablolu (Ethernet) bağlantı önceliklidir, sonra varsayılan rota, en son Wi-Fi.
+    usable_mac() {
+      local m="${1:l}"
+      [[ "$m" =~ '^([0-9a-f]{2}:){5}[0-9a-f]{2}$' ]] || return 1
+      [[ "$m" == "00:00:00:00:00:00" || "$m" == "ff:ff:ff:ff:ff:ff" ]] && return 1
+      local o=$(( 16#${m[1,2]} ))
+      (( (o & 2) == 0 ))   # yerel yönetimli (rastgele/sanal) adres değil
+    }
+    hw_mac() {
+      local m
+      m=$(/usr/sbin/networksetup -getmacaddress "$1" 2>/dev/null \
+        | /usr/bin/awk '{for(i=1;i<=NF;i++) if ($i ~ /^([0-9a-fA-F][0-9a-fA-F]:){5}[0-9a-fA-F][0-9a-fA-F]$/) {print tolower($i); exit}}')
+      usable_mac "$m" && { print -r -- "$m"; return 0 }
+      m=$(/sbin/ifconfig "$1" 2>/dev/null | /usr/bin/awk '/ether /{print tolower($2); exit}')
+      usable_mac "$m" && { print -r -- "$m"; return 0 }
+      return 1
+    }
+    link_active() { /sbin/ifconfig "$1" 2>/dev/null | /usr/bin/grep -q 'status: active'; }
     DEF=$(/sbin/route -n get default 2>/dev/null | /usr/bin/awk '/interface:/{print $2; exit}')
-    IFACE="${ETH:-$DEF}"
-    # IP/yayın: Ethernet'te adres yoksa varsayılan arabirimden al.
+    # "Port<TAB>aygıt" satırları
+    CANDS=("${(@f)$(/usr/sbin/networksetup -listallhardwareports 2>/dev/null \
+      | /usr/bin/awk '/^Hardware Port:/{sub(/^Hardware Port: /,""); p=$0} /^Device:/{print p "\t" $2}')}")
+    IFACE=""; PORT=""; MAC=""
+    try_pick() {   # $1: filtre (wired|default|wifi|any), $2: yalnızca bağlı olanlar (1/0)
+      local line port dev m
+      for line in "${CANDS[@]}"; do
+        port="${line%%$'\t'*}"; dev="${line##*$'\t'}"
+        [[ -n "$dev" ]] || continue
+        case "$1" in
+          wired)   [[ "$port" == *Ethernet* || "$port" == *LAN* ]] || continue
+                   [[ "$port" == *Bridge* ]] && continue ;;
+          default) [[ "$dev" == "$DEF" ]] || continue ;;
+          wifi)    [[ "$port" == *Wi-Fi* || "$port" == *AirPort* ]] || continue ;;
+        esac
+        [[ "$2" == 1 ]] && ! link_active "$dev" && continue
+        m=$(hw_mac "$dev") || continue
+        IFACE="$dev"; PORT="$port"; MAC="$m"; return 0
+      done
+      return 1
+    }
+    try_pick wired 1 || try_pick default 0 || try_pick wired 0 || try_pick wifi 0 || true
+    [[ -n "$IFACE" ]] || IFACE="$DEF"
+    # IP/yayın: seçilen arabirimde adres yoksa varsayılan arabirimden al.
     ADDR_IF="$IFACE"
     /sbin/ifconfig "$IFACE" 2>/dev/null | /usr/bin/grep -q 'inet ' || ADDR_IF="$DEF"
-    MAC=$(/sbin/ifconfig "$IFACE" 2>/dev/null | /usr/bin/awk '/ether /{print $2; exit}')
     IP=$(/sbin/ifconfig "$ADDR_IF" 2>/dev/null | /usr/bin/awk '/inet /{print $2; exit}')
     BC=$(/sbin/ifconfig "$ADDR_IF" 2>/dev/null | /usr/bin/awk '/inet /{for(i=1;i<=NF;i++) if($i=="broadcast") {print $(i+1); exit}}')
     echo "INTERFACE=$IFACE"
+    echo "PORT=$PORT"
     echo "MAC=$MAC"
     echo "IP=$IP"
     echo "BROADCAST=${BC:-255.255.255.255}"

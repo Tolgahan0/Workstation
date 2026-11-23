@@ -94,6 +94,16 @@ do {
     check(CleanerCLI.mode(from: ["x", "--clean"]) == .dryRun && CleanerCLI.mode(from: ["x", "--clean", "--yes"]) == .yes, "CLI modu")
 }
 
+// MARK: Ağ bilgisi (Wake-on-LAN)
+do {
+    check(!NetworkInfo.isUsableMAC("02:00:00:00:00:00"), "gizlilik yer tutucusu reddedilir")
+    check(!NetworkInfo.isUsableMAC("00:00:00:00:00:00") && !NetworkInfo.isUsableMAC("3a:11:22:33:44:55"), "sıfır/yerel yönetimli reddedilir")
+    check(NetworkInfo.isUsableMAC("F0:18:98:AA:BB:CC"), "gerçek adres")
+    let n = NetworkInfo.parse("INTERFACE=en0\nPORT=Ethernet\nMAC=02:00:00:00:00:00\nIP=192.168.1.5\n")
+    check(n.mac.isEmpty && n.friendlyInterface == "Kablolu (Ethernet)" && !n.configText.contains("MAC="), "netinfo ayrıştırma")
+    check(NetworkInfo.parse("PORT=Wi-Fi\nMAC=f0:18:98:aa:bb:cc").friendlyInterface == "Wi-Fi", "Wi-Fi adı")
+}
+
 // MARK: Otomatik mod
 do {
     var s = CleanerSettings()

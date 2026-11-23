@@ -3,6 +3,8 @@ import Foundation
 /// Mac mini'nin Wake-on-LAN bilgisi (Remote sekmesinde gösterilir; `workstation netinfo` ile aynı kaynak).
 struct NetworkInfo: Equatable {
     var interface: String = ""
+    /// Donanım portu adı ("Ethernet", "Wi-Fi" …).
+    var port: String = ""
     var mac: String = ""
     var ip: String = ""
     var broadcast: String = "255.255.255.255"
@@ -17,7 +19,8 @@ struct NetworkInfo: Equatable {
             let v = parts[1].trimmingCharacters(in: .whitespaces)
             switch parts[0] {
             case "INTERFACE": n.interface = v
-            case "MAC": n.mac = v.lowercased()
+            case "PORT": n.port = v
+            case "MAC": n.mac = isUsableMAC(v) ? v.lowercased() : ""
             case "IP": n.ip = v
             case "BROADCAST": if !v.isEmpty { n.broadcast = v }
             case "HOSTNAME": n.hostname = v == ".local" ? "" : v
@@ -33,6 +36,23 @@ struct NetworkInfo: Equatable {
         return parts.allSatisfy { $0.count == 2 && $0.allSatisfy { $0.isHexDigit } }
     }
 
+    /// Wake-on-LAN'da işe yarar gerçek donanım adresi mi? Sıfır, yayın ve yerel yönetimli
+    /// (02:… gibi rastgele/sanal) adresler reddedilir.
+    static func isUsableMAC(_ s: String) -> Bool {
+        let m = s.lowercased()
+        guard isValidMAC(m), m != "00:00:00:00:00:00", m != "ff:ff:ff:ff:ff:ff",
+              let first = UInt8(m.prefix(2), radix: 16) else { return false }
+        return first & 0x02 == 0
+    }
+
+    /// Kullanıcıya gösterilen bağlantı adı.
+    var friendlyInterface: String {
+        let p = port.lowercased()
+        if p.contains("wi-fi") || p.contains("airport") { return "Wi-Fi" }
+        if p.contains("ethernet") || p.contains("lan") { return "Kablolu (Ethernet)" }
+        return port.isEmpty ? interface : port
+    }
+
     /// İstemci Mac'e kopyalanacak komut: önce yapılandırma, sonra bağlan.
     var sshHost: String { hostname.isEmpty ? (ip.isEmpty ? "studio" : ip) : hostname }
 
@@ -43,7 +63,7 @@ struct NetworkInfo: Equatable {
     /// ~/.config/workstation/config içeriği (elle kurulum için).
     var configText: String {
         var lines = ["HOST=\(sshHost)"]
-        if Self.isValidMAC(mac) { lines.append("MAC=\(mac)") }
+        if Self.isUsableMAC(mac) { lines.append("MAC=\(mac)") }
         lines.append("BROADCAST=\(broadcast)")
         return lines.joined(separator: "\n")
     }

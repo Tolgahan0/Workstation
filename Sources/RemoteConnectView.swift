@@ -23,7 +23,8 @@ private struct WakeConnectBody: View {
     var body: some View {
         if let n = info {
             VStack(alignment: .leading, spacing: 6) {
-                CopyLine(label: "MAC", value: n.mac.isEmpty ? "—" : n.mac + (n.interface.isEmpty ? "" : " (\(n.interface))"), copy: n.mac)
+                CopyLine(label: "Bağlantı", value: n.friendlyInterface.isEmpty ? "—" : n.friendlyInterface, copy: "")
+                CopyLine(label: "MAC", value: n.mac.isEmpty ? "bulunamadı" : n.mac, copy: n.mac)
                 CopyLine(label: "IP", value: n.ip.isEmpty ? "—" : n.ip, copy: n.ip)
                 CopyLine(label: "Komut", value: n.connectCommand, copy: n.connectCommand)
                 Text("Komutu MacBook'ta Terminal'de çalıştırın: uyuyorsa Wake-on-LAN ile uyandırır, Remote'a alır ve Ekran Paylaşımı'nı açar.")
