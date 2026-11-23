@@ -230,7 +230,7 @@ Tests/run-tests.sh                 # çekirdek testleri (macOS ya da Linux)
 - **Yeni sürüm yayınlamak:** `Info.plist` sürümünü artır, commit'le, sonra
 
   ```bash
-  git tag v1.8.1 && git push origin v1.8.1
+  git tag v1.9.0 && git push origin v1.9.0
   ```
 
   GitHub Actions ([`release.yml`](.github/workflows/release.yml)) testleri çalıştırır, evrensel derler ve sürüme `Workstation-<sürüm>.dmg`, `.zip`, `SHA256SUMS.txt` ve `latest.json` ekler. Sürüm adında `-` varsa (ör. `v1.9.0-beta.1`) beta olarak yayınlanır.
