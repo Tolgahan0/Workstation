@@ -47,6 +47,7 @@ func printUsage() {
       WorkstationMode --mode desktop               Masaüstü
       WorkstationMode --status                     Geçerli modu yazdırır
     URL: workstation://remote[?res=WxH] | workstation://sleep | workstation://desktop
+         workstation://profile/<ad> | workstation://fan/auto|half|max | workstation://keepawake/on|off|3h
     """)
 }
 

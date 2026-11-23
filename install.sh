@@ -219,10 +219,13 @@ fi
 
 cat <<DONE
 
-Kurulum tamamlandı.
-  Menü çubuğu simgesi:  mor zemin üzerinde gümüş Mac Studio (rozet: mavi=Uyku · yeşil=Remote · sarı=geçiş)
+Kurulum tamamlandı (WorkstationMode 1.7.0).
+  Menü çubuğu simgesi:  tek renk Mac mini (rozet: mavi=Uyku · yeşil=Remote · sarı=geçiş)
   Uzaktan:             ssh <host> workstation remote [WxH|mbp14…] | sleep | desktop | status
-  Bağlanan Mac'ten:    workstation-connect <host>   (ekran boyutunu algılar, Remote'u açar, Ekran Paylaşımı'nı başlatır)
-  URL:                 open -g workstation://remote
+                       ssh <host> workstation profile <ad> | fan auto|half|max | keepawake on|off|3h
+  Bağlanan Mac'ten:    workstation-connect dosyasını MacBook'ta /usr/local/bin'e kopyalayın, sonra bir kez:
+                         workstation-connect --setup <host>   (MAC/yayın adresini ~/.config/workstation/config'e yazar)
+                       ve her seferinde: workstation-connect   (Wake-on-LAN → Remote → Ekran Paylaşımı)
+  Kestirmeler / URL:   workstation://remote · workstation://profile/<ad> · workstation://fan/max · workstation://keepawake/on
   Günlük:              ~/Library/Logs/WorkstationMode.log
 DONE

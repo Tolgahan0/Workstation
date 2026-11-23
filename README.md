@@ -8,6 +8,8 @@ Mac mini (Apple Silicon) için menü çubuğu uygulaması. Üç çalışma modu 
 | **Uyku / Gece** | Sanal ekran **asla açılmaz**, fiziksel monitörler **kesik**, `pmset displaysleepnow` | `lowpowermode 1 sleep 1 displaysleep 1 womp 1` |
 | **Remote** | Sanal ekran (bağlanan Mac'in boyutunda, HiDPI) açık → 1 sn → fiziksel monitörler **kesik** (tamamen uzaktan geliştirme için) | `sleep 0 disksleep 0 displaysleep 0 lowpowermode 0 tcpkeepalive 1 autorestart 1` |
 
+**1.7.0'da yeni:** [Uyandır ve bağlan (Wake-on-LAN)](#uyandır-ve-bağlan-wake-on-lan--170) · [Otomatik mod geçişi](#otomatik-mod-geçişi--170) · [Zamanlanmış modlar](#zamanlanmış-modlar--170) · [Çalışma alanı profilleri](#çalışma-alanı-profilleri--170) · [Ses](#ses--170) · [Sistem ve Uyanık tut](#tools--sistem-ve-uyanık-tut--170) · [Bildirimler](#bildirimler--170) · [Kestirmeler / URL yolları](#kestirmeler-shortcuts-ve-url-yolları--170). Yeni özelliklerin hepsi **varsayılan olarak kapalı** veya yalnızca görünürken çalışır; boşta yoklama yoktur.
+
 **Geri sayım:** Uyku veya Remote sekmesinde **Başlat**'a basınca (ya da URL/SSH ile istendiğinde) her ekranın ortasında, azalan bir ilerleme halkasının içinde tek büyük bir sayı geri sayar (varsayılan 3 sn) ve sonra mod uygulanır. Ek açıklama yazısı yoktur. **İptal** düğmesi veya **Esc** ile vazgeçilebilir; SSH/URL ile tetiklenip kimse dokunmazsa süre dolunca kendiliğinden devam eder. Süre **Ayarlar > Geri sayım** bölümünden değiştirilir (0 = kapalı, en fazla 10). Masaüstü'ne dönüş beklemeden uygulanır.
 
 **Simgeler:** Menü çubuğu simgesi **tek renk (şablon) Mac mini**'dir (SF Symbol `macmini.fill`, yoksa elle çizilmiş Mac mini); menü çubuğu kalınlığını tam kullanır ve açık/koyu menü çubuğuna göre otomatik beyaz/siyah olur. Sağ alttaki küçük renkli nokta modu gösterir: yok = Masaüstü · mavi = Uyku · yeşil = Remote · sarı = geçiş/geri sayım. Uygulama simgesi koyu grafit zemin üzerinde gümüş Mac Studio'dur; `AppIcon.icns` kurulumda `Tools/MakeIcon` ile üretilir (`iconutil`).
@@ -195,14 +197,25 @@ WorkstationMode/
 │   ├── Monitors.swift             # Monitör keşfi, port, DDC (doğrulamalı)/yazılım parlaklık, istenen durum uzlaştırma
 │   ├── BrightnessCoalescer.swift  # Kaydırıcı yazımlarını seri kuyrukta birleştirme/hız sınırlama
 │   ├── Models.swift               # WorkMode, monitör modeli/kalıcı durum, DDC paketleri, parlaklık eğrisi, Remote ön ayarları
-│   ├── PowerManager.swift         # sudo -n pmset profilleri, displaysleepnow
+│   ├── PowerManager.swift         # sudo -n pmset profilleri, displaysleepnow, pmset repeat
+│   ├── SMC.swift / FanControl.swift # AppleSMC fan/sıcaklık okuma, wm-fanhelper çağrıları, güvenlik sıfırlamaları
+│   ├── AppDelegate+Automation.swift # Otomatik geçiş, zamanlama, profiller, sistem istatistikleri, bildirim kancaları
+│   ├── AutoSwitch.swift           # Uzak oturum algılama (süreç listesi) + durum makinesi
+│   ├── Schedule.swift             # Zamanlanmış mod kuralları, sonraki tetiklenme, pmset repeat argümanları
+│   ├── Profiles.swift             # Çalışma alanı profilleri (monitör + parlaklık + fan)
+│   ├── AudioControl.swift         # CoreAudio: Remote'ta sessize al / geri yükle
+│   ├── SystemStats.swift / KeepAwake.swift # CPU/RAM/disk/ağ örnekleyici · IOPMAssertion
+│   ├── Notifier.swift             # Yerel bildirimler, temiz çıkış bayrağı
+│   ├── URLRoute.swift / NetworkInfo.swift # workstation:// yolları · Wake-on-LAN bilgisi
+│   ├── *View.swift                # Remote bağlan kartı, Ayarlar/Tools/Profiller kartları
 │   └── Shell.swift                # Process çalıştırma (zaman aşımı) + döndürmeli günlük
 ├── Tools/MakeIcon/main.swift      # Kurulumda AppIcon.iconset PNG'lerini üretir
+├── Tools/FanHelper/main.swift     # wm-fanhelper (root, yalnızca status/set/reset)
 ├── Info.plist                     # LSUIElement, com.tolgahanayaz.workstationmode, workstation:// scheme, AppIcon
 ├── setup_env.sh                   # Homebrew + BetterDisplay + CLI doğrulaması
 ├── install.sh                     # Tek adımlık kurulum (herhangi bir kullanıcı/Mac için)
 ├── workstation                    # Sunucu tarafı yardımcı komut (/usr/local/bin/workstation)
-├── workstation-connect            # Bağlanan Mac'te: ekran boyutunu algıla → ssh ile Remote → Ekran Paylaşımı
+├── workstation-connect            # Bağlanan Mac'te: Wake-on-LAN → ekran boyutunu algıla → ssh ile Remote → Ekran Paylaşımı
 └── README.md
 ```
 
@@ -288,7 +301,7 @@ Dosya: `~/Library/Logs/WorkstationMode.log` — **1 MB**'ı geçince `Workstatio
 
 ## Performans
 
-- Boşta **zamanlayıcı/yoklama yoktur**: her şey olay güdümlüdür (uyanma, ekran yapılandırma geri çağrısı, URL). Uyanma/yeniden yapılandırma sonrası yalnızca 1-3-6 sn'lik üç tek seferlik kontrol çalışır. Tek istisna: fan **Yarım** modundayken 15 sn'lik sıcaklık bekçisi. Tools sekmesindeki fan okuması yalnızca panel açık ve sekme görünürken çalışır.
+- Boşta **zamanlayıcı/yoklama yoktur**: her şey olay güdümlüdür (uyanma, ekran yapılandırma geri çağrısı, URL). Uyanma/yeniden yapılandırma sonrası yalnızca 1-3-6 sn'lik üç tek seferlik kontrol çalışır. İstisnalar (hepsi isteğe bağlı): fan **Yarım** modundayken 15 sn'lik sıcaklık bekçisi; **Otomatik mod geçişi** açıkken 10 sn'lik süreç taraması (≈1 ms); zamanlanmış modlar için bir sonraki ana kurulmuş **tek** zamanlayıcı; Uyanık tut süresi için tek atımlık zamanlayıcı. Tools sekmesindeki fan okuması yalnızca panel açık ve sekme görünürken çalışır.
 - Panel ve günlük penceresi **tembel** oluşturulur, kapanınca SwiftUI hiyerarşisi serbest bırakılır; menü çubuğu simgeleri önbelleklenir.
 - Tüm kabuk/DDC işleri arka plan kuyruklarında; ana iş parçacığı bloklanmaz. `Process` boruları her çağrıdan sonra kapatılır.
 - Beklenen ayak izi (Apple Silicon): **boşta ~20–35 MB RAM, %0 CPU, GPU kullanımı yok**; panel açıkken geçici olarak +10–20 MB, kaydırıcı sürüklenirken kısa CPU artışları. (Etkinlik Monitörü'nde "Bellek" sütunundan doğrulayın; değerler macOS sürümüne göre değişir.)
@@ -362,7 +375,9 @@ Remote çözünürlüğü artık panelden seçilir (`remotePreset`, `lastClientR
   ```bash
   osascript -e 'tell application "System Events" to delete login item "WorkstationMode"'
   sudo /usr/local/libexec/wm-fanhelper reset   # fanları sisteme bırak
+  sudo pmset repeat cancel                      # yalnızca "Planlı uyanma" açtıysanız
   pkill -x WorkstationMode; rm -rf /Applications/WorkstationMode.app
   sudo rm -f /etc/sudoers.d/workstation_toggle /usr/local/bin/workstation /usr/local/bin/workstation-connect /usr/local/libexec/wm-fanhelper
   defaults delete com.tolgahanayaz.workstationmode
+  rm -rf ~/.config/workstation                  # MacBook'ta (workstation-connect yapılandırması)
   ```
