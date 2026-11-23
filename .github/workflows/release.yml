@@ -1,0 +1,64 @@
+# Etiket (v*) gönderilince: test → evrensel derleme → DMG + zip + latest.json → GitHub Release.
+#   git tag v1.8.0 && git push origin v1.8.0
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Sürüm (ör. 1.8.1) — etiket olmadan elle çalıştırmak için"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14   # Apple Silicon
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sürüm bilgisi
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then V="${GITHUB_REF_NAME#v}"; else V="${{ github.event.inputs.version }}"; fi
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+          echo "BUILD_NUM=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
+          if [[ "$V" == *-* ]]; then echo "PRERELEASE=true" >> "$GITHUB_ENV"; else echo "PRERELEASE=false" >> "$GITHUB_ENV"; fi
+
+      - name: Testler (temizleyici çekirdeği)
+        run: Tests/run-tests.sh
+
+      - name: Derle (arm64 + x86_64)
+        run: ./build.sh --universal --version "$VERSION" --build "$BUILD_NUM"
+
+      - name: Sürüm notları
+        run: |
+          PREV=$(git describe --tags --abbrev=0 "HEAD^" 2>/dev/null || true)
+          {
+            echo "## Workstation $VERSION"
+            echo
+            if [[ -n "$PREV" ]]; then git log --pretty='- %s' "$PREV..HEAD"; else git log --pretty='- %s' -n 30; fi
+            echo
+            echo "**Kurulum:** DMG'yi aç, \`Kurulum.command\` dosyasına sağ tık › Aç."
+          } > notes.md
+          cat notes.md
+
+      - name: DMG + zip + latest.json
+        run: scripts/make-dmg.sh "$VERSION" "$BUILD_NUM" "${{ github.repository }}" notes.md
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v$VERSION"
+          FLAGS=()
+          [[ "$PRERELEASE" == "true" ]] && FLAGS+=(--prerelease)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --title "Workstation $VERSION" --notes-file notes.md "${FLAGS[@]}"
+          fi
