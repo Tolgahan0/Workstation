@@ -92,6 +92,10 @@ final class PanelModel: ObservableObject {
 
     // Remote → Wake-on-LAN bilgisi (Remote sekmesi açılınca bir kez okunur)
     @Published var netInfo: NetworkInfo?
+
+    // Ayarlar → otomatik mod geçişi
+    @Published var autoSwitch = AutoSwitchSettings.load()
+    @Published var autoSwitchStatus = "—"
     var toolsVisible: Bool { selectedTab == .tools && page == .main }
 
     /// Kart başına kaydırıcı modelleri (monitör anahtarına göre).
@@ -114,6 +118,7 @@ final class PanelModel: ObservableObject {
     var onSettingsShown: (Bool) -> Void = { _ in }
     var onToolsVisible: (Bool) -> Void = { _ in }
     var onRemoteShown: () -> Void = {}
+    var onAutoSwitch: (AutoSwitchSettings) -> Void = { _ in }
     var onFanMode: (FanMode) -> Void = { _ in }
 
     func selectPreset(_ id: String) {
@@ -658,11 +663,27 @@ private struct SettingsPage: View {
             .buttonStyle(.plain)
             .foregroundColor(.secondary)
             .font(.system(size: 12, weight: .medium))
+            // Kart sayısı arttığı için kaydırılabilir; sabit yükseklik popover boyutunu kararlı tutar.
+            ScrollView(.vertical, showsIndicators: true) {
+                SettingsCards(model: model)
+                    .padding(.trailing, 4)
+            }
+            .frame(height: 540)
+        }
+    }
+}
 
+private struct SettingsCards: View {
+    @ObservedObject var model: PanelModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
             SectionTitle(text: "AYARLAR")
             SettingsActionsCard(model: model)
             MethodCard(model: model)
             CountdownSettingCard(model: model)
+            SectionTitle(text: "OTOMASYON")
+            AutoSwitchCard(model: model)
             SectionTitle(text: "DURUM")
             StatusGridCard(model: model)
             HStack {

@@ -31,6 +31,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// Araçlar → fan denetimi. Okuma yalnızca panel açık + Araçlar sekmesi görünürken.
     let fans = FanController()
     private var fanPollTimer: Timer?
+    /// Otomatik mod geçişi: yalnızca ayar açıkken 10 sn'lik hafif süreç taraması.
+    var autoSwitchTimer: Timer?
+    var autoEngine = AutoSwitchEngine()
+    var autoSettings = AutoSwitchSettings.load()
 
     private(set) var currentMode: WorkMode = .desktop
     var isTransitioning = false
@@ -94,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self.panelModel.bdInstalled = installed
             if installed && !cliOK { self.showCLIWarning() }
             self.didFinishLaunching = true
+            self.configureAutoSwitch()
             if let pending = self.pendingLaunch {
                 self.pendingLaunch = nil
                 self.requestMode(pending.0, source: "açılış URL'si", resolution: pending.1)
@@ -181,6 +186,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             if visible { self.startFanPolling() } else { self.stopFanPolling() }
         }
         m.onRemoteShown = { [weak self] in self?.refreshNetInfo() }
+        m.onAutoSwitch = { [weak self] settings in
+            guard let self = self else { return }
+            self.panelModel.autoSwitch = settings
+            self.autoSettings = settings
+            settings.save()
+            self.configureAutoSwitch()
+        }
         m.onFanMode = { [weak self] mode in
             guard let self = self else { return }
             self.panelModel.fanMode = mode

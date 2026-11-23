@@ -82,6 +82,15 @@ workstation-connect --wake-only
 - Remote modu artık `pmset womp 1` de uygular (Uyku modu zaten uyguluyordu).
 - **Not:** Wake-on-LAN kablolu Ethernet'te güvenilirdir; Wi-Fi'de Mac mini derin uykudaysa paket ulaşmayabilir. Paket yerel ağ içindir; ağ dışından (internet) uyandırma için VPN/Tailscale gibi bir yol ve aynı ağda bir aracı gerekir.
 
+## Otomatik mod geçişi — 1.7.0
+
+**Ayarlar › Otomasyon › Otomatik mod geçişi** (varsayılan **kapalı**):
+
+- Gelen bir **Ekran Paylaşımı** oturumu (isteğe bağlı **SSH** oturumu da) algılanınca Mac mini **Remote**'a geçer. Geri sayım HUD'u gösterilir; kimse iptal etmezse devam eder.
+- Oturum bittikten sonra ayarlanan süre (varsayılan **15 dk**) boyunca yeni oturum gelmezse ve mod hâlâ Remote ise: **Uyku**, **Masaüstü** ya da **Hiçbir şey**.
+- Oturum sürerken modu elle değiştirirseniz zorlanmaz (geçiş yalnızca oturumun *başladığı* anda tetiklenir).
+- Algılama: süreç listesi uygulama içinden taranır (`screensharingd`, `sshd`/`sshd-session`; komut çalıştırılmaz). macOS bunun için bir olay yayınlamadığından tarama **yalnızca ayar açıkken** 10 sn'de bir yapılır (≈1 ms); kapalıyken hiçbir zamanlayıcı yoktur.
+
 ## Tools → Fan kontrolü (1.6.0)
 
 Panelde **Masaüstü / Uyku / Remote**'un sağında **Tools** sekmesi var. İlk araç, Macs Fan Control benzeri fan denetimi:
