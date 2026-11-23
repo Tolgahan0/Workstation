@@ -7,7 +7,7 @@
   <img alt="macOS 13+" src="https://img.shields.io/badge/macOS-13%2B-111?logo=apple">
   <img alt="Apple Silicon ve Intel" src="https://img.shields.io/badge/Apple%20Silicon%20%2B%20Intel-evrensel-555">
   <img alt="Swift 5" src="https://img.shields.io/badge/Swift-5-F05138?logo=swift&logoColor=white">
-  <a href="LICENSE"><img alt="Lisans: MIT" src="https://img.shields.io/badge/lisans-MIT-34c759"></a>
+  <a href="LICENSE"><img alt="Lisans: GPL-3.0" src="https://img.shields.io/badge/lisans-GPL--3.0-34c759"></a>
 </p>
 
 # Workstation
@@ -110,7 +110,7 @@ workstation-connect                  # uyandır → bekle → Remote → Ekran P
 İşlemci, bellek, disk ve ağ özetleri; **Uyanık tut** (1 sa · 3 sa · kapatana dek). Yalnızca panel açıkken ölçülür.
 
 ### Disk temizleyici
-Xcode, Android, JavaScript, CocoaPods, Homebrew, Docker, Python/Rust/Go ve Claude/Cursor gibi yapay zekâ araçlarının bıraktığı artıkları bulur. **Önce listeler, sen onaylayınca temizler.**
+Xcode, Android, JavaScript, CocoaPods, Homebrew, Docker, Python/Rust/Go ve Claude/Cursor gibi yapay zekâ araçlarının bıraktığı artıkları bulur. **Önce listeler, sen onaylayınca temizler.** Tools sekmesinde kendi kartı var: **Tara** ile elle tarama, hemen altındaki **Otomatik temizlik** kartından açma/kapama, günlük saat ve "disk dolunca" tetikleyicisi.
 
 **Güvenlik kuralları — hepsi her silmeden hemen önce yeniden kontrol edilir:**
 
@@ -236,12 +236,29 @@ Tests/run-tests.sh                 # çekirdek testleri (macOS ya da Linux)
   GitHub Actions ([`release.yml`](.github/workflows/release.yml)) testleri çalıştırır, evrensel derler ve sürüme `Workstation-<sürüm>.dmg`, `.zip`, `SHA256SUMS.txt` ve `latest.json` ekler. Sürüm adında `-` varsa (ör. `v1.9.0-beta.1`) beta olarak yayınlanır.
 - İç işleyiş, ayrıntılı ayarlar ve sınırlamalar: [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
 
+## Web sitesi (Vercel)
+
+`site/` derleme adımı olmayan statik bir sitedir (HTML/CSS/JS). Şu an GitHub Pages'te yayında
+([`pages.yml`](.github/workflows/pages.yml)); aynı klasör Vercel'e de olduğu gibi konabilir:
+
+1. [vercel.com/new](https://vercel.com/new) › bu depoyu içe aktar.
+2. **Framework Preset:** Other · **Root Directory:** `site` · **Build Command:** boş · **Output Directory:** boş (ya da `.`).
+   Alternatif: Root Directory'yi depo kökü bırak; kökteki [`vercel.json`](vercel.json) `outputDirectory: "site"` ile aynı sonucu verir.
+3. Deploy. Her `main` push'u otomatik yayınlanır.
+
+## Dil
+
+Arayüz, menü, bildirimler, HUD ve CLI macOS'un ilk tercih edilen dili Türkçe ise Türkçe, değilse İngilizcedir
+(Sistem Ayarları › Genel › Dil ve Bölge). Denemek için: `WORKSTATION_LANG=en open -a Workstation` ya da `WORKSTATION_LANG=en workstation`.
+Günlük (log) satırları tanı amaçlı olduğu için Türkçe kalır.
+
 ## Lisans
 
-[MIT](LICENSE) © Tolgahan Ayaz
+[GNU GPL v3.0](LICENSE) © 2026 Tolgahan Ayaz. Bu programı GPL-3.0 koşullarıyla dağıtabilir ve değiştirebilirsin;
+türetilmiş sürümler de aynı lisansla, kaynak koduyla birlikte dağıtılmalıdır.
 
 ---
 
 ### English summary
 
-**Workstation** is a macOS menu bar app for a Mac mini that switches between **Desktop**, **Sleep** and **Remote** modes in one click. Remote turns off the physical monitors and creates a HiDPI virtual display sized to the connecting MacBook. It also includes fan control, a **safe developer disk cleaner** and an **auto-updater** that works through GitHub Releases. The cleaner re-checks open files, running processes, git-tracked files and project activity right before each delete, and moves items to the Trash by default. The updater verifies SHA-256, bundle id and code signature before it swaps the app. Website: https://tolgahan0.github.io/workstation/. Install from the DMG on the [Releases](https://github.com/Tolgahan0/workstation/releases) page: drag Workstation to Applications, right-click › Open, then run `Kurulum.command` once for fan control, password-less mode switching and the CLI, or run `./install.sh` from source (Command Line Tools only). Publish a release by pushing a `v*` tag. MIT licensed.
+**Workstation** is a macOS menu bar app for a Mac mini that switches between **Desktop**, **Sleep** and **Remote** modes in one click. Remote turns off the physical monitors and creates a HiDPI virtual display sized to the connecting MacBook. It also includes fan control, a **safe developer disk cleaner** and an **auto-updater** that works through GitHub Releases. The cleaner re-checks open files, running processes, git-tracked files and project activity right before each delete, and moves items to the Trash by default. The updater verifies SHA-256, bundle id and code signature before it swaps the app. Website: https://tolgahan0.github.io/workstation/. Install from the DMG on the [Releases](https://github.com/Tolgahan0/workstation/releases) page: drag Workstation to Applications, right-click › Open, then run `Kurulum.command` once for fan control, password-less mode switching and the CLI, or run `./install.sh` from source (Command Line Tools only). Publish a release by pushing a `v*` tag. The UI, menu, notifications and CLI are English unless the first preferred macOS language is Turkish. The `site/` folder is a static site that deploys to Vercel with Root Directory `site` and no build step. Licensed under GPL-3.0.
