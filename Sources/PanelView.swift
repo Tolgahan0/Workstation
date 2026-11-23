@@ -1139,7 +1139,7 @@ private struct FanCardBody: View {
         if st == nil {
             HStack { ProgressView().controlSize(.small); Text("Fanlar okunuyor…").font(.system(size: 11)).foregroundColor(.secondary) }
         } else if let s = st, s.fans.isEmpty {
-            InfoRow(icon: "wind", text: s.error.map { "Fan bilgisi okunamadı" } ?? "Bu Mac'te fan yok")
+            InfoRow(icon: "wind", text: s.error.map { _ in "Fan bilgisi okunamadı" } ?? "Bu Mac'te fan yok")
         } else {
             FanControls(model: model)
         }
