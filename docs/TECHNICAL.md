@@ -252,6 +252,16 @@ Betikte kullanıcı adı / ev dizini sabit kodlanmamıştır (`id -un`, `$HOME`)
 
 DMG içindeki `Kurulum.command` 4. ve 5. adımları yapar (derleme gerekmez).
 
+### DMG penceresi
+
+`scripts/make-dmg.sh` sürükle-bırak kurulum penceresi üretir: birim adı sabit **Workstation**, pencere 660×440, simge 128 pt,
+solda `Workstation.app` (170, 220), sağda `Applications` kısayolu (490, 220); `Kurulum.command` ve `BENİOKU.txt` görünen alanın
+altında (y = 610, aşağı kaydırınca). Arka plan `Tools/DMGBackground/main.swift` ile çizilir (`scripts/dmg/background.png` +
+`@2x`, `tiffutil -cathidpicheck` ile tek HiDPI TIFF). Yerleşim okuma-yazma imajda Finder AppleScript ile yazılır (3 deneme);
+Finder yanıt vermezse (ya da `WS_DMG_NO_FINDER=1`) `scripts/dmg/DS_Store` şablonu kopyalanır, ardından UDZO'ya çevrilir.
+Arka planı ya da yerleşimi değiştirince: `xcrun swiftc -framework Cocoa Tools/DMGBackground/main.swift -o /tmp/bg && /tmp/bg scripts/dmg`,
+`scripts/make-dmg.sh` çalıştır, sonra `cp build/DS_Store.generated scripts/dmg/DS_Store` ile şablonu yenile.
+
 Betik tekrar çalıştırılabilir (idempotent); güncelleme için de aynı komutu kullanın.
 
 ## BetterDisplay otomatik kurulumu

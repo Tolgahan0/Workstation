@@ -37,15 +37,22 @@ Boştayken arka planda dönen bir şey yok: her şey bir olay olunca (uyanma, ba
 
 ### Kolay yol: DMG (önerilen)
 
-1. [Son sürümü](https://github.com/Tolgahan0/workstation/releases/latest) aç, `Workstation-<sürüm>.dmg` dosyasını indir.
-2. DMG'yi aç, **`Kurulum.command`** dosyasına **sağ tıkla › Aç**. İlk seferde macOS "geliştirici doğrulanamadı" diyebilir; yine **Aç**'a bas.
-3. Bir kez Mac parolan sorulur (fan kontrolü ve parolasız mod geçişi için). Bitince menü çubuğunda Mac mini simgesi belirir.
+<p align="center"><img src="docs/screenshots/dmg-window.png" alt="DMG penceresi: Workstation'ı Applications'a sürükle" width="520"></p>
+
+1. [Son sürümü](https://github.com/Tolgahan0/workstation/releases/latest) aç, `Workstation-<sürüm>.dmg` dosyasını indir ve aç.
+2. **Workstation**'ı sağdaki **Applications** klasörüne sürükle.
+3. Applications'ta Workstation'a **sağ tıkla › Aç**. İlk seferde macOS "geliştirici doğrulanamadı" diyebilir; yine **Aç**'a bas. Menü çubuğunda Mac mini simgesi belirir.
+4. **Önerilir — bir kez:** DMG penceresinde **aşağı kaydır**, **`Kurulum.command`** dosyasına **sağ tıkla › Aç**. Mac parolan bir kez sorulur ve şunlar kurulur:
+   - fan kontrolü (`wm-fanhelper` yardımcısı),
+   - parolasız mod geçişi (`pmset` için sudoers kuralı; bu olmadan Uyku/Remote'un güç ayarları uygulanamaz),
+   - `workstation` / `workstation-connect` komutları (`ssh studio workstation remote`),
+   - açılışta otomatik başlatma.
+
+   Sürükleyerek kurduğunda uygulama bunları kendisi kurmaz; fan kartı "kurulumu bir kez daha çalıştır" der. `Kurulum.command` uygulamayı Applications'a da kopyaladığı için 2–3. adımları atlayıp doğrudan onu da kullanabilirsin. DMG elinde değilse aynı adım: `/Applications/Workstation.app/Contents/Resources/postinstall.sh`
 
 > **"Açılamıyor" uyarısı mı çıktı?** Uygulama Apple'a ücretli geliştirici hesabıyla imzalatılmadı. Şunlardan biri yeter:
 > - Sistem Ayarları › Gizlilik ve Güvenlik › en altta **"Yine de Aç"**
 > - ya da Terminal'de: `xattr -dr com.apple.quarantine /Applications/Workstation.app`
-
-İstersen `Workstation.app`'i doğrudan **Applications** kısayoluna sürükleyebilirsin; fan kontrolü, `workstation` komutu ve açılışta başlatma için sonra yine `Kurulum.command`'ı çalıştırman gerekir.
 
 ### Kaynaktan
 

@@ -43,7 +43,7 @@ jobs:
             echo
             if [[ -n "$PREV" ]]; then git log --pretty='- %s' "$PREV..HEAD"; else git log --pretty='- %s' -n 30; fi
             echo
-            echo "**Kurulum:** DMG'yi aç, \`Kurulum.command\` dosyasına sağ tık › Aç."
+            echo "**Kurulum:** DMG'yi aç, Workstation'ı Applications'a sürükle, sağ tık › Aç. Fan kontrolü, parolasız mod geçişi ve \`workstation\` komutu için DMG'de aşağı kaydır: \`Kurulum.command\` › sağ tık › Aç (bir kez)."
           } > notes.md
           cat notes.md
 
