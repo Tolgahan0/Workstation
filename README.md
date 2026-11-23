@@ -109,6 +109,12 @@ workstation-connect --wake-only
 - Pencere yerleşimi güvenlik/kararlılık için kaydedilmez.
 - URL: `workstation://profile/Kod` · CLI: `workstation profile Kod` (ad büyük/küçük harf, aksan ve boşluktan bağımsız eşleşir).
 
+## Ses — 1.7.0
+
+**Ayarlar › Ses › Remote modunda Mac mini sesini kapat** (varsayılan kapalı): Remote'a geçerken varsayılan çıkış cihazı CoreAudio ile sessize alınır; **Masaüstü**'ne dönünce geri açılır. Yalnızca uygulamanın kapattığı durum geri yüklenir (zaten sessizse dokunulmaz). Cihaz "mute" desteklemiyorsa (bazı HDMI/DP çıkışları) ses seviyesi 0 yapılır ve önceki seviye geri yüklenir.
+
+> Not: Ekran Paylaşımı'nın "Yüksek Performans" modu sesi istemciye aktarabilir; bu ayar Mac mini'nin çıkış cihazını sessize aldığından aktarılan ses de kesilebilir. Uzaktan ses istiyorsanız kapalı bırakın.
+
 ## Tools → Fan kontrolü (1.6.0)
 
 Panelde **Masaüstü / Uyku / Remote**'un sağında **Tools** sekmesi var. İlk araç, Macs Fan Control benzeri fan denetimi:

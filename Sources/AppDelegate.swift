@@ -37,6 +37,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var autoSettings = AutoSwitchSettings.load()
     /// Zamanlanmış modlar: tek bir zamanlayıcı, bir sonraki tetiklenme anına kurulur (yoklama yok).
     var scheduleTimer: Timer?
+    /// Remote'ta ses kapatma (Ayarlar, varsayılan kapalı).
+    let audio = AudioControl()
     var scheduleSettings = ScheduleSettings.load()
     var lastScheduleCheck = Date()
 
@@ -197,6 +199,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self.applyProfile(p, source: "panel")
         }
         m.onSaveProfile = { [weak self] name in self?.saveProfile(named: name) }
+        m.onMuteInRemote = { [weak self] on in
+            guard let self = self else { return }
+            AudioControl.enabled = on
+            self.panelModel.muteInRemote = on
+            if on && self.currentMode == .remote { self.audio.muteForRemote() }
+            if !on { self.audio.restoreIfNeeded() }
+        }
         m.onDeleteProfile = { [weak self] id in
             guard let self = self else { return }
             var list = self.panelModel.profiles
@@ -472,6 +481,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             fans.resetSync(reason: "Uyku moduna geçiş")
         } else if previous == .sleep {
             fans.reapplyPreferred(reason: "Uyku modundan çıkış")
+        }
+        // Ses: Remote'ta (ayar açıksa) sessize al; Masaüstü'nde yalnızca bizim kapattığımızı geri aç.
+        if mode == .remote && AudioControl.enabled {
+            audio.muteForRemote()
+        } else if mode == .desktop {
+            audio.restoreIfNeeded()
         }
         isTransitioning = true
         lastError = nil

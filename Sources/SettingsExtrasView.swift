@@ -246,3 +246,23 @@ private struct WeekdayChip: View {
         .buttonStyle(.plain)
     }
 }
+
+// MARK: - Ses
+
+struct AudioCard: View {
+    @ObservedObject var model: PanelModel
+
+    private var binding: Binding<Bool> {
+        let m: PanelModel = model
+        return Binding<Bool>(get: { m.muteInRemote }, set: { m.onMuteInRemote($0) })
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CardTitleRow(icon: "speaker.slash", title: "Ses",
+                         subtitle: "Remote'ta Mac mini hoparlörü sessize alınır, Masaüstü'nde geri açılır")
+            ToggleRow(title: "Remote modunda Mac mini sesini kapat", isOn: binding)
+        }
+        .cardStyle()
+    }
+}

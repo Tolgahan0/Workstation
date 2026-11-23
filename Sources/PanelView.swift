@@ -105,6 +105,9 @@ final class PanelModel: ObservableObject {
     @Published var profiles: [WorkspaceProfile] = ProfileStore.load()
     @Published var newProfileName = ""
     @Published var profileNote: String?
+
+    // Ayarlar → ses
+    @Published var muteInRemote: Bool = AudioControl.enabled
     var toolsVisible: Bool { selectedTab == .tools && page == .main }
 
     /// Kart başına kaydırıcı modelleri (monitör anahtarına göre).
@@ -132,6 +135,7 @@ final class PanelModel: ObservableObject {
     var onApplyProfile: (UUID) -> Void = { _ in }
     var onSaveProfile: (String) -> Void = { _ in }
     var onDeleteProfile: (UUID) -> Void = { _ in }
+    var onMuteInRemote: (Bool) -> Void = { _ in }
     var onFanMode: (FanMode) -> Void = { _ in }
 
     func selectPreset(_ id: String) {
@@ -699,6 +703,7 @@ private struct SettingsCards: View {
             SectionTitle(text: "OTOMASYON")
             AutoSwitchCard(model: model)
             ScheduleCard(model: model)
+            AudioCard(model: model)
             SectionTitle(text: "DURUM")
             StatusGridCard(model: model)
             HStack {
