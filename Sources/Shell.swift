@@ -20,7 +20,8 @@ private final class DataBox: @unchecked Sendable {
 enum Shell {
     /// Bir komutu çalıştırır, çıktısını toplar ve `timeout` saniye içinde bitmezse sonlandırır.
     @discardableResult
-    static func run(_ launchPath: String, _ arguments: [String], timeout: TimeInterval = 15) -> CommandResult {
+    static func run(_ launchPath: String, _ arguments: [String], timeout: TimeInterval = 15,
+                    environment: [String: String]? = nil, currentDirectory: String? = nil) -> CommandResult {
         guard FileManager.default.isExecutableFile(atPath: launchPath) else {
             return CommandResult(status: 127, stdout: "", stderr: "Çalıştırılabilir dosya bulunamadı: \(launchPath)", timedOut: false)
         }
@@ -28,6 +29,8 @@ enum Shell {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: launchPath)
         process.arguments = arguments
+        if let env = environment { process.environment = env }
+        if let cwd = currentDirectory { process.currentDirectoryURL = URL(fileURLWithPath: cwd) }
 
         let outPipe = Pipe()
         let errPipe = Pipe()
