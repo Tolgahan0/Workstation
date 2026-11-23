@@ -15,7 +15,7 @@ extension AppDelegate {
                 || s.autoHour != c.settings.autoHour || s.autoMinute != c.settings.autoMinute || s.autoLowSpace != c.settings.autoLowSpace
             s.save()
             c.settings = s
-            _ = autoChanged
+            if autoChanged { self.configureCleanerAuto() }
         }
         refreshCleanerDisk()
     }

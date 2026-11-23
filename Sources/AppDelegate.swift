@@ -49,6 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var sigtermSource: DispatchSourceSignal?
     // Geliştirici Temizleyici
     var cleanerCancel: CancelToken?
+    var cleanerTimer: Timer?
+    var cleanerSpaceTimer: Timer?
     let cleanerQueue = DispatchQueue(label: "com.tolgahanayaz.workstationmode.cleaner", qos: .utility)
     var scheduleSettings = ScheduleSettings.load()
     var lastScheduleCheck = Date()
@@ -121,6 +123,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                                      body: "Önceki oturum temiz kapanmadı (çökme, zorla kapatma veya elektrik kesintisi). Fanlar otomatiğe döndürüldü.")
             }
             self.checkDiskSpace()
+            self.configureCleanerAuto()
+            self.cleanerSpaceCheck(reason: "açılış")
         }
         panelModel.fanMode = fans.preferredMode
 
@@ -670,6 +674,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         rescheduleModes(catchUp: true)
         DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in
             self?.checkDiskSpace()
+            self?.configureCleanerAuto()
+            self?.cleanerSpaceCheck(reason: "uyanma")
         }
         if currentMode != .sleep {
             DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
@@ -739,7 +745,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case .clean(let action):
             switch action {
             case .scan: startCleanerScan(trigger: .url)
-            case .auto: startCleanerScan(trigger: .url, autoClean: true)
+            case .auto: runAutoClean(trigger: .url)
             }
         }
     }

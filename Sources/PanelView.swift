@@ -721,6 +721,8 @@ private struct SettingsCards: View {
             ScheduleCard(model: model)
             AudioCard(model: model)
             NotificationsCard(model: model)
+            SectionTitle(text: "DİSK TEMİZLİĞİ")
+            CleanerSettingsCard(cleaner: model.cleaner)
             SectionTitle(text: "DURUM")
             StatusGridCard(model: model)
             HStack {
