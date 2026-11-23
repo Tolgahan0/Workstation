@@ -91,6 +91,15 @@ workstation-connect --wake-only
 - Oturum sürerken modu elle değiştirirseniz zorlanmaz (geçiş yalnızca oturumun *başladığı* anda tetiklenir).
 - Algılama: süreç listesi uygulama içinden taranır (`screensharingd`, `sshd`/`sshd-session`; komut çalıştırılmaz). macOS bunun için bir olay yayınlamadığından tarama **yalnızca ayar açıkken** 10 sn'de bir yapılır (≈1 ms); kapalıyken hiçbir zamanlayıcı yoktur.
 
+## Zamanlanmış modlar — 1.7.0
+
+**Ayarlar › Otomasyon › Zamanlanmış modlar**: saat + haftanın günleri + mod (Masaüstü / Uyku / Remote) kuralları. Ör. *Hafta içi 23:30 → Uyku*, *Pzt–Cum 08:00 → Masaüstü*.
+
+- Tek bir zamanlayıcı **bir sonraki** tetiklenme anına kurulur (yoklama yok); kural değişince, uyanınca ve saat/saat dilimi değişince yeniden kurulur.
+- Mac uykudayken kaçırılan kurallar çalıştırılmaz; yalnızca uyanmadan önceki son 2 dk içindekiler çalışır (planlı uyanma ile birlikte kullanım için).
+- Geçişler geri sayım HUD'u ile yapılır (İptal ile vazgeçilebilir). Mod zaten aynıysa atlanır.
+- **Planlı uyanma** (isteğe bağlı): ilk Masaüstü/Remote kuralından 2 dk önce `sudo pmset repeat wakeorpoweron <günler> <saat>` yazılır. `pmset` yalnızca **tek** tekrar eden uyanma tutar; bu ayar sizin önceden kurduğunuz `pmset repeat` planının yerine geçer. Ayarı kapatınca (yalnızca bizim kurduğumuz) plan `pmset repeat cancel` ile silinir. Kontrol: `pmset -g sched`.
+
 ## Tools → Fan kontrolü (1.6.0)
 
 Panelde **Masaüstü / Uyku / Remote**'un sağında **Tools** sekmesi var. İlk araç, Macs Fan Control benzeri fan denetimi:

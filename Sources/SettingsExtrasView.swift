@@ -98,3 +98,151 @@ private struct AutoSwitchAfterRow: View {
         }
     }
 }
+
+// MARK: - Zamanlanmış modlar
+
+struct ScheduleCard: View {
+    @ObservedObject var model: PanelModel
+
+    private var wakeBinding: Binding<Bool> {
+        let m: PanelModel = model
+        return Binding<Bool>(get: { m.schedule.wakeEnabled }, set: { v in
+            var s = m.schedule
+            s.wakeEnabled = v
+            m.onSchedule(s)
+        })
+    }
+
+    private func addRule() {
+        var s = model.schedule
+        var r = ScheduleRule()
+        r.hour = 23
+        r.minute = 30
+        r.mode = .sleep
+        s.rules.append(r)
+        model.onSchedule(s)
+    }
+
+    var body: some View {
+        let rules: [ScheduleRule] = model.schedule.rules
+        return VStack(alignment: .leading, spacing: 8) {
+            CardTitleRow(icon: "calendar.badge.clock", title: "Zamanlanmış modlar",
+                         subtitle: "Belirli saat ve günlerde modu değiştir (geri sayım HUD'u gösterilir)")
+            ForEach(rules) { (r: ScheduleRule) in
+                ScheduleRuleRow(model: model, rule: r)
+                Divider().opacity(0.2)
+            }
+            HStack {
+                Button(action: addRule) {
+                    Label("Kural ekle", systemImage: "plus.circle")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.accentColor)
+                Spacer()
+                Text(model.scheduleNext).font(.system(size: 10)).foregroundColor(.secondary)
+            }
+            ToggleRow(title: "Planlı uyanma (pmset repeat, ilk Masaüstü/Remote kuralından 2 dk önce)", isOn: wakeBinding)
+        }
+        .cardStyle()
+    }
+}
+
+private struct ScheduleRuleRow: View {
+    @ObservedObject var model: PanelModel
+    let rule: ScheduleRule
+
+    private func update(_ change: @escaping (inout ScheduleRule) -> Void) {
+        var s = model.schedule
+        guard let i = s.rules.firstIndex(where: { $0.id == rule.id }) else { return }
+        change(&s.rules[i])
+        model.onSchedule(s)
+    }
+
+    private var enabled: Binding<Bool> {
+        Binding<Bool>(get: { rule.enabled }, set: { v in update { $0.enabled = v } })
+    }
+
+    private var time: Binding<Date> {
+        let r: ScheduleRule = rule
+        return Binding<Date>(
+            get: { Calendar.current.date(bySettingHour: r.hour, minute: r.minute, second: 0, of: Date()) ?? Date() },
+            set: { d in
+                let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+                update { $0.hour = c.hour ?? 0; $0.minute = c.minute ?? 0 }
+            })
+    }
+
+    private var mode: Binding<WorkMode> {
+        Binding<WorkMode>(get: { rule.mode }, set: { v in update { $0.mode = v } })
+    }
+
+    private func delete() {
+        var s = model.schedule
+        s.rules.removeAll { $0.id == rule.id }
+        model.onSchedule(s)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Toggle("", isOn: enabled).labelsHidden().toggleStyle(.switch).controlSize(.mini)
+                DatePicker("", selection: time, displayedComponents: [.hourAndMinute])
+                    .labelsHidden()
+                    .datePickerStyle(.field)
+                    .frame(width: 70)
+                Picker("", selection: mode) {
+                    Text("Masaüstü").tag(WorkMode.desktop)
+                    Text("Uyku").tag(WorkMode.sleep)
+                    Text("Remote").tag(WorkMode.remote)
+                }
+                .labelsHidden()
+                .frame(width: 100)
+                Spacer()
+                Button(action: delete) {
+                    Image(systemName: "trash").font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+                .help("Kuralı sil")
+            }
+            WeekdayStrip(rule: rule, toggle: { day in
+                update { r in
+                    if let i = r.weekdays.firstIndex(of: day) { r.weekdays.remove(at: i) } else { r.weekdays.append(day) }
+                }
+            })
+        }
+        .opacity(rule.enabled ? 1 : 0.5)
+    }
+}
+
+private struct WeekdayStrip: View {
+    let rule: ScheduleRule
+    let toggle: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(ScheduleRule.orderedWeekdays, id: \.self) { (day: Int) in
+                WeekdayChip(title: ScheduleRule.shortName(day), on: rule.weekdays.contains(day), action: { toggle(day) })
+            }
+        }
+    }
+}
+
+private struct WeekdayChip: View {
+    let title: String
+    let on: Bool
+    let action: () -> Void
+
+    var body: some View {
+        let fill: Color = on ? Color.accentColor.opacity(0.85) : Color.white.opacity(0.06)
+        return Button(action: action) {
+            Text(title)
+                .font(.system(size: 9, weight: .semibold))
+                .frame(width: 34, height: 18)
+                .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(fill))
+                .foregroundColor(on ? .white : .secondary)
+        }
+        .buttonStyle(.plain)
+    }
+}

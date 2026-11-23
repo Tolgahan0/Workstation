@@ -96,6 +96,10 @@ final class PanelModel: ObservableObject {
     // Ayarlar → otomatik mod geçişi
     @Published var autoSwitch = AutoSwitchSettings.load()
     @Published var autoSwitchStatus = "—"
+
+    // Ayarlar → zamanlanmış modlar
+    @Published var schedule = ScheduleSettings.load()
+    @Published var scheduleNext = ""
     var toolsVisible: Bool { selectedTab == .tools && page == .main }
 
     /// Kart başına kaydırıcı modelleri (monitör anahtarına göre).
@@ -119,6 +123,7 @@ final class PanelModel: ObservableObject {
     var onToolsVisible: (Bool) -> Void = { _ in }
     var onRemoteShown: () -> Void = {}
     var onAutoSwitch: (AutoSwitchSettings) -> Void = { _ in }
+    var onSchedule: (ScheduleSettings) -> Void = { _ in }
     var onFanMode: (FanMode) -> Void = { _ in }
 
     func selectPreset(_ id: String) {
@@ -684,6 +689,7 @@ private struct SettingsCards: View {
             CountdownSettingCard(model: model)
             SectionTitle(text: "OTOMASYON")
             AutoSwitchCard(model: model)
+            ScheduleCard(model: model)
             SectionTitle(text: "DURUM")
             StatusGridCard(model: model)
             HStack {

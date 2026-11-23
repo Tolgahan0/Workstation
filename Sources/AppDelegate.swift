@@ -35,6 +35,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var autoSwitchTimer: Timer?
     var autoEngine = AutoSwitchEngine()
     var autoSettings = AutoSwitchSettings.load()
+    /// Zamanlanmış modlar: tek bir zamanlayıcı, bir sonraki tetiklenme anına kurulur (yoklama yok).
+    var scheduleTimer: Timer?
+    var scheduleSettings = ScheduleSettings.load()
+    var lastScheduleCheck = Date()
 
     private(set) var currentMode: WorkMode = .desktop
     var isTransitioning = false
@@ -99,6 +103,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             if installed && !cliOK { self.showCLIWarning() }
             self.didFinishLaunching = true
             self.configureAutoSwitch()
+            self.lastScheduleCheck = Date()
+            self.rescheduleModes(catchUp: false)
             if let pending = self.pendingLaunch {
                 self.pendingLaunch = nil
                 self.requestMode(pending.0, source: "açılış URL'si", resolution: pending.1)
@@ -186,6 +192,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             if visible { self.startFanPolling() } else { self.stopFanPolling() }
         }
         m.onRemoteShown = { [weak self] in self?.refreshNetInfo() }
+        m.onSchedule = { [weak self] settings in
+            guard let self = self else { return }
+            let wakeChanged = settings.wakeEnabled != self.scheduleSettings.wakeEnabled
+                || (settings.wakeEnabled && ScheduleEngine.pmsetRepeatArgs(rules: settings.rules)
+                    != ScheduleEngine.pmsetRepeatArgs(rules: self.scheduleSettings.rules))
+            self.panelModel.schedule = settings
+            self.scheduleSettings = settings
+            settings.save()
+            self.rescheduleModes(catchUp: false)
+            if wakeChanged { self.applyScheduledWake() }
+        }
         m.onAutoSwitch = { [weak self] settings in
             guard let self = self else { return }
             self.panelModel.autoSwitch = settings
@@ -547,6 +564,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         wsnc.addObserver(self, selector: #selector(systemDidWake(_:)), name: NSWorkspace.didWakeNotification, object: nil)
         wsnc.addObserver(self, selector: #selector(screensDidWake(_:)), name: NSWorkspace.screensDidWakeNotification, object: nil)
         wsnc.addObserver(self, selector: #selector(systemWillSleep(_:)), name: NSWorkspace.willSleepNotification, object: nil)
+        // Zamanlama: saat / saat dilimi değişince yeniden kur.
+        NotificationCenter.default.addObserver(self, selector: #selector(clockChanged(_:)), name: .NSSystemClockDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(clockChanged(_:)), name: .NSSystemTimeZoneDidChange, object: nil)
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(distributedSetMode(_:)),
                                                             name: setModeNotification, object: nil,
                                                             suspensionBehavior: .deliverImmediately)
@@ -559,8 +579,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         fans.resetSync(reason: "sistem uykuya geçiyor")
     }
 
+    @objc private func clockChanged(_ note: Notification) {
+        Log.info("Sistem saati/saat dilimi değişti → zamanlama yeniden kuruluyor")
+        lastScheduleCheck = Date()
+        rescheduleModes(catchUp: false)
+    }
+
     @objc private func systemDidWake(_ note: Notification) {
         Log.info("NSWorkspace.didWakeNotification (mod: \(currentMode.rawValue))")
+        // Uykuda kaçırılan zamanlamalar: yalnızca son 2 dk içindekiler (ör. pmset ile planlı uyanma) çalıştırılır.
+        lastScheduleCheck = max(lastScheduleCheck, Date().addingTimeInterval(-120))
+        rescheduleModes(catchUp: true)
         if currentMode != .sleep {
             DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
                 guard let self = self, self.currentMode != .sleep else { return }

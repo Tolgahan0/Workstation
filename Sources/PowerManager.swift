@@ -39,6 +39,12 @@ final class PowerManager {
         }
     }
 
+    /// Zamanlanmış uyanma: `sudo pmset repeat wakeorpoweron <günler> <saat>` veya `repeat cancel` (args nil).
+    @discardableResult
+    func setRepeatWake(_ args: [String]?) -> Bool {
+        pmsetSudo(args ?? ["repeat", "cancel"])
+    }
+
     /// `sudo -n` parolasız çalışır; sudoers kuralı yoksa parola sormak yerine hata verir ve günlüğe yazılır.
     @discardableResult
     private func pmsetSudo(_ args: [String]) -> Bool {
