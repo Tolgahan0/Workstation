@@ -63,6 +63,25 @@ Kurallar:
 - **Koruma:** Masaüstü'nde son açık ekran kapatılamaz (Mac ekransız kalmasın); Remote'da sanal ekran etkin değilse fiziksel monitörler kapatılmaz. Uyku'da hepsi kapanabilir.
 - macOS ekranları sürekli değiştirirse (60 sn'de 8+ düzeltme) döngüye girmemek için düzeltme geçici olarak durur ve günlüğe yazılır.
 
+## Uyandır ve bağlan (Wake-on-LAN) — 1.7.0
+
+MacBook'ta tek komut: Mac mini uyuyorsa **Wake-on-LAN** sihirli paketi gönderilir, SSH erişilebilir olana kadar beklenir, Mac mini istemcinin ekran boyutunda **Remote**'a alınır ve **Ekran Paylaşımı** (`vnc://`) açılır.
+
+```bash
+# MacBook'ta bir kez (Mac mini uyanıkken): MAC / yayın adresini uzak Mac'ten alıp kaydeder
+workstation-connect --setup studio
+# Sonra her seferinde:
+workstation-connect            # uyandır → bekle → remote WxH → Ekran Paylaşımı
+workstation-connect --no-wake  # uyandırmadan
+workstation-connect --wake-only
+```
+
+- Yapılandırma: `~/.config/workstation/config` → `HOST`, `MAC`, `BROADCAST`, `VNC_HOST`, `WAKE_TIMEOUT` (varsayılan 90 sn). Dosya kaynak olarak çalıştırılmaz; yalnızca bu anahtarlar okunur.
+- Sihirli paket sırasıyla `python3` (yalnızca Command Line Tools kuruluysa), `perl` (macOS ile gelir), son çare `nc` ile UDP 9/7 portlarına yayınlanır; 15 sn içinde uyanmazsa bir kez daha gönderilir.
+- Mac mini tarafında `workstation netinfo` MAC (öncelik Ethernet), IP, yayın adresi ve `.local` adını yazdırır. Panelde **Remote** sekmesindeki "Uyandır ve bağlan" kartı aynı bilgiyi ve kopyalanabilir komutu gösterir.
+- Remote modu artık `pmset womp 1` de uygular (Uyku modu zaten uyguluyordu).
+- **Not:** Wake-on-LAN kablolu Ethernet'te güvenilirdir; Wi-Fi'de Mac mini derin uykudaysa paket ulaşmayabilir. Paket yerel ağ içindir; ağ dışından (internet) uyandırma için VPN/Tailscale gibi bir yol ve aynı ağda bir aracı gerekir.
+
 ## Tools → Fan kontrolü (1.6.0)
 
 Panelde **Masaüstü / Uyku / Remote**'un sağında **Tools** sekmesi var. İlk araç, Macs Fan Control benzeri fan denetimi:

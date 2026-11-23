@@ -3,6 +3,7 @@
 # Kullanım (yerelde veya SSH ile):
 #   workstation remote [WxH | mba13 | mba15 | mbp14 | mbp16 | imac24]
 #   workstation sleep | desktop | status | log
+#   workstation netinfo        (Wake-on-LAN için MAC / IP / yayın adresi; workstation-connect --setup kullanır)
 # Örnek: ssh studio workstation remote 1512x982
 # İstemci Mac'te otomatik çözünürlük için: workstation-connect studio
 
@@ -10,13 +11,14 @@ APP="/Applications/WorkstationMode.app"
 BUNDLE_ID="com.tolgahanayaz.workstationmode"
 
 usage() {
-  echo "Kullanım: workstation remote [WxH|ön ayar] | sleep | desktop | status | log"
+  echo "Kullanım: workstation remote [WxH|ön ayar] | sleep | desktop | status | log | netinfo"
   echo "  remote  → sanal ekran (verilen çözünürlük, yoksa uygulamadaki ön ayar) açık, fiziksel monitörler kapalı"
   echo "            ön ayarlar: mba13 1470x956 · mba15 1710x1107 · mbp14 1512x982 · mbp16 1728x1117 · imac24 2240x1260"
   echo "  sleep   → fiziksel monitörler kapalı, düşük güç, sistem uykusuna izin"
   echo "  desktop → fiziksel monitörler açık, sanal ekran kapalı, normal güç"
   echo "  status  → geçerli mod"
   echo "  log     → son 40 günlük satırı"
+  echo "  netinfo → Wake-on-LAN için MAC/IP/yayın adresi (KEY=değer)"
 }
 
 case "${1:-}" in
@@ -45,6 +47,24 @@ case "${1:-}" in
     ;;
   status)
     /usr/bin/defaults read "$BUNDLE_ID" currentMode 2>/dev/null || echo "desktop"
+    ;;
+  netinfo)
+    # Wake-on-LAN kablolu arabirimde güvenilirdir: önce "Ethernet" donanım portu, yoksa varsayılan rota.
+    ETH=$(/usr/sbin/networksetup -listallhardwareports 2>/dev/null \
+      | /usr/bin/awk '/^Hardware Port: .*Ethernet/{f=1;next} f&&/^Device:/{print $2; exit}')
+    DEF=$(/sbin/route -n get default 2>/dev/null | /usr/bin/awk '/interface:/{print $2; exit}')
+    IFACE="${ETH:-$DEF}"
+    # IP/yayın: Ethernet'te adres yoksa varsayılan arabirimden al.
+    ADDR_IF="$IFACE"
+    /sbin/ifconfig "$IFACE" 2>/dev/null | /usr/bin/grep -q 'inet ' || ADDR_IF="$DEF"
+    MAC=$(/sbin/ifconfig "$IFACE" 2>/dev/null | /usr/bin/awk '/ether /{print $2; exit}')
+    IP=$(/sbin/ifconfig "$ADDR_IF" 2>/dev/null | /usr/bin/awk '/inet /{print $2; exit}')
+    BC=$(/sbin/ifconfig "$ADDR_IF" 2>/dev/null | /usr/bin/awk '/inet /{for(i=1;i<=NF;i++) if($i=="broadcast") {print $(i+1); exit}}')
+    echo "INTERFACE=$IFACE"
+    echo "MAC=$MAC"
+    echo "IP=$IP"
+    echo "BROADCAST=${BC:-255.255.255.255}"
+    echo "HOSTNAME=$(/usr/sbin/scutil --get LocalHostName 2>/dev/null).local"
     ;;
   log)
     /usr/bin/tail -n 40 "$HOME/Library/Logs/WorkstationMode.log"

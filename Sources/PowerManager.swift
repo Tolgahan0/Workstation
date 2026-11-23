@@ -22,9 +22,10 @@ final class PowerManager {
         pmsetSudo(["-a", "lowpowermode", "1", "sleep", "1", "displaysleep", "1", "womp", "1"])
     }
 
-    /// Remote: `sudo pmset -a sleep 0 disksleep 0 displaysleep 0 lowpowermode 0 tcpkeepalive 1 autorestart 1`
+    /// Remote: `sudo pmset -a sleep 0 disksleep 0 displaysleep 0 lowpowermode 0 tcpkeepalive 1 autorestart 1 womp 1`
+    /// (womp 1: Mac yine de uyursa workstation-connect Wake-on-LAN ile uyandırabilsin.)
     func applyRemoteProfile() {
-        pmsetSudo(["-a", "sleep", "0", "disksleep", "0", "displaysleep", "0", "lowpowermode", "0", "tcpkeepalive", "1", "autorestart", "1"])
+        pmsetSudo(["-a", "sleep", "0", "disksleep", "0", "displaysleep", "0", "lowpowermode", "0", "tcpkeepalive", "1", "autorestart", "1", "womp", "1"])
         beginRemoteActivity()
     }
 

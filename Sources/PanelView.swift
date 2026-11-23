@@ -39,7 +39,12 @@ final class BrightnessCardModel: ObservableObject {
 final class PanelModel: ObservableObject {
     @Published var mode: WorkMode = .desktop
     @Published var selectedTab: PanelTab = .desktop {
-        didSet { if selectedTab != oldValue { onToolsVisible(selectedTab == .tools && page == .main) } }
+        didSet {
+            if selectedTab != oldValue {
+                onToolsVisible(selectedTab == .tools && page == .main)
+                if selectedTab == .remote { onRemoteShown() }
+            }
+        }
     }
     @Published var page: PanelPage = .main {
         didSet {
@@ -84,6 +89,9 @@ final class PanelModel: ObservableObject {
     @Published var fanHelperInstalled: Bool = FanController.helperInstalled
     /// Popover açık mı (kapalıyken fan animasyonu durdurulur).
     @Published var panelOpen = false
+
+    // Remote → Wake-on-LAN bilgisi (Remote sekmesi açılınca bir kez okunur)
+    @Published var netInfo: NetworkInfo?
     var toolsVisible: Bool { selectedTab == .tools && page == .main }
 
     /// Kart başına kaydırıcı modelleri (monitör anahtarına göre).
@@ -105,6 +113,7 @@ final class PanelModel: ObservableObject {
     var onSelectMethod: (PhysicalMethod) -> Void = { _ in }
     var onSettingsShown: (Bool) -> Void = { _ in }
     var onToolsVisible: (Bool) -> Void = { _ in }
+    var onRemoteShown: () -> Void = {}
     var onFanMode: (FanMode) -> Void = { _ in }
 
     func selectPreset(_ id: String) {
@@ -159,7 +168,7 @@ struct VisualEffectBackground: NSViewRepresentable {
 
 // MARK: - Renkler
 
-private enum Palette {
+enum Palette {
     static let sleepTint: Color = Color(red: 0.35, green: 0.45, blue: 0.95)
     static let remoteTint: Color = Color(red: 0.55, green: 0.32, blue: 0.95)
     static let cardFill: Color = Color.white.opacity(0.06)
@@ -321,7 +330,7 @@ private struct StatusPill: View {
 
 // MARK: - Ortak parçalar
 
-private struct StartButton: View {
+struct StartButton: View {
     let title: String
     let systemImage: String
     let tint: Color
@@ -343,7 +352,7 @@ private struct StartButton: View {
     }
 }
 
-private struct InfoRow: View {
+struct InfoRow: View {
     let icon: String
     let text: String
     var body: some View {
@@ -355,7 +364,7 @@ private struct InfoRow: View {
     }
 }
 
-private struct CardBackground: ViewModifier {
+struct CardBackground: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(12)
@@ -365,11 +374,11 @@ private struct CardBackground: ViewModifier {
     }
 }
 
-private extension View {
+extension View {
     func cardStyle() -> some View { modifier(CardBackground()) }
 }
 
-private struct SectionTitle: View {
+struct SectionTitle: View {
     let text: String
     var body: some View {
         Text(text).font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)
@@ -500,6 +509,7 @@ private struct RemoteTab: View {
             RemoteInfoCard(resolution: model.effectiveResolution)
             PresetCard(model: model)
             BetterDisplayStatusCard(model: model)
+            WakeConnectCard(model: model)
             RemoteStartButton(model: model)
         }
     }

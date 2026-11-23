@@ -1,32 +1,153 @@
 #!/bin/zsh
 # workstation-connect — BAĞLANAN Mac'te (MacBook vb.) çalıştırılır.
-# Bu Mac'in ekran boyutunu ("UI Looks like" / nokta çözünürlüğü) algılar, uzak Mac'i bu
-# çözünürlükte Remote moduna alır ve isteğe bağlı olarak Ekran Paylaşımı'nı açar.
+# 1) Mac mini uyuyorsa Wake-on-LAN sihirli paketi gönderir ve SSH erişilebilir olana kadar bekler,
+# 2) bu Mac'in ekran boyutunu algılayıp uzak Mac'i bu çözünürlükte Remote moduna alır,
+# 3) Ekran Paylaşımı'nı (vnc://) açar.
 #
-# Kullanım:  workstation-connect [ssh-host] [--no-vnc] [--res WxH]
-#   ssh-host  ~/.ssh/config'teki ad (varsayılan: studio)
-#   --no-vnc  Ekran Paylaşımı'nı açma
-#   --res     Algılamayı atla, bu çözünürlüğü kullan
-# Ortam: WS_VNC_HOST → Ekran Paylaşımı için farklı adres (varsayılan: ssh-host ile aynı)
+# Kullanım:  workstation-connect [ssh-host] [--no-vnc] [--no-wake] [--res WxH] [--mac AA:BB:..] [--timeout sn]
+#            workstation-connect --setup [ssh-host]   # MAC/IP/yayın adresini uzak Mac'ten alıp yapılandırmaya yazar
+#            workstation-connect --wake-only          # yalnızca sihirli paketi gönder
+# Yapılandırma: ~/.config/workstation/config  (KEY=değer satırları)
+#   HOST=studio              ssh-host (~/.ssh/config adı veya adres)
+#   MAC=aa:bb:cc:dd:ee:ff    Mac mini'nin Ethernet MAC adresi (Wake-on-LAN için)
+#   BROADCAST=192.168.1.255  yerel ağ yayın adresi (varsayılan 255.255.255.255)
+#   VNC_HOST=studio.local    Ekran Paylaşımı adresi (varsayılan HOST)
+#   WAKE_TIMEOUT=90          SSH erişilebilir olana kadar azami bekleme (sn)
+# Ortam: WS_VNC_HOST → VNC_HOST ile aynı (geriye dönük uyumluluk)
 
-HOST="studio"
-OPEN_VNC=1
-RES=""
+CONFIG_DIR="$HOME/.config/workstation"
+CONFIG="$CONFIG_DIR/config"
+HOST="studio"; MAC=""; BROADCAST="255.255.255.255"; VNC_HOST=""; WAKE_TIMEOUT=90
+if [[ -f "$CONFIG" ]]; then
+  # Yalnızca bilinen anahtarları oku (dosya kaynak olarak çalıştırılmaz).
+  while IFS='=' read -r k v; do
+    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+    case "$k" in
+      HOST) HOST="$v" ;; MAC) MAC="$v" ;; BROADCAST) BROADCAST="$v" ;;
+      VNC_HOST) VNC_HOST="$v" ;; WAKE_TIMEOUT) WAKE_TIMEOUT="$v" ;;
+    esac
+  done < <(/usr/bin/grep -E '^[A-Z_]+=' "$CONFIG")
+fi
+
+OPEN_VNC=1; DO_WAKE=1; RES=""; SETUP=0; WAKE_ONLY=0
 while (( $# > 0 )); do
   case "$1" in
     --no-vnc) OPEN_VNC=0 ;;
+    --no-wake) DO_WAKE=0 ;;
     --res) shift; RES="${1:-}" ;;
     --res=*) RES="${1#--res=}" ;;
-    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    --mac) shift; MAC="${1:-}" ;;
+    --mac=*) MAC="${1#--mac=}" ;;
+    --timeout) shift; WAKE_TIMEOUT="${1:-90}" ;;
+    --setup) SETUP=1 ;;
+    --wake-only) WAKE_ONLY=1 ;;
+    -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
+    -*) echo "Bilinmeyen seçenek: $1" >&2; exit 2 ;;
     *) HOST="$1" ;;
   esac
   shift
 done
+[[ "$WAKE_TIMEOUT" =~ '^[0-9]+$' ]] || WAKE_TIMEOUT=90
+VNC_HOST="${WS_VNC_HOST:-${VNC_HOST:-$HOST}}"
 
+ssh_ok() { /usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=3 "$HOST" true >/dev/null 2>&1; }
+
+# --- Sihirli paket ------------------------------------------------------------
+valid_mac() { [[ "$1" =~ '^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$' ]]; }
+
+send_magic() {
+  local mac="${1//[:-]/}" bcast="$2"
+  mac="${mac:l}"
+  # 1) python3 (yalnızca Command Line Tools kuruluysa; aksi hâlde /usr/bin/python3 kurulum penceresi açar)
+  if [[ -x /usr/bin/python3 ]] && /usr/bin/xcode-select -p >/dev/null 2>&1; then
+    /usr/bin/python3 - "$mac" "$bcast" <<'PY' && return 0
+import socket, sys
+mac, bcast = sys.argv[1], sys.argv[2]
+pkt = b"\xff" * 6 + bytes.fromhex(mac) * 16
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+for port in (9, 7):
+    s.sendto(pkt, (bcast, port))
+PY
+  fi
+  # 2) perl (macOS ile birlikte gelir)
+  if [[ -x /usr/bin/perl ]]; then
+    /usr/bin/perl -MSocket -e '
+      my ($mac, $b) = @ARGV;
+      my $pkt = ("\xff" x 6) . (pack("H12", $mac) x 16);
+      socket(my $s, PF_INET, SOCK_DGRAM, getprotobyname("udp")) or die "socket: $!";
+      setsockopt($s, SOL_SOCKET, SO_BROADCAST, 1) or die "setsockopt: $!";
+      my $ip = inet_aton($b) or die "adres: $b";
+      for my $p (9, 7) { send($s, $pkt, 0, sockaddr_in($p, $ip)) or die "send: $!"; }
+    ' "$mac" "$bcast" && return 0
+  fi
+  # 3) nc yedeği (yayın adresine izin vermeyebilir)
+  if command -v nc >/dev/null 2>&1; then
+    local hex="ffffffffffff" i
+    for i in {1..16}; do hex+="$mac"; done
+    printf "$(echo "$hex" | /usr/bin/sed -E 's/(..)/\\x\1/g')" | nc -u -w1 "$bcast" 9 && return 0
+  fi
+  return 1
+}
+
+wake() {
+  if ! valid_mac "$MAC"; then
+    echo "Wake-on-LAN atlandı: MAC tanımlı değil (workstation-connect --setup $HOST veya --mac)." >&2
+    return 1
+  fi
+  echo "→ Wake-on-LAN: $MAC → $BROADCAST"
+  send_magic "$MAC" "$BROADCAST" || { echo "Sihirli paket gönderilemedi." >&2; return 1; }
+}
+
+# --- --setup: değerleri uzak Mac'ten al -----------------------------------------
+if (( SETUP )); then
+  echo "→ $HOST üzerinden ağ bilgisi alınıyor…"
+  INFO=$(/usr/bin/ssh -o ConnectTimeout=5 "$HOST" "/usr/local/bin/workstation netinfo" 2>/dev/null) \
+    || { echo "SSH başarısız: önce 'ssh $HOST' çalıştığından emin olun (Mac mini uyanık olmalı)." >&2; exit 1; }
+  R_MAC=$(echo "$INFO" | /usr/bin/awk -F= '$1=="MAC"{print $2}')
+  R_BC=$(echo "$INFO" | /usr/bin/awk -F= '$1=="BROADCAST"{print $2}')
+  R_HOSTNAME=$(echo "$INFO" | /usr/bin/awk -F= '$1=="HOSTNAME"{print $2}')
+  valid_mac "$R_MAC" || { echo "Uzak MAC okunamadı: $INFO" >&2; exit 1; }
+  mkdir -p "$CONFIG_DIR"
+  {
+    echo "# workstation-connect yapılandırması ($(date '+%Y-%m-%d %H:%M'))"
+    echo "HOST=$HOST"
+    echo "MAC=$R_MAC"
+    echo "BROADCAST=${R_BC:-255.255.255.255}"
+    [[ -n "$R_HOSTNAME" ]] && echo "VNC_HOST=$R_HOSTNAME"
+    echo "WAKE_TIMEOUT=$WAKE_TIMEOUT"
+  } > "$CONFIG"
+  echo "✓ Kaydedildi: $CONFIG"; cat "$CONFIG"
+  exit 0
+fi
+
+if (( WAKE_ONLY )); then wake; exit $?; fi
+
+# --- 1) Uyandır ve SSH'yi bekle ----------------------------------------------------
+if ! ssh_ok; then
+  if (( DO_WAKE )) && wake; then
+    echo -n "→ $HOST bekleniyor (en fazla ${WAKE_TIMEOUT} sn)"
+    START=$SECONDS; SENT_AGAIN=0
+    until ssh_ok; do
+      if (( SECONDS - START >= WAKE_TIMEOUT )); then
+        echo; echo "$HOST ${WAKE_TIMEOUT} sn içinde erişilebilir olmadı. Ethernet/Wake-on-LAN ayarını ve ağı kontrol edin." >&2
+        exit 1
+      fi
+      # 15 sn sonra paketi bir kez daha gönder (ilk paket kaybolmuş olabilir).
+      if (( SECONDS - START >= 15 && !SENT_AGAIN )); then send_magic "$MAC" "$BROADCAST" >/dev/null 2>&1; SENT_AGAIN=1; fi
+      echo -n "."; sleep 2
+    done
+    echo " uyandı."
+  else
+    echo "$HOST erişilemiyor; yine de deneniyor…" >&2
+  fi
+fi
+
+# --- 2) Çözünürlük algıla -----------------------------------------------------------
 if [[ -z "$RES" ]]; then
-  # 1) Ana ekranın nokta (point) boyutu — Retina "Görünüm" ayarı ile aynı.
+  # Ana ekranın nokta (point) boyutu — Retina "Görünüm" ayarı ile aynı.
   RES=$(/usr/bin/osascript -l JavaScript -e 'ObjC.import("AppKit"); var f = $.NSScreen.mainScreen.frame; Math.round(f.size.width) + "x" + Math.round(f.size.height)' 2>/dev/null)
-  # 2) Yedek: system_profiler "UI Looks like: 1512 x 982 @ 120.00Hz"
+  # Yedek: system_profiler "UI Looks like: 1512 x 982 @ 120.00Hz"
   if [[ ! "$RES" =~ '^[0-9]+x[0-9]+$' ]]; then
     RES=$(/usr/sbin/system_profiler SPDisplaysDataType 2>/dev/null \
       | /usr/bin/awk -F': ' '/UI Looks like/ {print $2; exit}' \
@@ -38,6 +159,7 @@ if [[ ! "$RES" =~ '^[0-9]+x[0-9]+$' ]]; then
   RES=""
 fi
 
+# --- 3) Remote + Ekran Paylaşımı ----------------------------------------------------
 echo "→ $HOST Remote moduna alınıyor${RES:+ ($RES)}…"
 if ! /usr/bin/ssh "$HOST" "/usr/local/bin/workstation remote $RES"; then
   echo "SSH komutu başarısız. 'ssh $HOST' bağlantısını ve uzak Mac'te WorkstationMode kurulumunu kontrol edin." >&2
@@ -46,5 +168,5 @@ fi
 
 if (( OPEN_VNC )); then
   sleep 3   # sanal ekranın oluşup fiziksel monitörlerin kapanması için
-  /usr/bin/open "vnc://${WS_VNC_HOST:-$HOST}"
+  /usr/bin/open "vnc://$VNC_HOST"
 fi

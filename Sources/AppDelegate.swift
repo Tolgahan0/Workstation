@@ -19,25 +19,25 @@ private func displayReconfigurationCallback(_ display: CGDirectDisplayID,
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem!
     /// Popover ve içeriği yalnızca açıkken var olur (RAM için).
-    private var popover: NSPopover?
-    private let panelModel = PanelModel()
+    var popover: NSPopover?
+    let panelModel = PanelModel()
     private let logWindow = LogWindowController()
     /// Simge üzerindeki renkli mod noktası (simgenin kendisi şablon/tek renk kalır).
     private var badgeView: StatusBadgeView?
 
-    private let controller = ModeController()
+    let controller = ModeController()
     /// Uyku / Remote öncesi geri sayım (HUD). Yalnızca sayarken zamanlayıcı vardır.
-    private let countdown = Countdown()
+    let countdown = Countdown()
     /// Araçlar → fan denetimi. Okuma yalnızca panel açık + Araçlar sekmesi görünürken.
-    private let fans = FanController()
+    let fans = FanController()
     private var fanPollTimer: Timer?
 
     private(set) var currentMode: WorkMode = .desktop
-    private var isTransitioning = false
-    private var countdownActive = false
+    var isTransitioning = false
+    var countdownActive = false
     private var sleepModeEnteredAt = Date.distantPast
     private var pendingLaunch: (WorkMode, String?)?
-    private var didFinishLaunching = false
+    var didFinishLaunching = false
     private var lastError: String?
     /// Uyku modunda fare/klavye girdisini yakalayıp Masaüstü'ne dönmek için global izleyici (yalnızca Uyku'da).
     private var sleepInputMonitor: Any?
@@ -180,6 +180,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             guard let self = self else { return }
             if visible { self.startFanPolling() } else { self.stopFanPolling() }
         }
+        m.onRemoteShown = { [weak self] in self?.refreshNetInfo() }
         m.onFanMode = { [weak self] mode in
             guard let self = self else { return }
             self.panelModel.fanMode = mode
@@ -248,6 +249,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         p.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         p.contentViewController?.view.window?.makeKey()
         if panelModel.toolsVisible { startFanPolling() }
+        if panelModel.selectedTab == .remote { refreshNetInfo() }
+    }
+
+    /// Wake-on-LAN bilgisi: Remote sekmesi açılınca okunur, 5 dk önbelleklenir (boşta okuma yok).
+    private var netInfoFetchedAt = Date.distantPast
+    private func refreshNetInfo() {
+        guard Date().timeIntervalSince(netInfoFetchedAt) > 300 || panelModel.netInfo == nil else { return }
+        netInfoFetchedAt = Date()
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let info = NetworkInfo.fetch()
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if let i = info {
+                    self.panelModel.netInfo = i
+                } else {
+                    // Okunamadı: boş bilgi göster ("—"), bir sonraki açılışta yeniden dene.
+                    self.panelModel.netInfo = NetworkInfo()
+                    self.netInfoFetchedAt = .distantPast
+                }
+            }
+        }
     }
 
     /// Popover kapanınca SwiftUI hiyerarşisini serbest bırak.
@@ -317,7 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         memoryTimer = nil
     }
 
-    private func refreshMonitors() {
+    func refreshMonitors() {
         guard popover != nil else { return }
         panelModel.loadingMonitors = true
         controller.monitorSnapshot { [weak self] list in
