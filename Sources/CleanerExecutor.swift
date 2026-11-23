@@ -46,11 +46,11 @@ final class CleanerExecutor {
             let outcome = execute(item, snapshot: snap)
             var result = ""
             switch outcome {
-            case .trashed(let b): record.trashed += b; result = "çöp"
-            case .removed(let b): record.reclaimed += b; result = "silindi"
-            case .command(let b): record.reclaimed += b; result = "komut"
-            case .skipped(let why): result = "atlandı: " + why
-            case .failed(let why): record.errors += 1; result = "hata: " + why
+            case .trashed(let b): record.trashed += b; result = L("çöp")
+            case .removed(let b): record.reclaimed += b; result = L("silindi")
+            case .command(let b): record.reclaimed += b; result = L("komut")
+            case .skipped(let why): result = L("atlandı: ") + why
+            case .failed(let why): record.errors += 1; result = L("hata: ") + why
             }
             let bytes: Int64
             switch outcome {
@@ -61,7 +61,7 @@ final class CleanerExecutor {
             let line = "Temizleyici: \(item.path.map { PathGuard.display($0, home: home) } ?? item.title) → \(result) (\(CleanerRules.formatBytes(bytes)))"
             if case .failed = outcome { Log.warn(line) } else { Log.info(line) }
         }
-        progress("Bitti", 1)
+        progress(L("Bitti"), 1)
         Log.info("Temizleyici bitti: \(CleanerRules.formatBytes(record.reclaimed)) silindi, \(CleanerRules.formatBytes(record.trashed)) Çöp'e taşındı, \(record.errors) hata")
         CleanHistory.append(record)
         return record
@@ -77,11 +77,11 @@ final class CleanerExecutor {
     func execute(_ item: CleanItem, snapshot snap: SystemSnapshot) -> Outcome {
         switch item.action {
         case .suggest:
-            return .skipped("yalnızca öneri")
+            return .skipped(L("yalnızca öneri"))
         case .command(let exe, let args):
             return runCommand(item, exe: exe, args: args)
         case .delete:
-            guard let path = item.path else { return .skipped("yol yok") }
+            guard let path = item.path else { return .skipped(L("yol yok")) }
             if let why = recheck(path: path, item: item, snapshot: snap) { return .skipped(why) }
             let bytes = item.bytes
             let url = URL(fileURLWithPath: path)
@@ -96,7 +96,7 @@ final class CleanerExecutor {
                 return .failed(error.localizedDescription)
             }
         case .pruneFiles(let days):
-            guard let path = item.path else { return .skipped("yol yok") }
+            guard let path = item.path else { return .skipped(L("yol yok")) }
             if let r = PathGuard.check(path, home: home, neverTouch: settings.neverTouch) { return .skipped(r.text) }
             guard snap.openFiles.reliable else { return .skipped(SkipReason.unverified.text) }
             return .removed(pruneFiles(in: path, olderThanDays: days, snapshot: snap))
@@ -106,8 +106,8 @@ final class CleanerExecutor {
     /// Silmeden hemen önce: var mı, bağlantı mı, korunuyor mu, açık dosya/çalışma klasörü, proje yeniden aktif mi?
     func recheck(path: String, item: CleanItem, snapshot snap: SystemSnapshot) -> String? {
         var st = stat()
-        guard lstat(path, &st) == 0 else { return "artık yok" }
-        if (st.st_mode & S_IFMT) == S_IFLNK { return "sembolik bağlantı" }
+        guard lstat(path, &st) == 0 else { return L("artık yok") }
+        if (st.st_mode & S_IFMT) == S_IFLNK { return L("sembolik bağlantı") }
         // Gerçek yol (üst klasörlerde bağlantı varsa) yine ev klasörü içinde ve korunmayan yerde olmalı.
         let real = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
         for p in Set([path, real]) {
@@ -155,12 +155,12 @@ final class CleanerExecutor {
     }
 
     private func runCommand(_ item: CleanItem, exe: String, args: [String]) -> Outcome {
-        guard FileManager.default.isExecutableFile(atPath: exe) else { return .failed("araç bulunamadı: \(exe)") }
+        guard FileManager.default.isExecutableFile(atPath: exe) else { return .failed(L("araç bulunamadı: %@", exe)) }
         let before = item.path.map { DiskUsage.measure($0, cancel: cancel).bytes }
         let res = Shell.run(exe, args, timeout: 900, environment: tools.environment)
         guard res.succeeded else {
             let msg = (res.stderr.isEmpty ? res.stdout : res.stderr).trimmingCharacters(in: .whitespacesAndNewlines)
-            return .failed(res.timedOut ? "zaman aşımı" : String(msg.suffix(200)))
+            return .failed(res.timedOut ? L("zaman aşımı") : String(msg.suffix(200)))
         }
         if let b = before, let p = item.path {
             let after = FileManager.default.fileExists(atPath: p) ? DiskUsage.measure(p, cancel: cancel).bytes : 0

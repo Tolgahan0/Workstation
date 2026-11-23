@@ -18,23 +18,23 @@ struct ScheduleRule: Codable, Identifiable, Equatable {
     static let orderedWeekdays: [Int] = [2, 3, 4, 5, 6, 7, 1]
     static func shortName(_ weekday: Int) -> String {
         switch weekday {
-        case 1: return "Paz"
-        case 2: return "Pzt"
-        case 3: return "Sal"
-        case 4: return "Çar"
-        case 5: return "Per"
-        case 6: return "Cum"
-        case 7: return "Cmt"
+        case 1: return L("Paz")
+        case 2: return L("Pzt")
+        case 3: return L("Sal")
+        case 4: return L("Çar")
+        case 5: return L("Per")
+        case 6: return L("Cum")
+        case 7: return L("Cmt")
         default: return "?"
         }
     }
 
     var daysText: String {
         let set = Set(weekdays)
-        if set.count == 7 { return "Her gün" }
-        if set == [2, 3, 4, 5, 6] { return "Hafta içi" }
-        if set == [1, 7] { return "Hafta sonu" }
-        if set.isEmpty { return "Gün seçilmedi" }
+        if set.count == 7 { return L("Her gün") }
+        if set == [2, 3, 4, 5, 6] { return L("Hafta içi") }
+        if set == [1, 7] { return L("Hafta sonu") }
+        if set.isEmpty { return L("Gün seçilmedi") }
         return Self.orderedWeekdays.filter { set.contains($0) }.map(Self.shortName).joined(separator: " ")
     }
 }

@@ -306,7 +306,7 @@ final class CleanerScanner {
         let start = Date()
         var results: [CategoryResult] = []
         if categories.contains(where: { Self.projectCategories.contains($0) }) {
-            progress("Projeler aranıyor…", 0.02)
+            progress(L("Projeler aranıyor…"), 0.02)
             projects = ProjectFinder(home: home, roots: projectRoots, maxDepth: settings.maxDepth,
                                      deadline: deadline, cancel: cancel).find()
             Log.info("Temizleyici: \(projects.count) proje bulundu")
@@ -322,7 +322,7 @@ final class CleanerScanner {
             }
             results.append(r)
         }
-        progress("Bitti", 1)
+        progress(L("Bitti"), 1)
         return ScanReport(date: now, results: results, duration: Date().timeIntervalSince(start),
                           inUseCheckOK: snapshot.openFiles.reliable, cancelled: cancel.isCancelled)
     }
@@ -373,7 +373,7 @@ final class CleanerScanner {
         if case .pruneFiles(let days) = item.action {
             let m = DiskUsage.measure(p, cancel: cancel, deadline: deadline, filesOlderThan: now.addingTimeInterval(-Double(days) * 86400))
             it.bytes = m.bytes
-            it.detail = "\(m.files) dosya"
+            it.detail = L("%@ dosya", m.files)
             return it
         }
         if case .command = item.action { return it }
@@ -441,13 +441,13 @@ final class CleanerScanner {
             if cancel.isCancelled { break }
             let name = (p as NSString).lastPathComponent
             if name == "ModuleCache.noindex" || name == "SymbolCache.noindex" || name == "CompilationCache.noindex" {
-                if xcode { r.items.append(item(.derivedData, p, detail: "paylaşılan önbellek", skip: .toolRunning)); continue }
+                if xcode { r.items.append(item(.derivedData, p, detail: L("paylaşılan önbellek"), skip: .toolRunning)); continue }
                 let recent = CleanerRules.isRecent(mtime(p), days: days, now: now)
-                r.items.append(item(.derivedData, p, detail: "paylaşılan önbellek", skip: recent ? .recent : cacheSkip(p)))
+                r.items.append(item(.derivedData, p, detail: L("paylaşılan önbellek"), skip: recent ? .recent : cacheSkip(p)))
                 continue
             }
             let ws = (try? Data(contentsOf: URL(fileURLWithPath: p + "/info.plist"))).flatMap(CleanerRules.workspacePath)
-            var detail = ws.map { PathGuard.display($0, home: home) } ?? "proje bilinmiyor"
+            var detail = ws.map { PathGuard.display($0, home: home) } ?? L("proje bilinmiyor")
             var skip: SkipReason? = cacheSkip(p)
             let lastBuild = mtime(p + "/info.plist") ?? mtime(p)
             if skip == nil, CleanerRules.isRecent(lastBuild, days: days, now: now) { skip = .recent }
@@ -457,7 +457,7 @@ final class CleanerScanner {
                     if skip == nil, CleanerRules.isRecent(activity(projectDir), days: days, now: now) { skip = .activeProject }
                     if skip == nil, snapshot.openFiles.hasProcessCwd(under: projectDir) != nil { skip = .runningProcess }
                 } else {
-                    detail += " (proje artık yok)"
+                    detail += L(" (proje artık yok)")
                 }
             }
             r.items.append(item(.derivedData, p, title: name.components(separatedBy: "-").dropLast().joined(separator: "-").nilIfEmpty ?? name,
@@ -511,7 +511,7 @@ final class CleanerScanner {
         guard res.succeeded, let data = res.stdout.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let devices = json["devices"] as? [String: Any] else {
-            r.note = "Xcode simülatör aracı bulunamadı"
+            r.note = L("Xcode simülatör aracı bulunamadı")
             return r
         }
         var bytes: Int64 = 0
@@ -525,7 +525,7 @@ final class CleanerScanner {
         }
         guard count > 0 else { return r }
         r.items.append(CleanItem(id: "unavailableSimulators", category: .unavailableSimulators, path: nil,
-                                 title: "\(count) kullanılamayan simülatör", detail: "Xcode'un kendi komutuyla", bytes: bytes,
+                                 title: L("%@ kullanılamayan simülatör", count), detail: L("Xcode'un kendi komutuyla"), bytes: bytes,
                                  action: .command("/usr/bin/xcrun", ["simctl", "delete", "unavailable"])))
         return r
     }
@@ -542,7 +542,7 @@ final class CleanerScanner {
             let plat = (d["platformIdentifier"] as? String)?.components(separatedBy: ".").last ?? ""
             let size = (d["sizeBytes"] as? NSNumber)?.int64Value ?? 0
             r.items.append(CleanItem(id: "simulatorRuntimes:" + id, category: .simulatorRuntimes, path: nil,
-                                     title: "\(plat) \(ver)".trimmingCharacters(in: .whitespaces), detail: "Xcode › Ayarlar › Platformlar'dan kaldırılabilir",
+                                     title: "\(plat) \(ver)".trimmingCharacters(in: .whitespaces), detail: L("Xcode › Ayarlar › Platformlar'dan kaldırılabilir"),
                                      bytes: size, action: .suggest))
         }
         r.items.sort { $0.bytes > $1.bytes }
@@ -591,7 +591,7 @@ final class CleanerScanner {
                 r.items.append(item(.gradleWrapperDists, d, title: name, skip: skip))
             }
         }
-        if projects.isEmpty && !dists.isEmpty { r.note = "Hiç Android projesi bulunamadı; güvenlik için en yeni sürüm tutulur." }
+        if projects.isEmpty && !dists.isEmpty { r.note = L("Hiç Android projesi bulunamadı; güvenlik için en yeni sürüm tutulur.") }
         return r
     }
 
@@ -649,7 +649,7 @@ final class CleanerScanner {
             })
             for d in split.old {
                 var it = CleanItem(id: "androidSDK:" + d, category: .androidSDK, path: d, title: "\(label) \((d as NSString).lastPathComponent)",
-                                   detail: "Android Studio › SDK Manager'dan kaldırılabilir", action: .suggest)
+                                   detail: L("Android Studio › SDK Manager'dan kaldırılabilir"), action: .suggest)
                 it.bytes = DiskUsage.measure(d, cancel: cancel, deadline: deadline).bytes
                 r.items.append(it)
             }
@@ -691,8 +691,8 @@ final class CleanerScanner {
         let cacache = home + "/.npm/_cacache"
         if exists(cacache), tools.find("npm") != nil {
             let size = DiskUsage.measure(cacache, cancel: cancel, deadline: deadline).bytes
-            r.items.append(CleanItem(id: "npmCache:verify", category: .npmCache, path: cacache, title: "npm önbelleğini ayıkla",
-                                     detail: "önbellek \(CleanerRules.formatBytes(size)) · npm kendisi temizler",
+            r.items.append(CleanItem(id: "npmCache:verify", category: .npmCache, path: cacache, title: L("npm önbelleğini ayıkla"),
+                                     detail: L("önbellek %@ · npm kendisi temizler", CleanerRules.formatBytes(size)),
                                      action: .command(tools.find("npm")!, ["cache", "verify"])))
         }
         for d in children(home + "/.npm/_npx") {
@@ -725,7 +725,7 @@ final class CleanerScanner {
         let size = DiskUsage.measure(path, cancel: cancel, deadline: deadline).bytes
         let skip: SkipReason? = snapshot.processes.packageManagerRunning ? .toolRunning : nil
         r.items.append(CleanItem(id: "pnpmStore", category: .pnpmStore, path: path, title: "pnpm store prune",
-                                 detail: "depo \(CleanerRules.formatBytes(size)) · kullanılmayan paketler silinir",
+                                 detail: L("depo %@ · kullanılmayan paketler silinir", CleanerRules.formatBytes(size)),
                                  skip: skip, action: .command(pnpm, ["store", "prune"])))
         return r
     }
@@ -828,7 +828,7 @@ final class CleanerScanner {
         guard bytes > 0 || lines > 0 else { return r }
         let busy = snapshot.processes.any { $0.contains("/brew ") && ($0.contains(" install") || $0.contains(" upgrade")) }
         r.items.append(CleanItem(id: "homebrew", category: .homebrew, path: nil, title: "brew cleanup --prune=30",
-                                 detail: "\(lines) eski dosya", bytes: bytes, skip: busy ? .toolRunning : nil,
+                                 detail: L("%@ eski dosya", lines), bytes: bytes, skip: busy ? .toolRunning : nil,
                                  action: .command(brew, ["cleanup", "--prune=30"])))
         return r
     }
@@ -839,7 +839,7 @@ final class CleanerScanner {
         for line in res.stdout.split(separator: "\n") where !line.hasPrefix("==>") && !line.isEmpty {
             let name = line.trimmingCharacters(in: .whitespaces)
             r.items.append(CleanItem(id: "brewAR:" + name, category: .homebrewAutoremove, path: nil, title: name,
-                                     detail: "brew autoremove ile kaldırılabilir", action: .suggest))
+                                     detail: L("brew autoremove ile kaldırılabilir"), action: .suggest))
         }
         return r
     }
@@ -848,7 +848,7 @@ final class CleanerScanner {
         var r = CategoryResult(category: c)
         guard runTools, let docker = tools.find("docker") else { return r }
         guard let info = tools.run("docker", ["info", "--format", "{{.ServerVersion}}"], timeout: 8), info.succeeded else {
-            r.note = "Docker çalışmıyor"
+            r.note = L("Docker çalışmıyor")
             return r
         }
         let df = tools.run("docker", ["system", "df", "--format", "{{.Type}}\t{{.Reclaimable}}"], timeout: 30)
@@ -857,16 +857,16 @@ final class CleanerScanner {
             let dangling = tools.run("docker", ["images", "-f", "dangling=true", "-q"], timeout: 20)?.stdout
                 .split(separator: "\n").count ?? 0
             if dangling > 0 {
-                r.items.append(CleanItem(id: "docker:images", category: c, path: nil, title: "\(dangling) etiketsiz imaj",
+                r.items.append(CleanItem(id: "docker:images", category: c, path: nil, title: L("%@ etiketsiz imaj", dangling),
                                          detail: "docker image prune", action: .command(docker, ["image", "prune", "-f"])))
             }
             if let b = rec["Build Cache"], b > 0 {
-                r.items.append(CleanItem(id: "docker:builder", category: c, path: nil, title: "Kullanılmayan derleme önbelleği",
+                r.items.append(CleanItem(id: "docker:builder", category: c, path: nil, title: L("Kullanılmayan derleme önbelleği"),
                                          detail: "docker builder prune", bytes: b, action: .command(docker, ["builder", "prune", "-f"])))
             }
         } else if let b = rec["Local Volumes"], b > 0 {
-            r.items.append(CleanItem(id: "docker:volumes", category: c, path: nil, title: "Kullanılmayan birimler",
-                                     detail: "docker volume prune — içindeki veri silinir", bytes: b,
+            r.items.append(CleanItem(id: "docker:volumes", category: c, path: nil, title: L("Kullanılmayan birimler"),
+                                     detail: L("docker volume prune — içindeki veri silinir"), bytes: b,
                                      action: .command(docker, ["volume", "prune", "-f"])))
         }
         return r
@@ -879,7 +879,7 @@ final class CleanerScanner {
         guard !path.isEmpty, exists(path) else { return r }
         let size = DiskUsage.measure(path, cancel: cancel, deadline: deadline).bytes
         r.items.append(CleanItem(id: "uvCache", category: .uvCache, path: path, title: "uv cache prune",
-                                 detail: "önbellek \(CleanerRules.formatBytes(size)) · kullanılmayanlar silinir",
+                                 detail: L("önbellek %@ · kullanılmayanlar silinir", CleanerRules.formatBytes(size)),
                                  action: .command(uv, ["cache", "prune"])))
         return r
     }
@@ -999,7 +999,7 @@ final class CleanerScanner {
         let dir = home + "/.Trash"
         let days = settings.age(.trash) ?? 30
         guard (try? FileManager.default.contentsOfDirectory(atPath: dir)) != nil else {
-            if exists(dir) { r.note = "Çöp Sepeti'ni okumak için Tam Disk Erişimi izni gerekiyor" }
+            if exists(dir) { r.note = L("Çöp Sepeti'ni okumak için Tam Disk Erişimi izni gerekiyor") }
             return r
         }
         for p in children(dir) {

@@ -24,7 +24,7 @@ extension AppDelegate {
             u.hasToken = UpdateToken.read() != nil
             u.showToken = false
             u.tokenDraft = ""
-            if !ok { u.phase = .failed("Anahtar kaydedilemedi") }
+            if !ok { u.phase = .failed(L("Anahtar kaydedilemedi")) }
         }
         scheduleUpdateCheck(after: 20)
     }
@@ -69,8 +69,8 @@ extension AppDelegate {
                     if u.settings.autoInstall && self.currentMode != .remote && !self.isTransitioning {
                         self.installUpdate(automatic: true)
                     } else if isNew && !manual {
-                        self.notifier.notify(kind: "update", title: "Workstation \(c.version) hazır",
-                                             body: "Güncellemek için menü çubuğundaki simgeye tıkla.")
+                        self.notifier.notify(kind: "update", title: L("Workstation %@ hazır", c.version),
+                                             body: L("Güncellemek için menü çubuğundaki simgeye tıkla."))
                     }
                 case .success(nil):
                     u.candidate = nil
@@ -78,7 +78,7 @@ extension AppDelegate {
                 case .failure(let e):
                     Log.warn("Güncelleme kontrolü başarısız: \(e.localizedDescription)")
                     if manual || u.phase == .checking {
-                        u.phase = manual ? .failed("Kontrol edilemedi: \(e.localizedDescription)") : (u.candidate != nil ? .available : .idle)
+                        u.phase = manual ? .failed(L("Kontrol edilemedi: %@", e.localizedDescription)) : (u.candidate != nil ? .available : .idle)
                     }
                 }
             }
@@ -89,10 +89,10 @@ extension AppDelegate {
         let u = panelModel.updater
         guard let c = u.candidate, !u.busy else { return }
         guard Bundle.main.bundlePath.hasSuffix(".app") else {
-            u.phase = .failed("Uygulama paketinden çalışmıyor; güncelleme atlandı")
+            u.phase = .failed(L("Uygulama paketinden çalışmıyor; güncelleme atlandı"))
             return
         }
-        u.phase = .working("İndiriliyor…")
+        u.phase = .working(L("İndiriliyor…"))
         let engine = Updater(bundleID: Bundle.main.bundleIdentifier ?? "com.tolgahanayaz.workstationmode",
                              currentVersion: currentAppVersion, settings: u.settings)
         let dest = Bundle.main.bundlePath
@@ -108,12 +108,12 @@ extension AppDelegate {
                         return
                     }
                     do {
-                        u.phase = .working("Yeniden başlatılıyor…")
+                        u.phase = .working(L("Yeniden başlatılıyor…"))
                         try engine.launchSwap(newApp: app, destination: dest)
                         Log.info("Güncelleme hazır, uygulama yeniden başlatılıyor")
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }
                     } catch {
-                        u.phase = .failed("Güncelleme başlatılamadı: \(error.localizedDescription)")
+                        u.phase = .failed(L("Güncelleme başlatılamadı: %@", error.localizedDescription))
                     }
                 }
             } catch {

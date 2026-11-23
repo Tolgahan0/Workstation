@@ -49,13 +49,13 @@ final class Updater {
         case http(Int), noManifest, badManifest, noZip, checksum, badBundle(String), signature, io(String)
         var errorDescription: String? {
             switch self {
-            case .http(let c): return c == 404 ? "Yayın bulunamadı (depo özelse anahtar gerekir)" : "Sunucu hatası (\(c))"
-            case .noManifest: return "Yayında latest.json yok"
-            case .badManifest: return "latest.json okunamadı"
-            case .noZip: return "Yayında uygulama dosyası yok"
-            case .checksum: return "İndirilen dosya doğrulanamadı (SHA-256 uyuşmuyor)"
-            case .badBundle(let w): return "İndirilen uygulama beklenen uygulama değil: \(w)"
-            case .signature: return "Uygulama imzası doğrulanamadı"
+            case .http(let c): return c == 404 ? L("Yayın bulunamadı (depo özelse anahtar gerekir)") : L("Sunucu hatası (%@)", c)
+            case .noManifest: return L("Yayında latest.json yok")
+            case .badManifest: return L("latest.json okunamadı")
+            case .noZip: return L("Yayında uygulama dosyası yok")
+            case .checksum: return L("İndirilen dosya doğrulanamadı (SHA-256 uyuşmuyor)")
+            case .badBundle(let w): return L("İndirilen uygulama beklenen uygulama değil: %@", w)
+            case .signature: return L("Uygulama imzası doğrulanamadı")
             case .io(let m): return m
             }
         }
@@ -96,7 +96,7 @@ final class Updater {
 
     private func fetch(_ req: URLRequest) throws -> Data {
         let sem = DispatchSemaphore(value: 0)
-        var result: Result<Data, Error> = .failure(UpdateError.io("zaman aşımı"))
+        var result: Result<Data, Error> = .failure(UpdateError.io(L("zaman aşımı")))
         session.dataTask(with: req) { data, resp, err in
             if let e = err { result = .failure(e) }
             else if let h = resp as? HTTPURLResponse, !(200..<300).contains(h.statusCode) { result = .failure(UpdateError.http(h.statusCode)) }
@@ -160,23 +160,23 @@ final class Updater {
         try? FileManager.default.removeItem(at: dir)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let zip = dir.appendingPathComponent("Workstation.zip")
-        progress("İndiriliyor…")
+        progress(L("İndiriliyor…"))
         guard let req = assetRequest(apiURL: c.zipAPIURL, browserURL: c.zipURL) else { throw UpdateError.noZip }
         try download(req, to: zip)
-        progress("Doğrulanıyor…")
+        progress(L("Doğrulanıyor…"))
         let sum = Shell.run("/usr/bin/shasum", ["-a", "256", zip.path], timeout: 60)
         let got = sum.stdout.split(separator: " ").first.map(String.init)?.lowercased() ?? ""
         guard sum.succeeded, got == c.manifest.sha256.lowercased() else { throw UpdateError.checksum }
         let unz = Shell.run("/usr/bin/ditto", ["-x", "-k", zip.path, dir.path], timeout: 120)
-        guard unz.succeeded else { throw UpdateError.io("Arşiv açılamadı") }
+        guard unz.succeeded else { throw UpdateError.io(L("Arşiv açılamadı")) }
         let app = dir.appendingPathComponent("Workstation.app")
         guard let plist = try? Data(contentsOf: app.appendingPathComponent("Contents/Info.plist")),
               let info = (try? PropertyListSerialization.propertyList(from: plist, format: nil)) as? [String: Any] else {
-            throw UpdateError.badBundle("Info.plist yok")
+            throw UpdateError.badBundle(L("Info.plist yok"))
         }
-        guard (info["CFBundleIdentifier"] as? String) == bundleID else { throw UpdateError.badBundle("paket kimliği farklı") }
+        guard (info["CFBundleIdentifier"] as? String) == bundleID else { throw UpdateError.badBundle(L("paket kimliği farklı")) }
         guard let v = (info["CFBundleShortVersionString"] as? String).flatMap(SemVer.init), let cur = SemVer(currentVersion), v > cur else {
-            throw UpdateError.badBundle("sürüm daha yeni değil")
+            throw UpdateError.badBundle(L("sürüm daha yeni değil"))
         }
         let cs = Shell.run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path], timeout: 60)
         guard cs.succeeded else { throw UpdateError.signature }

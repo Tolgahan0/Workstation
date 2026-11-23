@@ -46,7 +46,7 @@ final class PhysicalDisplayController {
     }()
 
     static var isAvailable: Bool { loaded != nil }
-    static var apiDescription: String { loaded?.source ?? "yok" }
+    static var apiDescription: String { loaded?.source ?? L("yok") }
 
     /// Harici anahtarlama arka ucu (BetterDisplay `connected`). Ayarlanmışsa önce o denenir;
     /// başaramadığı ekranlar için sistem API'sine (CGSConfigureDisplayEnabled) düşülür.
@@ -298,7 +298,7 @@ final class PhysicalDisplayController {
 /// macOS dışı derleme (yalnızca Linux'ta sözdizimi/tip denetimi için) — işlevsiz yer tutucu.
 final class PhysicalDisplayController {
     static var isAvailable: Bool { false }
-    static var apiDescription: String { "yok" }
+    static var apiDescription: String { L("yok") }
     var externalSwitch: (([PhysicalDisplayRecord], Bool) -> [PhysicalDisplayRecord])?
     var lastBackend: String { "—" }
     func physicalDisplays(excludedIDs: Set<UInt32>, excludedNames: [String], activeOnly: Bool) -> [PhysicalDisplayRecord] { [] }

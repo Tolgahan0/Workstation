@@ -13,15 +13,15 @@ enum CleanGroup: String, Codable, CaseIterable {
 
     var title: String {
         switch self {
-        case .xcode: return "Xcode ve simülatörler"
+        case .xcode: return L("Xcode ve simülatörler")
         case .android: return "Android"
         case .js: return "JavaScript"
         case .iosDeps: return "CocoaPods"
         case .homebrew: return "Homebrew"
         case .docker: return "Docker"
         case .langs: return "Python · Rust · Go"
-        case .agents: return "Yapay zekâ araçları"
-        case .system: return "Çöp ve uygulama önbellekleri"
+        case .agents: return L("Yapay zekâ araçları")
+        case .system: return L("Çöp ve uygulama önbellekleri")
         }
     }
 
@@ -83,80 +83,80 @@ enum CleanCategory: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .derivedData: return "Eski derleme klasörleri (DerivedData)"
-        case .xcodeArchives: return "Eski arşivler"
-        case .deviceSupport: return "Eski cihaz destek dosyaları"
-        case .unavailableSimulators: return "Kullanılamayan simülatörler"
-        case .simulatorCaches: return "Simülatör önbelleği"
-        case .simulatorRuntimes: return "Simülatör sürümleri (öneri)"
-        case .androidBuilds: return "Android derleme çıktıları"
-        case .gradleWrapperDists: return "Kullanılmayan Gradle sürümleri"
-        case .gradleVersionCaches: return "Eski Gradle önbellekleri"
-        case .gradleModuleCache: return "Gradle bağımlılık önbelleği (tamamı)"
-        case .avdSnapshots: return "Emülatör anlık görüntüleri"
-        case .androidSDK: return "Android SDK eski sürümler (öneri)"
-        case .nodeModules: return "node_modules (pasif projeler)"
-        case .npmCache: return "npm / npx önbelleği"
-        case .pnpmStore: return "pnpm deposu"
-        case .yarnCache: return "Yarn önbelleği"
-        case .bunCache: return "Bun önbelleği"
-        case .jsBuildOutputs: return "Web derleme çıktıları (.next, dist…)"
-        case .playwrightBrowsers: return "Eski Playwright/Puppeteer tarayıcıları"
-        case .cocoapodsCache: return "CocoaPods önbelleği"
-        case .podsDirs: return "Pods klasörleri (pasif projeler)"
-        case .homebrew: return "Homebrew eski paketleri"
-        case .homebrewAutoremove: return "Homebrew artık gerekmeyen paketler (öneri)"
-        case .dockerDangling: return "Docker: sahipsiz imajlar ve derleme önbelleği"
-        case .dockerVolumes: return "Docker: kullanılmayan birimler"
-        case .pipCache: return "pip önbelleği"
-        case .uvCache: return "uv önbelleği"
-        case .cargoCache: return "Cargo indirme önbelleği"
-        case .rustTargets: return "Rust target klasörleri (pasif projeler)"
-        case .goBuildCache: return "Go derleme önbelleği"
-        case .editorServers: return "Eski Cursor/VS Code sunucu sürümleri"
-        case .agentLogs: return "Claude / Cursor / Codex eski günlükleri"
-        case .trash: return "Çöp Sepeti (eski öğeler)"
-        case .appCaches: return "Kapalı uygulamaların eski önbellekleri"
+        case .derivedData: return L("Eski derleme klasörleri (DerivedData)")
+        case .xcodeArchives: return L("Eski arşivler")
+        case .deviceSupport: return L("Eski cihaz destek dosyaları")
+        case .unavailableSimulators: return L("Kullanılamayan simülatörler")
+        case .simulatorCaches: return L("Simülatör önbelleği")
+        case .simulatorRuntimes: return L("Simülatör sürümleri (öneri)")
+        case .androidBuilds: return L("Android derleme çıktıları")
+        case .gradleWrapperDists: return L("Kullanılmayan Gradle sürümleri")
+        case .gradleVersionCaches: return L("Eski Gradle önbellekleri")
+        case .gradleModuleCache: return L("Gradle bağımlılık önbelleği (tamamı)")
+        case .avdSnapshots: return L("Emülatör anlık görüntüleri")
+        case .androidSDK: return L("Android SDK eski sürümler (öneri)")
+        case .nodeModules: return L("node_modules (pasif projeler)")
+        case .npmCache: return L("npm / npx önbelleği")
+        case .pnpmStore: return L("pnpm deposu")
+        case .yarnCache: return L("Yarn önbelleği")
+        case .bunCache: return L("Bun önbelleği")
+        case .jsBuildOutputs: return L("Web derleme çıktıları (.next, dist…)")
+        case .playwrightBrowsers: return L("Eski Playwright/Puppeteer tarayıcıları")
+        case .cocoapodsCache: return L("CocoaPods önbelleği")
+        case .podsDirs: return L("Pods klasörleri (pasif projeler)")
+        case .homebrew: return L("Homebrew eski paketleri")
+        case .homebrewAutoremove: return L("Homebrew artık gerekmeyen paketler (öneri)")
+        case .dockerDangling: return L("Docker: sahipsiz imajlar ve derleme önbelleği")
+        case .dockerVolumes: return L("Docker: kullanılmayan birimler")
+        case .pipCache: return L("pip önbelleği")
+        case .uvCache: return L("uv önbelleği")
+        case .cargoCache: return L("Cargo indirme önbelleği")
+        case .rustTargets: return L("Rust target klasörleri (pasif projeler)")
+        case .goBuildCache: return L("Go derleme önbelleği")
+        case .editorServers: return L("Eski Cursor/VS Code sunucu sürümleri")
+        case .agentLogs: return L("Claude / Cursor / Codex eski günlükleri")
+        case .trash: return L("Çöp Sepeti (eski öğeler)")
+        case .appCaches: return L("Kapalı uygulamaların eski önbellekleri")
         }
     }
 
     /// Kullanıcıya gösterilen kısa açıklama (teknik terim yok).
     var hint: String {
         switch self {
-        case .derivedData: return "Xcode tekrar açınca yeniden oluşturur. Son günlerde açtığın projelere dokunulmaz."
-        case .xcodeArchives: return "Her uygulamanın en yeni 2 arşivi kalır. Çöp'e taşınır."
-        case .deviceSupport: return "Bağladığın telefonların eski iOS sürümleri için. En yeni 2 sürüm kalır."
-        case .unavailableSimulators: return "Artık açılamayan simülatörler Xcode'un kendi komutuyla silinir."
-        case .simulatorCaches: return "Simülatör ilk açılışta yeniden oluşturur."
-        case .simulatorRuntimes: return "Sadece listelenir, silinmez. İstersen Xcode ayarlarından kaldırırsın."
-        case .androidBuilds: return "Son günlerde dokunmadığın projelerin derleme klasörleri. Bir sonraki derlemede geri gelir."
-        case .gradleWrapperDists: return "Hiçbir projenin kullanmadığı Gradle sürümleri."
-        case .gradleVersionCaches: return "Artık kullanılmayan Gradle sürümlerine ait önbellekler."
-        case .gradleModuleCache: return "Tüm indirilen bağımlılıklar. Silinirse ilk derlemede yeniden indirilir."
-        case .avdSnapshots: return "Emülatörün hızlı açılış kayıtları. Emülatör açıkken dokunulmaz."
-        case .androidSDK: return "Sadece listelenir, silinmez."
-        case .nodeModules: return "Yalnızca kilit dosyası olan projelerde. İstediğin an yeniden kurulur."
-        case .npmCache: return "npm'in kendi temizliği çalışır; eski npx indirmeleri Çöp'e taşınır."
-        case .pnpmStore: return "pnpm'in kendi temizliği: hiçbir projenin kullanmadığı paketler."
-        case .yarnCache: return "Yarn önbelleğinin tamamı silinir, gerekince yeniden indirilir."
-        case .bunCache: return "Bun önbelleğinin tamamı silinir, gerekince yeniden indirilir."
-        case .jsBuildOutputs: return "Pasif projelerin derleme çıktıları. dist yalnızca git'te yok sayılıyorsa."
-        case .playwrightBrowsers: return "Her tarayıcının en yeni sürümü kalır."
-        case .cocoapodsCache: return "CocoaPods önbelleğinin tamamı silinir."
-        case .podsDirs: return "Pasif projelerde. pod install ile geri gelir."
-        case .homebrew: return "Homebrew'un kendi temizliği: 30 günden eski indirmeler ve eski sürümler."
-        case .homebrewAutoremove: return "Sadece listelenir."
-        case .dockerDangling: return "Yalnızca etiketsiz imajlar ve kullanılmayan derleme önbelleği. Konteynerlere dokunulmaz."
-        case .dockerVolumes: return "Hiçbir konteynerin kullanmadığı birimler. İçlerindeki veri kaybolur."
-        case .pipCache: return "Eski indirmeler, gerekince yeniden indirilir."
-        case .uvCache: return "uv'nin kendi temizliği: kullanılmayan paketler."
-        case .cargoCache: return "Eski crate indirmeleri."
-        case .rustTargets: return "Pasif Rust projelerinin derleme klasörleri."
-        case .goBuildCache: return "Go'nun kendi temizliği."
-        case .editorServers: return "En yeni ve şu an çalışan sürüm kalır."
-        case .agentLogs: return "Sadece eski günlük ve geçici dosyalar. Ayarlar, oturum ve hafıza dosyalarına dokunulmaz."
-        case .trash: return "30 günden uzun süredir Çöp'te duran öğeler kalıcı silinir."
-        case .appCaches: return "Şu an açık olmayan uygulamaların uzun süredir dokunulmamış önbellekleri."
+        case .derivedData: return L("Xcode tekrar açınca yeniden oluşturur. Son günlerde açtığın projelere dokunulmaz.")
+        case .xcodeArchives: return L("Her uygulamanın en yeni 2 arşivi kalır. Çöp'e taşınır.")
+        case .deviceSupport: return L("Bağladığın telefonların eski iOS sürümleri için. En yeni 2 sürüm kalır.")
+        case .unavailableSimulators: return L("Artık açılamayan simülatörler Xcode'un kendi komutuyla silinir.")
+        case .simulatorCaches: return L("Simülatör ilk açılışta yeniden oluşturur.")
+        case .simulatorRuntimes: return L("Sadece listelenir, silinmez. İstersen Xcode ayarlarından kaldırırsın.")
+        case .androidBuilds: return L("Son günlerde dokunmadığın projelerin derleme klasörleri. Bir sonraki derlemede geri gelir.")
+        case .gradleWrapperDists: return L("Hiçbir projenin kullanmadığı Gradle sürümleri.")
+        case .gradleVersionCaches: return L("Artık kullanılmayan Gradle sürümlerine ait önbellekler.")
+        case .gradleModuleCache: return L("Tüm indirilen bağımlılıklar. Silinirse ilk derlemede yeniden indirilir.")
+        case .avdSnapshots: return L("Emülatörün hızlı açılış kayıtları. Emülatör açıkken dokunulmaz.")
+        case .androidSDK: return L("Sadece listelenir, silinmez.")
+        case .nodeModules: return L("Yalnızca kilit dosyası olan projelerde. İstediğin an yeniden kurulur.")
+        case .npmCache: return L("npm'in kendi temizliği çalışır; eski npx indirmeleri Çöp'e taşınır.")
+        case .pnpmStore: return L("pnpm'in kendi temizliği: hiçbir projenin kullanmadığı paketler.")
+        case .yarnCache: return L("Yarn önbelleğinin tamamı silinir, gerekince yeniden indirilir.")
+        case .bunCache: return L("Bun önbelleğinin tamamı silinir, gerekince yeniden indirilir.")
+        case .jsBuildOutputs: return L("Pasif projelerin derleme çıktıları. dist yalnızca git'te yok sayılıyorsa.")
+        case .playwrightBrowsers: return L("Her tarayıcının en yeni sürümü kalır.")
+        case .cocoapodsCache: return L("CocoaPods önbelleğinin tamamı silinir.")
+        case .podsDirs: return L("Pasif projelerde. pod install ile geri gelir.")
+        case .homebrew: return L("Homebrew'un kendi temizliği: 30 günden eski indirmeler ve eski sürümler.")
+        case .homebrewAutoremove: return L("Sadece listelenir.")
+        case .dockerDangling: return L("Yalnızca etiketsiz imajlar ve kullanılmayan derleme önbelleği. Konteynerlere dokunulmaz.")
+        case .dockerVolumes: return L("Hiçbir konteynerin kullanmadığı birimler. İçlerindeki veri kaybolur.")
+        case .pipCache: return L("Eski indirmeler, gerekince yeniden indirilir.")
+        case .uvCache: return L("uv'nin kendi temizliği: kullanılmayan paketler.")
+        case .cargoCache: return L("Eski crate indirmeleri.")
+        case .rustTargets: return L("Pasif Rust projelerinin derleme klasörleri.")
+        case .goBuildCache: return L("Go'nun kendi temizliği.")
+        case .editorServers: return L("En yeni ve şu an çalışan sürüm kalır.")
+        case .agentLogs: return L("Sadece eski günlük ve geçici dosyalar. Ayarlar, oturum ve hafıza dosyalarına dokunulmaz.")
+        case .trash: return L("30 günden uzun süredir Çöp'te duran öğeler kalıcı silinir.")
+        case .appCaches: return L("Şu an açık olmayan uygulamaların uzun süredir dokunulmamış önbellekleri.")
         }
     }
 
@@ -248,20 +248,20 @@ enum SkipReason: String, Codable, Equatable {
 
     var text: String {
         switch self {
-        case .activeProject: return "aktif proje — atlandı"
-        case .openFiles: return "açık dosya var — atlandı"
-        case .runningProcess: return "çalışan program — atlandı"
-        case .gitTracked: return "git'te kayıtlı — atlandı"
-        case .denyList: return "dokunma listesinde"
-        case .protectedPath: return "korunan yol"
-        case .recent: return "yakında kullanıldı"
-        case .keptNewest: return "en yenisi — tutuldu"
-        case .referenced: return "bir proje kullanıyor"
-        case .toolRunning: return "araç şu an çalışıyor — atlandı"
-        case .notIgnored: return "git'te yok sayılmıyor — atlandı"
-        case .noLockfile: return "kilit dosyası yok — atlandı"
-        case .unverified: return "kullanım kontrol edilemedi — atlandı"
-        case .noAccess: return "erişim izni yok"
+        case .activeProject: return L("aktif proje — atlandı")
+        case .openFiles: return L("açık dosya var — atlandı")
+        case .runningProcess: return L("çalışan program — atlandı")
+        case .gitTracked: return L("git'te kayıtlı — atlandı")
+        case .denyList: return L("dokunma listesinde")
+        case .protectedPath: return L("korunan yol")
+        case .recent: return L("yakında kullanıldı")
+        case .keptNewest: return L("en yenisi — tutuldu")
+        case .referenced: return L("bir proje kullanıyor")
+        case .toolRunning: return L("araç şu an çalışıyor — atlandı")
+        case .notIgnored: return L("git'te yok sayılmıyor — atlandı")
+        case .noLockfile: return L("kilit dosyası yok — atlandı")
+        case .unverified: return L("kullanım kontrol edilemedi — atlandı")
+        case .noAccess: return L("erişim izni yok")
         }
     }
 }
@@ -655,10 +655,10 @@ enum CleanerRules {
     static func ageText(_ date: Date?, now: Date = Date()) -> String {
         guard let d = date else { return "" }
         let days = Int(now.timeIntervalSince(d) / 86400)
-        if days <= 0 { return "bugün" }
-        if days < 60 { return "\(days) gün" }
-        if days < 730 { return "\(days / 30) ay" }
-        return "\(days / 365) yıl"
+        if days <= 0 { return L("bugün") }
+        if days < 60 { return L("%@ gün", days) }
+        if days < 730 { return L("%@ ay", days / 30) }
+        return L("%@ yıl", days / 365)
     }
 }
 
@@ -695,8 +695,8 @@ enum CleanerAutoPolicy {
 
     /// Otomatik çalışmayı engelleyen durum (nil = çalışabilir).
     static func blocker(battery: (percent: Int, onBattery: Bool)?, cpuPercent: Double?, settings: CleanerSettings) -> String? {
-        if let b = battery, b.onBattery, b.percent < settings.autoMinBatteryPercent { return "pil %\(b.percent)" }
-        if let c = cpuPercent, c > Double(settings.autoMaxCPUPercent) { return "Mac meşgul (işlemci %\(Int(c)))" }
+        if let b = battery, b.onBattery, b.percent < settings.autoMinBatteryPercent { return L("pil %%@", b.percent) }
+        if let c = cpuPercent, c > Double(settings.autoMaxCPUPercent) { return L("Mac meşgul (işlemci %%@)", Int(c)) }
         return nil
     }
 

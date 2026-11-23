@@ -11,9 +11,9 @@ final class KeepAwake {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .oneHour: return "1 sa"
-            case .threeHours: return "3 sa"
-            case .indefinite: return "Kapatana dek"
+            case .oneHour: return L("1 sa")
+            case .threeHours: return L("3 sa")
+            case .indefinite: return L("Kapatana dek")
             }
         }
         var seconds: TimeInterval? {
@@ -51,7 +51,7 @@ final class KeepAwake {
             var id: IOPMAssertionID = 0
             let r = IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
                                                 IOPMAssertionLevel(kIOPMAssertionLevelOn),
-                                                "Workstation: Uyanık tut" as CFString, &id)
+                                                L("Workstation: Uyanık tut") as CFString, &id)
             guard r == kIOReturnSuccess else {
                 Log.error("Uyanık tut: IOPMAssertion oluşturulamadı (\(r))")
                 return

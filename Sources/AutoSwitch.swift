@@ -9,9 +9,9 @@ enum AfterRemoteAction: String, CaseIterable, Identifiable, Codable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .sleep: return "Uyku"
-        case .desktop: return "Masaüstü"
-        case .none: return "Hiçbir şey"
+        case .sleep: return L("Uyku")
+        case .desktop: return L("Masaüstü")
+        case .none: return L("Hiçbir şey")
         }
     }
     var mode: WorkMode? {
@@ -69,7 +69,7 @@ struct AutoSwitchEngine {
             if !sessionActive {
                 sessionActive = true
                 if currentMode != .remote {
-                    return .enterRemote(reason: screenSharing ? "Ekran Paylaşımı oturumu" : "SSH oturumu")
+                    return .enterRemote(reason: screenSharing ? L("Ekran Paylaşımı oturumu") : L("SSH oturumu"))
                 }
             }
             return .none

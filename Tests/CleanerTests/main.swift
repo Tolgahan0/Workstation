@@ -292,6 +292,39 @@ do {
     check(Updater.swapScript.contains("xattr -dr com.apple.quarantine") && Updater.swapScript.contains("WorkstationMode.app"), "betik karantina + eski uygulama")
 }
 
+// MARK: Zamanlanmış modlar: kapalı kural hiçbir şey tetiklememeli
+do {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: "Europe/Istanbul")!
+    let now = cal.date(from: DateComponents(year: 2026, month: 11, day: 23, hour: 12))!   // Pazartesi
+    var sleepRule = ScheduleRule(); sleepRule.hour = 23; sleepRule.minute = 30; sleepRule.mode = .sleep
+    var desk = ScheduleRule(); desk.hour = 8; desk.minute = 0; desk.mode = .desktop; desk.weekdays = [2, 3, 4, 5, 6]
+    check(ScheduleEngine.nextFire(after: now, rules: [sleepRule], calendar: cal)?.rule.id == sleepRule.id, "etkin kural tetiklenir")
+    sleepRule.enabled = false
+    check(ScheduleEngine.nextFire(after: now, rules: [sleepRule], calendar: cal) == nil, "kapalı kural tetiklenmez")
+    let week = cal.date(byAdding: .day, value: 7, to: now)!
+    check(ScheduleEngine.due(from: now, to: week, rules: [sleepRule], calendar: cal).isEmpty, "kapalı kural kaçırılmış sayılmaz")
+    check(ScheduleEngine.pmsetRepeatArgs(rules: [sleepRule]) == nil, "uyku kuralı pmset yazmaz")
+    check(ScheduleEngine.pmsetRepeatArgs(rules: [desk]) == ["repeat", "wakeorpoweron", "MTWRF", "07:58:00"], "masaüstü kuralı 2 dk önce uyandırır")
+    desk.enabled = false
+    check(ScheduleEngine.pmsetRepeatArgs(rules: [desk, sleepRule]) == nil, "hiç etkin kural yoksa planlı uyanma temizlenir")
+    check(ScheduleEngine.nextFire(after: now, rules: [desk, sleepRule], calendar: cal) == nil, "tüm kurallar kapalı → zamanlayıcı yok")
+    let ud = UserDefaults(suiteName: "wm-sched-\(UUID().uuidString)")!
+    var ss = ScheduleSettings(); ss.rules = [desk, sleepRule]; ss.wakeEnabled = true; ss.save(ud)
+    let back = ScheduleSettings.load(ud)
+    check(back.rules.count == 2 && back.rules.allSatisfy { !$0.enabled } && back.wakeEnabled, "kapalı durum kalıcı")
+}
+
+// MARK: Dil
+do {
+    check(L10n.isTurkish, "test ortamı Türkçe")
+    check(L("%@ dk", 5) == "5 dk", "yer tutucu")
+    var bad: [String] = []
+    for (k, v) in L10n.en where k.components(separatedBy: "%@").count != v.components(separatedBy: "%@").count { bad.append(k) }
+    check(bad.isEmpty, "İngilizce çeviriler aynı sayıda %@ içerir: \(bad)")
+    check(L10n.en.values.allSatisfy { !$0.isEmpty }, "boş çeviri yok")
+}
+
 try? fm.removeItem(atPath: tmp)
 print(failures == 0 ? "✔ \(passed) test geçti" : "✖ \(failures) başarısız, \(passed) geçti")
 exit(failures == 0 ? 0 : 1)

@@ -60,16 +60,16 @@ private struct LogToolbar: View {
         HStack(spacing: 10) {
             Picker("", selection: $model.filter) {
                 ForEach(LogFilter.allCases) { (f: LogFilter) in
-                    Text(f.rawValue).tag(f)
+                    Text(L(f.rawValue)).tag(f)
                 }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
             .frame(width: 280)
             Spacer()
-            Toggle("Otomatik kaydır", isOn: $model.autoScroll).toggleStyle(.checkbox)
-            Button(action: onCopy) { Label("Kopyala", systemImage: "doc.on.doc") }
-            Button(action: onClear) { Label("Temizle", systemImage: "trash") }
+            Toggle(L("Otomatik kaydır"), isOn: $model.autoScroll).toggleStyle(.checkbox)
+            Button(action: onCopy) { Label(L("Kopyala"), systemImage: "doc.on.doc") }
+            Button(action: onClear) { Label(L("Temizle"), systemImage: "trash") }
         }
         .padding(10)
     }
@@ -117,7 +117,7 @@ private struct LogFooter: View {
     let count: Int
     var body: some View {
         let path: String = Log.fileURL.path
-        let text: String = "\(count) satır · \(path)"
+        let text: String = L("%@ satır · %@", count, path)
         return HStack {
             Text(text)
                 .font(.system(size: 10))
@@ -188,7 +188,7 @@ final class LogWindowController: NSObject, NSWindowDelegate {
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 460),
                          styleMask: [.titled, .closable, .miniaturizable, .resizable],
                          backing: .buffered, defer: true)
-        w.title = "Workstation – Günlük"
+        w.title = L("Workstation – Günlük")
         w.isReleasedWhenClosed = false
         w.appearance = NSAppearance(named: .darkAqua)
         w.contentView = NSHostingView(rootView: view)

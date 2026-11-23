@@ -137,7 +137,7 @@ final class Countdown: NSObject {
                                frame: NSRect(x: ringRect.minX, y: ringRect.midY - 52, width: ringSize, height: 100))
         bg.addSubview(number)
 
-        let button = NSButton(title: "İptal (Esc)", target: self, action: #selector(cancelPressed(_:)))
+        let button = NSButton(title: L("İptal (Esc)"), target: self, action: #selector(cancelPressed(_:)))
         button.bezelStyle = .rounded
         button.keyEquivalent = "\u{1b}"
         button.frame = NSRect(x: (size.width - 140) / 2, y: 22, width: 140, height: 32)

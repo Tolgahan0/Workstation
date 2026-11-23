@@ -23,7 +23,7 @@ extension AppDelegate {
             Log.info("Otomatik temizlik: sonraki \(next)")
         }
         if s.autoLowSpace {
-            let t = Timer(timeInterval: 6 * 3600, repeats: true) { [weak self] _ in self?.cleanerSpaceCheck(reason: "6 saatlik kontrol") }
+            let t = Timer(timeInterval: 6 * 3600, repeats: true) { [weak self] _ in self?.cleanerSpaceCheck(reason: L("6 saatlik kontrol")) }
             t.tolerance = 600
             RunLoop.main.add(t, forMode: .common)
             cleanerSpaceTimer = t

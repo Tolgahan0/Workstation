@@ -38,6 +38,24 @@ func resolutionFromArguments(_ args: [String]) -> String? {
 }
 
 func printUsage() {
+    if !L10n.isTurkish {
+        print("""
+        Usage:
+          Workstation                              Starts the menu bar app
+          Workstation --mode remote [--res WxH]    Remote (optional client resolution, e.g. 1512x982)
+          Workstation --mode remote --preset mbp16 Preset: mba13 mba15 mbp14 mbp16 imac24
+          Workstation --mode sleep                 Sleep / Night
+          Workstation --mode desktop               Desktop
+          Workstation --status                     Prints the current mode
+          Workstation --clean [--dry-run]          Disk cleaner: only scans and lists
+          Workstation --clean --yes                Cleans the selected categories (each item is re-checked before deletion)
+          Workstation --clean --auto               Cleans the safe set used by auto mode
+        URL: workstation://remote[?res=WxH] | workstation://sleep | workstation://desktop
+             workstation://profile/<name> | workstation://fan/auto|half|max | workstation://keepawake/on|off|3h
+             workstation://clean/scan | workstation://clean/auto
+        """)
+        return
+    }
     print("""
     Kullanım:
       Workstation                              Menü çubuğu uygulamasını başlatır
@@ -78,7 +96,7 @@ func forwardModeAndExit(_ mode: WorkMode, resolution: String?) -> Never {
         let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
             .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
         if others.isEmpty {
-            FileHandle.standardError.write("Hata: \(url) açılamadı ve çalışan Workstation bulunamadı.\n".data(using: .utf8)!)
+            FileHandle.standardError.write(L("Hata: %@ açılamadı ve çalışan Workstation bulunamadı.\n", url).data(using: .utf8)!)
             exit(1)
         }
         let object = resolution.map { "\(mode.rawValue)?res=\($0)" } ?? mode.rawValue
@@ -86,7 +104,7 @@ func forwardModeAndExit(_ mode: WorkMode, resolution: String?) -> Never {
             setModeNotification, object: object, userInfo: nil, deliverImmediately: true)
         RunLoop.current.run(until: Date().addingTimeInterval(0.5))
     }
-    print("Workstation → \(mode.title)\(resolution.map { " (\($0))" } ?? "") isteği gönderildi.")
+    print(L("Workstation → %@%@ isteği gönderildi.", mode.title, resolution.map { " (\($0))" } ?? ""))
     exit(0)
 }
 
@@ -114,7 +132,7 @@ if let requested = modeFromArguments(arguments) {
 let runningInstances = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
     .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
 if !runningInstances.isEmpty {
-    NSLog("Workstation zaten çalışıyor; bu örnek kapanıyor.")
+    NSLog(L("Workstation zaten çalışıyor; bu örnek kapanıyor."))
     exit(0)
 }
 

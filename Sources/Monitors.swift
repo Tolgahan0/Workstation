@@ -247,7 +247,7 @@ final class MonitorManager {
                 port = DisplayMatching.portLabel(downstream: o.downstream, upstream: o.upstream,
                                                  parentNames: o.parentNames, framebufferName: o.framebufferName)
             } else {
-                port = stored?.port ?? "Port bilinmiyor"
+                port = stored?.port ?? L("Port bilinmiyor")
             }
             if stored?.name != record.name || stored?.port != port {
                 store.update(key) { $0.name = record.name; $0.port = port }
@@ -286,7 +286,7 @@ final class MonitorManager {
 
             return MonitorSnapshot(
                 key: r.key, displayID: id, name: r.record.name, port: r.port,
-                resolution: active ? Self.resolution(id) : "Kapalı",
+                resolution: active ? Self.resolution(id) : L("Kapalı"),
                 isActive: active, desiredEnabled: desired.enabled,
                 brightness: desired.brightness ?? 100,
                 brightnessMethod: brightnessMethod(key: r.key, output: output),
@@ -329,19 +329,19 @@ final class MonitorManager {
     func setDesiredEnabled(key: String, enabled: Bool, mode: WorkMode, virtualActive: Bool,
                            excludedIDs: Set<UInt32>, excludedNames: [String]) -> String? {
         let list = discover(excludedIDs: excludedIDs, excludedNames: excludedNames)
-        guard let target = list.first(where: { $0.key == key }) else { return "Monitör bulunamadı" }
+        guard let target = list.first(where: { $0.key == key }) else { return L("Monitör bulunamadı") }
 
         if !enabled && mode == .desktop && !virtualActive {
             let othersActive = list.filter { $0.key != key && physical.isActive($0.record.id) }
             if othersActive.isEmpty && physical.isActive(target.record.id) {
-                return "Son açık ekran kapatılamaz"
+                return L("Son açık ekran kapatılamaz")
             }
         }
         store.update(key) { $0.enabled = enabled }
         Log.info("Monitör \(target.record.label) istenen durum: \(enabled ? "açık" : "kapalı")")
 
-        guard mode == .desktop else { return "Kaydedildi — Masaüstü modunda uygulanacak" }
-        logStates("önce", list)
+        guard mode == .desktop else { return L("Kaydedildi — Masaüstü modunda uygulanacak") }
+        logStates(L("önce"), list)
         let alreadyThere = physical.isActive(target.record.id) == enabled
         if alreadyThere {
             Log.info("\(target.record.name) zaten \(enabled ? "açık" : "kapalı"); işlem yapılmadı.")
@@ -350,18 +350,18 @@ final class MonitorManager {
         } else {
             physical.disable([target.record])         // yalnızca bu monitör
         }
-        logStates("hemen sonra", list)
+        logStates(L("hemen sonra"), list)
 
         // Doğrulama: yeniden yapılandırma flaşı geçtikten sonra (2 örnek, 0,6 sn arayla)
         // diğer monitörler istenen durumda değilse YALNIZCA onları tek seferde düzelt.
         Thread.sleep(forTimeInterval: 1.2)
         let fix = stableMismatches(list, mode: .desktop, samples: 2, gap: 0.6)
-        logStates("1,8 sn sonra", list)
+        logStates(L("1,8 sn sonra"), list)
         if !fix.enable.isEmpty || !fix.disable.isEmpty {
             Log.warn("Son durum istenenden farklı → düzeltiliyor: aç=\(fix.enable.map { $0.record.name }) kapat=\(fix.disable.map { $0.record.name })")
             if !fix.enable.isEmpty { physical.enable(fix.enable.map { $0.record }) }
             if !fix.disable.isEmpty { physical.disable(fix.disable.map { $0.record }) }
-            logStates("düzeltme sonrası", list)
+            logStates(L("düzeltme sonrası"), list)
         }
         if enabled, let b = store.state(for: key)?.brightness {
             _ = applyBrightness(key: key, percent: b)
@@ -373,7 +373,7 @@ final class MonitorManager {
     private func logStates(_ stage: String, _ list: [ResolvedMonitor]) {
         let text = list.map { r -> String in
             let desired = store.state(for: r.key)?.enabled ?? true
-            return "\(r.record.name)=\(physical.isActive(r.record.id) ? "açık" : "kapalı")(istenen \(desired ? "açık" : "kapalı"))"
+            return "\(r.record.name)=\(physical.isActive(r.record.id) ? L("açık") : L("kapalı"))(istenen \(desired ? L("açık") : L("kapalı")))"
         }.joined(separator: ", ")
         Log.info("Ekran durumu [\(stage)]: \(text)")
     }
@@ -423,7 +423,7 @@ final class MonitorManager {
             break
         case .remote:
             if !toDisable.isEmpty && !virtualActive {
-                notes.append("Sanal ekran etkin değil; fiziksel monitörler kapatılmadı")
+                notes.append(L("Sanal ekran etkin değil; fiziksel monitörler kapatılmadı"))
                 toDisable = []
             }
         case .desktop:
@@ -434,10 +434,10 @@ final class MonitorManager {
                 // Hiç ekran kalmayacak: istenen durumu kapalı olsa da ilk monitörü açık tut/aç.
                 if let keep = toDisable.first {
                     toDisable.removeFirst()
-                    notes.append("\(keep.record.name) son ekran olduğu için açık bırakıldı")
+                    notes.append(L("%@ son ekran olduğu için açık bırakıldı", keep.record.name))
                 } else if let first = list.first {
                     toEnable.append(first)
-                    notes.append("\(first.record.name) son ekran olduğu için açıldı")
+                    notes.append(L("%@ son ekran olduğu için açıldı", first.record.name))
                 }
             }
         }
@@ -451,9 +451,9 @@ final class MonitorManager {
             stateLock.unlock()
             if tooMany {
                 Log.error("Uzlaştırma döngüsü algılandı (60 sn'de 8+ düzeltme); bu tur atlanıyor.")
-                return notes + ["macOS ekranları sürekli değiştiriyor; düzeltme geçici olarak durduruldu"]
+                return notes + [L("macOS ekranları sürekli değiştiriyor; düzeltme geçici olarak durduruldu")]
             }
-            logStates("uzlaştırma öncesi", list)
+            logStates(L("uzlaştırma öncesi"), list)
             Log.info("Uzlaştırma (\(mode.rawValue)): aç=\(toEnable.map { $0.record.name }) kapat=\(toDisable.map { $0.record.name })")
             if !toEnable.isEmpty { physical.enable(toEnable.map { $0.record }) }
             if !toDisable.isEmpty { physical.disable(toDisable.map { $0.record }) }
@@ -620,7 +620,7 @@ final class MonitorManager {
     func discover(excludedIDs: Set<UInt32>, excludedNames: [String]) -> [ResolvedMonitor] { [] }
     func snapshot(excludedIDs: Set<UInt32>, excludedNames: [String]) -> [MonitorSnapshot] { [] }
     func setDesiredEnabled(key: String, enabled: Bool, mode: WorkMode, virtualActive: Bool,
-                           excludedIDs: Set<UInt32>, excludedNames: [String]) -> String? { "Desteklenmiyor" }
+                           excludedIDs: Set<UInt32>, excludedNames: [String]) -> String? { L("Desteklenmiyor") }
     @discardableResult
     func reconcile(mode: WorkMode, virtualActive: Bool, applyBrightness: Bool,
                    excludedIDs: Set<UInt32>, excludedNames: [String]) -> [String] { [] }

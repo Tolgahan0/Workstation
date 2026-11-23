@@ -59,14 +59,14 @@ final class FanController {
     private func helperStatus() -> FanStatus {
         guard Self.helperInstalled else {
             var s = FanStatus()
-            s.error = "Fan yardımcısı kurulu değil"
+            s.error = L("Fan yardımcısı kurulu değil")
             return s
         }
         let r = Shell.run("/usr/bin/sudo", ["-n", Self.helperPath, "status"], timeout: 8)
         guard r.succeeded, let data = r.stdout.data(using: .utf8),
               let s = try? JSONDecoder().decode(FanStatus.self, from: data) else {
             var s = FanStatus()
-            s.error = "Fan durumu okunamadı"
+            s.error = L("Fan durumu okunamadı")
             return s
         }
         return s
@@ -75,14 +75,14 @@ final class FanController {
     // MARK: Yazma (yardımcı ile)
 
     private func runHelper(_ args: [String]) -> String? {
-        guard Self.helperInstalled else { return "Fan yardımcısı kurulu değil (DMG’deki Kurulum.command’ı ya da install.sh’yi çalıştır)" }
+        guard Self.helperInstalled else { return L("Fan yardımcısı kurulu değil (DMG’deki Kurulum.command’ı ya da install.sh’yi çalıştır)") }
         let r = Shell.run("/usr/bin/sudo", ["-n", Self.helperPath] + args, timeout: 20)
         if r.succeeded { return nil }
         let msg = (r.stderr + " " + r.stdout).trimmingCharacters(in: .whitespacesAndNewlines)
         if msg.contains("password") || msg.contains("parola") {
-            return "sudo izni yok: /etc/sudoers.d/workstation_toggle (install.sh)"
+            return L("sudo izni yok: /etc/sudoers.d/workstation_toggle (install.sh)")
         }
-        return msg.isEmpty ? "wm-fanhelper hata kodu \(r.status)" : msg
+        return msg.isEmpty ? L("wm-fanhelper hata kodu %@", r.status) : msg
     }
 
     /// Modu uygular. Hata olursa güvenlik için reset denenir ve hata döner.
@@ -150,7 +150,7 @@ final class FanController {
                 self.defaults.set(false, forKey: Self.manualActiveKey)
             }
             if reapply, self.preferredMode != .auto {
-                _ = self.applySync(self.preferredMode, reason: "açılış")
+                _ = self.applySync(self.preferredMode, reason: L("açılış"))
             }
         }
     }
@@ -187,7 +187,7 @@ final class FanController {
         let hottest = [s.cpuTemp, s.gpuTemp].compactMap { $0 }.max() ?? 0
         guard hottest > Self.watchdogLimit else { return }
         Log.warn("Fan bekçisi: \(Int(hottest)) °C > \(Int(Self.watchdogLimit)) °C → Full Blast")
-        _ = applySync(.max, reason: "sıcaklık bekçisi")
+        _ = applySync(.max, reason: L("sıcaklık bekçisi"))
         DispatchQueue.main.async { self.onWatchdog?(hottest) }
     }
 }

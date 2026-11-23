@@ -20,7 +20,7 @@ enum CleanerCLI {
 
     static func render(_ report: ScanReport, home: String, verbose: Bool) -> String {
         var out: [String] = []
-        if !report.inUseCheckOK { out.append("⚠ Açık dosya denetimi yapılamadı: güvenlik için proje ve önbellek silmeleri atlanacak.") }
+        if !report.inUseCheckOK { out.append(L("⚠ Açık dosya denetimi yapılamadı: güvenlik için proje ve önbellek silmeleri atlanacak.")) }
         for r in report.results where !r.items.isEmpty || r.note != nil {
             let head = "\(r.category.title) — \(CleanerRules.formatBytes(r.selectedBytes))"
             out.append("\n▸ " + head)
@@ -36,9 +36,9 @@ enum CleanerCLI {
                 out.append(line)
             }
             let skipped = r.items.filter { $0.skip != nil }.count
-            if skipped > 0 && !verbose { out.append("    + \(skipped) öğe güvenlik nedeniyle atlandı (--verbose ile göster)") }
+            if skipped > 0 && !verbose { out.append(L("    + %@ öğe güvenlik nedeniyle atlandı (--verbose ile göster)", skipped)) }
         }
-        out.append("\nToplam temizlenebilir: \(CleanerRules.formatBytes(report.selectedBytes)) · \(report.selectedItems.count) öğe · tarama \(Int(report.duration)) sn")
+        out.append(L("\nToplam temizlenebilir: %@ · %@ öğe · tarama %@ sn", CleanerRules.formatBytes(report.selectedBytes), report.selectedItems.count, Int(report.duration)))
         return out.joined(separator: "\n")
     }
 
@@ -49,12 +49,12 @@ enum CleanerCLI {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let lock = CleanerLock()
         guard lock.acquire() else {
-            FileHandle.standardError.write("Başka bir temizlik zaten çalışıyor.\n".data(using: .utf8)!)
+            FileHandle.standardError.write(L("Başka bir temizlik zaten çalışıyor.\n").data(using: .utf8)!)
             return 2
         }
         defer { lock.release() }
         let cats = categories(for: m, settings: settings)
-        print("Taranıyor (\(cats.count) kategori)… açık dosyalar ve çalışan programlar kontrol ediliyor.")
+        print(L("Taranıyor (%@ kategori)… açık dosyalar ve çalışan programlar kontrol ediliyor.", cats.count))
         let scanner = CleanerScanner(settings: settings, home: home)
         var lastStage = ""
         scanner.progress = { stage, _ in
@@ -63,14 +63,14 @@ enum CleanerCLI {
         let report = scanner.scan(cats)
         print(render(report, home: home, verbose: verbose))
         guard m != .dryRun else {
-            print("\nBu bir deneme taramasıydı; hiçbir şey silinmedi. Silmek için: workstation clean --yes (otomatik küme: --auto)")
+            print(L("\nBu bir deneme taramasıydı; hiçbir şey silinmedi. Silmek için: workstation clean --yes (otomatik küme: --auto)"))
             return 0
         }
-        guard !report.selectedItems.isEmpty else { print("Temizlenecek bir şey yok."); return 0 }
+        guard !report.selectedItems.isEmpty else { print(L("Temizlenecek bir şey yok.")); return 0 }
         let exec = CleanerExecutor(settings: settings, home: home)
         let rec = exec.run(report.selectedItems, trigger: .cli)
-        print("\nSilindi: \(CleanerRules.formatBytes(rec.reclaimed)) · Çöp'e taşındı: \(CleanerRules.formatBytes(rec.trashed)) · hata: \(rec.errors)")
-        for e in rec.entries where e.result.hasPrefix("atlandı") || e.result.hasPrefix("hata") {
+        print(L("\nSilindi: %@ · Çöp'e taşındı: %@ · hata: %@", CleanerRules.formatBytes(rec.reclaimed), CleanerRules.formatBytes(rec.trashed), rec.errors))
+        for e in rec.entries where e.result.hasPrefix(L("atlandı")) || e.result.hasPrefix(L("hata")) {
             print("  \(e.title): \(e.result)")
         }
         return rec.errors > 0 ? 1 : 0

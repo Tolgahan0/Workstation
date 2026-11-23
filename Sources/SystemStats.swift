@@ -39,8 +39,8 @@ enum StatsFormat {
     static func pressureText(_ level: Int) -> String {
         switch level {
         case 1: return "Normal"
-        case 2: return "Uyarı"
-        case 4: return "Kritik"
+        case 2: return L("Uyarı")
+        case 4: return L("Kritik")
         default: return "—"
         }
     }

@@ -18,7 +18,7 @@ struct SystemStatsCard: View {
             } else {
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.small).scaleEffect(0.6)
-                    Text("Ölçülüyor…").font(.system(size: 11)).foregroundColor(.secondary)
+                    Text(L("Ölçülüyor…")).font(.system(size: 11)).foregroundColor(.secondary)
                 }
             }
         }
@@ -66,7 +66,7 @@ private struct DiskStatRow: View {
     var body: some View {
         let freeFrac: Double = stats.diskFreeFraction ?? 0
         let tint: Color = freeFrac < 0.10 ? .red : (freeFrac < 0.2 ? .orange : .accentColor)
-        let text: String = stats.diskFree.map { "\(StatsFormat.bytes(Double($0))) boş" } ?? "—"
+        let text: String = stats.diskFree.map { L("%@ boş", StatsFormat.bytes(Double($0))) } ?? "—"
         return StatBar(icon: "internaldrive", label: "Disk", value: text, fraction: 1 - freeFrac, tint: tint)
     }
 }
@@ -76,7 +76,7 @@ private struct NetworkStatRow: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "network").font(.system(size: 10)).foregroundColor(.secondary).frame(width: 14)
-            Text("Ağ").font(.system(size: 11, weight: .medium))
+            Text(L("Ağ")).font(.system(size: 11, weight: .medium))
             Spacer()
             Label(StatsFormat.rate(stats.netIn), systemImage: "arrow.down")
                 .font(.system(size: 11).monospacedDigit())
@@ -108,17 +108,17 @@ struct KeepAwakeCard: View {
             if let u = model.keepAwakeUntil {
                 let f = DateFormatter()
                 f.dateFormat = "HH:mm"
-                subtitle = "Açık · \(f.string(from: u))'e kadar"
+                subtitle = L("Açık · %@'e kadar", f.string(from: u))
             } else {
-                subtitle = "Açık · sen kapatana kadar"
+                subtitle = L("Açık · sen kapatana kadar")
             }
         } else {
-            subtitle = "Uzun bir iş bitene kadar Mac uyumaz"
+            subtitle = L("Uzun bir iş bitene kadar Mac uyumaz")
         }
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 CardTitleRow(icon: model.keepAwakeOn ? "cup.and.saucer.fill" : "cup.and.saucer",
-                             title: "Uyanık tut", subtitle: subtitle)
+                             title: L("Uyanık tut"), subtitle: subtitle)
                 Toggle("", isOn: onBinding).labelsHidden().toggleStyle(.switch).controlSize(.small)
             }
             Picker("", selection: durationBinding) {

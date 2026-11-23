@@ -8,7 +8,7 @@ struct ProfilesCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                SectionTitle(text: "PROFİLLER")
+                SectionTitle(text: L("PROFİLLER"))
                 Spacer()
                 if let note = model.profileNote {
                     Text(note).font(.system(size: 10)).foregroundColor(.secondary).lineLimit(1)
@@ -26,7 +26,7 @@ private struct ProfileChips: View {
 
     var body: some View {
         if model.profiles.isEmpty {
-            Text("Henüz profil yok. Monitörleri, parlaklığı ve fanı istediğin gibi ayarla, sonra bir ad verip kaydet.")
+            Text(L("Henüz profil yok. Monitörleri, parlaklığı ve fanı istediğin gibi ayarla, sonra bir ad verip kaydet."))
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -57,10 +57,10 @@ private struct ProfileChip: View {
                 .background(Capsule().fill(Color.accentColor.opacity(0.22)))
         }
         .buttonStyle(.plain)
-        .help("\(p.summary)\nSağ tık: üzerine kaydet / sil")
+        .help(L("%@\nSağ tık: üzerine kaydet / sil", p.summary))
         .contextMenu {
-            Button("Şu anki durumla güncelle") { m.onSaveProfile(p.name) }
-            Button("Sil") { m.onDeleteProfile(p.id) }
+            Button(L("Şu anki durumla güncelle")) { m.onSaveProfile(p.name) }
+            Button(L("Sil")) { m.onDeleteProfile(p.id) }
         }
     }
 }
@@ -82,11 +82,11 @@ private struct ProfileSaveRow: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            TextField("Profil adı (ör. Kod, Film)", text: name, onCommit: save)
+            TextField(L("Profil adı (ör. Kod, Film)"), text: name, onCommit: save)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: 11))
             Button(action: save) {
-                Label("Kaydet", systemImage: "plus")
+                Label(L("Kaydet"), systemImage: "plus")
                     .font(.system(size: 11, weight: .medium))
             }
             .disabled(model.newProfileName.trimmingCharacters(in: .whitespaces).isEmpty)

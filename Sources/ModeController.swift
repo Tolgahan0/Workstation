@@ -59,7 +59,7 @@ final class ModeController {
                 // Mac uzaktan erişim için her durumda uyanık kalsın.
                 self.power.applyRemoteProfile()
                 if !BetterDisplayInstaller.isInstalled, let e = self.installer.installSync() {
-                    error = "BetterDisplay kurulamadı: \(e)"
+                    error = L("BetterDisplay kurulamadı: %@", e)
                 } else {
                     if let r = resolution.flatMap(RemotePreset.normalize) {
                         RemoteResolution.lastClientResolution = r
@@ -161,24 +161,24 @@ final class ModeController {
             var info = SettingsInfo()
             info.method = self.display.methodDescription
             if BetterDisplayInstaller.isInstalled {
-                let version = BetterDisplayInstaller.installedVersion.map { "v\($0)" } ?? "kurulu"
+                let version = BetterDisplayInstaller.installedVersion.map { "v\($0)" } ?? L("kurulu")
                 let running = self.display.isBetterDisplayRunning()
-                info.betterDisplay = running ? "Hazır (\(version))" : "Kurulu, kapalı (\(version))"
+                info.betterDisplay = running ? L("Hazır (%@)", version) : L("Kurulu, kapalı (%@)", version)
                 if running {
                     info.virtualScreen = self.display.isVirtualActive()
-                        ? "Açık"
-                        : "Kapalı"
+                        ? L("Açık")
+                        : L("Kapalı")
                 } else {
-                    info.virtualScreen = "Kapalı"
+                    info.virtualScreen = L("Kapalı")
                 }
             } else {
-                info.betterDisplay = "Kurulu değil"
-                info.virtualScreen = "Sanal ekran aracı gerekli"
+                info.betterDisplay = L("Kurulu değil")
+                info.virtualScreen = L("Sanal ekran aracı gerekli")
             }
             let list = self.display.monitorSnapshot()
             let on = list.filter { $0.isActive }.count
-            info.monitors = list.isEmpty ? "Bağlı monitör yok"
-                : "\(list.count) monitör (\(on) açık) · " + list.map { $0.name }.joined(separator: ", ")
+            info.monitors = list.isEmpty ? L("Bağlı monitör yok")
+                : L("%@ monitör (%@ açık) · ", list.count, on) + list.map { $0.name }.joined(separator: ", ")
             let pm = Shell.run("/usr/bin/pmset", ["-g"], timeout: 5)
             info.power = pm.succeeded ? PmsetSummary.parse(pm.stdout) : "—"
             let result = info

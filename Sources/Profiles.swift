@@ -18,7 +18,7 @@ struct WorkspaceProfile: Codable, Identifiable, Equatable {
 
     var summary: String {
         let on = monitors.values.filter { $0.enabled }.count
-        var parts = ["\(on)/\(monitors.count) monitör açık"]
+        var parts = [L("%@/%@ monitör açık", on, monitors.count)]
         if let f = fanMode { parts.append("fan \(f.title)") }
         return parts.joined(separator: " · ")
     }

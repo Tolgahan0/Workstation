@@ -66,13 +66,13 @@ final class CleanerModel: ObservableObject {
 enum CleanerFormat {
     static func bytes(_ b: Int64) -> String { CleanerRules.formatBytes(b) }
     static func lastRunText(_ r: CleanRunRecord?) -> String {
-        guard let r = r else { return "Henüz temizlik yapılmadı" }
+        guard let r = r else { return L("Henüz temizlik yapılmadı") }
         let f = DateFormatter()
-        f.locale = Locale(identifier: "tr_TR")
+        f.locale = L10n.locale
         f.dateFormat = "d MMM HH:mm"
         let total = r.reclaimed + r.trashed
-        let who = r.trigger == .daily || r.trigger == .lowSpace ? "otomatik" : "elle"
-        return "Son temizlik: \(f.string(from: r.date)) (\(who)) · \(bytes(total)) açıldı"
+        let who = r.trigger == .daily || r.trigger == .lowSpace ? L("otomatik") : "elle"
+        return L("Son temizlik: %@ (%@) · %@ açıldı", f.string(from: r.date), who, bytes(total))
     }
 }
 
@@ -114,7 +114,7 @@ struct DiskRing: View {
                 .animation(.easeInOut(duration: 0.6), value: usedFrac)
             VStack(spacing: 0) {
                 Text(String(format: "%%%.0f", freeFrac * 100)).font(.system(size: 12, weight: .bold).monospacedDigit())
-                Text("boş").font(.system(size: 8)).foregroundColor(.secondary)
+                Text(L("boş")).font(.system(size: 8)).foregroundColor(.secondary)
             }
         }
         .frame(width: 52, height: 52)
@@ -124,12 +124,12 @@ struct DiskRing: View {
 private struct DiskCardText: View {
     @ObservedObject var cleaner: CleanerModel
     var body: some View {
-        let free: String = cleaner.diskFree.map { CleanerFormat.bytes($0) + " boş alan" } ?? "Disk ölçülüyor…"
+        let free: String = cleaner.diskFree.map { CleanerFormat.bytes($0) + L(" boş alan") } ?? L("Disk ölçülüyor…")
         let found: String? = cleaner.report.map { r in
-            r.selectedBytes > 0 ? "\(CleanerFormat.bytes(r.selectedBytes)) temizlenebilir" : "Temizlenecek bir şey bulunamadı"
+            r.selectedBytes > 0 ? L("%@ temizlenebilir", CleanerFormat.bytes(r.selectedBytes)) : L("Temizlenecek bir şey bulunamadı")
         }
         return VStack(alignment: .leading, spacing: 3) {
-            Text("Geliştirici Temizleyici").font(.system(size: 12, weight: .semibold))
+            Text(L("Geliştirici Temizleyici")).font(.system(size: 12, weight: .semibold))
             Text(free).font(.system(size: 11)).foregroundColor(.secondary)
             if let f = found {
                 Text(f).font(.system(size: 11, weight: .medium)).foregroundColor(.accentColor)
@@ -159,12 +159,12 @@ private struct DiskCardButtons: View {
     var body: some View {
         HStack(spacing: 8) {
             if cleaner.busy {
-                SmallButton(title: "Durdur", icon: "stop.fill", prominent: false) { cleaner.onCancel() }
+                SmallButton(title: L("Durdur"), icon: "stop.fill", prominent: false) { cleaner.onCancel() }
             } else {
-                SmallButton(title: "Tara", icon: "magnifyingglass", prominent: cleaner.report == nil) { cleaner.onScan() }
+                SmallButton(title: L("Tara"), icon: "magnifyingglass", prominent: cleaner.report == nil) { cleaner.onScan() }
             }
             if cleaner.report != nil {
-                SmallButton(title: "Ayrıntılar ve temizle", icon: "list.bullet", prominent: true) { cleaner.onOpenPage() }
+                SmallButton(title: L("Ayrıntılar ve temizle"), icon: "list.bullet", prominent: true) { cleaner.onOpenPage() }
             }
             Spacer()
         }
@@ -195,7 +195,7 @@ struct CleanerPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Button(action: { model.page = .main }) { Label("Geri", systemImage: "chevron.left") }
+            Button(action: { model.page = .main }) { Label(L("Geri"), systemImage: "chevron.left") }
                 .buttonStyle(.plain).foregroundColor(.secondary).font(.system(size: 12, weight: .medium))
             DiskCleanerCard(cleaner: model.cleaner)
             ScrollView(.vertical, showsIndicators: true) {
@@ -213,17 +213,17 @@ private struct CleanerCategoryList: View {
         let results: [CategoryResult] = cleaner.report?.results ?? []
         return LazyVStack(alignment: .leading, spacing: 8) {
             if let r = cleaner.report, !r.inUseCheckOK {
-                InfoRow(icon: "exclamationmark.triangle", text: "Açık dosyalar kontrol edilemedi. Güvenlik için projelere ve önbelleklere dokunulmayacak.")
+                InfoRow(icon: "exclamationmark.triangle", text: L("Açık dosyalar kontrol edilemedi. Güvenlik için projelere ve önbelleklere dokunulmayacak."))
             }
             if results.isEmpty && !cleaner.busy {
-                Text("Önce “Tara”ya bas. Tarama hiçbir şeyi silmez, sadece neyin temizlenebileceğini gösterir.")
+                Text(L("Önce “Tara”ya bas. Tarama hiçbir şeyi silmez, sadece neyin temizlenebileceğini gösterir."))
                     .font(.system(size: 11)).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             ScanCategoryPicker(cleaner: cleaner)
             ForEach(CleanGroup.allCases, id: \.self) { (g: CleanGroup) in
                 let rs: [CategoryResult] = results.filter { $0.category.group == g && (!$0.items.isEmpty || $0.note != nil) }
                 if !rs.isEmpty {
-                    SectionTitle(text: g.title.uppercased(with: Locale(identifier: "tr_TR")))
+                    SectionTitle(text: g.title.uppercased(with: L10n.locale))
                     ForEach(rs) { (r: CategoryResult) in CategoryCard(cleaner: cleaner, result: r) }
                 }
             }
@@ -244,7 +244,7 @@ private struct ScanCategoryPicker: View {
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Image(systemName: "slider.horizontal.3").font(.system(size: 11)).foregroundColor(.secondary)
-                Text("Neler taransın? (\(count)/\(CleanCategory.allCases.count))").font(.system(size: 11, weight: .medium))
+                Text(L("Neler taransın? (%@/%@)", count, CleanCategory.allCases.count)).font(.system(size: 11, weight: .medium))
                 Spacer()
                 Image(systemName: open ? "chevron.up" : "chevron.down").font(.system(size: 9)).foregroundColor(.secondary)
             }
@@ -275,7 +275,7 @@ private struct CategoryCard: View {
                 CategoryAgeRow(cleaner: cleaner, category: result.category)
                 ForEach(Array(result.items.prefix(150))) { (i: CleanItem) in ItemRow(cleaner: cleaner, item: i) }
                 if result.items.count > 150 {
-                    Text("+\(result.items.count - 150) öğe daha").font(.system(size: 10)).foregroundColor(.secondary)
+                    Text(L("+%@ öğe daha", result.items.count - 150)).font(.system(size: 10)).foregroundColor(.secondary)
                 }
             }
         }
@@ -296,9 +296,9 @@ private struct CategoryHeader: View {
     var body: some View {
         let actionable: Int = result.actionable.count
         let skipped: Int = result.items.filter { $0.skip != nil }.count
-        var sub: String = actionable > 0 ? "\(actionable) öğe" : "temizlenecek yok"
-        if skipped > 0 { sub += " · \(skipped) atlandı" }
-        if result.category.suggestOnly { sub = "\(result.items.count) öneri · silinmez" }
+        var sub: String = actionable > 0 ? L("%@ öğe", actionable) : L("temizlenecek yok")
+        if skipped > 0 { sub += L(" · %@ atlandı", skipped) }
+        if result.category.suggestOnly { sub = L("%@ öneri · silinmez", result.items.count) }
         return HStack(spacing: 8) {
             if actionable > 0 && !result.category.suggestOnly {
                 Toggle("", isOn: selection).toggleStyle(.checkbox).labelsHidden()
@@ -332,7 +332,7 @@ private struct CategoryAgeRow: View {
     var body: some View {
         if let d = cleaner.settings.age(category) {
             HStack {
-                Text("\(d) günden eski olanlar (değişince yeniden tara)").font(.system(size: 10)).foregroundColor(.secondary)
+                Text(L("%@ günden eski olanlar (değişince yeniden tara)", d)).font(.system(size: 10)).foregroundColor(.secondary)
                 Spacer()
                 Stepper("", value: value, in: 1...365).labelsHidden().controlSize(.mini)
             }
@@ -402,11 +402,11 @@ private struct CleanerFooter: View {
         let total: Int64 = cleaner.report?.selectedBytes ?? 0
         let count: Int = cleaner.report?.selectedItems.count ?? 0
         return VStack(alignment: .leading, spacing: 8) {
-            ToggleRow(title: "Önbellekleri kalıcı sil (Çöp'e taşıma)", isOn: permanent)
+            ToggleRow(title: L("Önbellekleri kalıcı sil (Çöp'e taşıma)"), isOn: permanent)
             if cleaner.confirming {
                 CleanerConfirmBox(cleaner: cleaner, total: total, count: count)
             } else {
-                StartButton(title: "Temizle (\(CleanerFormat.bytes(total)))", systemImage: "sparkles",
+                StartButton(title: L("Temizle (%@)", CleanerFormat.bytes(total)), systemImage: "sparkles",
                             tint: .accentColor, disabled: count == 0 || cleaner.busy) { cleaner.confirming = true }
             }
         }
@@ -421,16 +421,16 @@ private struct CleanerConfirmBox: View {
     var body: some View {
         let trash: Int = cleaner.trashCount
         let text: String = trash > 0
-            ? "\(count) öğe temizlenecek (\(CleanerFormat.bytes(total))). \(trash) tanesi Çöp Sepeti'ne gider, istersen geri alabilirsin. Alan, Çöp boşaltılınca açılır."
-            : "\(count) öğe temizlenecek (\(CleanerFormat.bytes(total))). Hepsi gerektiğinde kendiliğinden yeniden oluşur."
+            ? L("%@ öğe temizlenecek (%@). %@ tanesi Çöp Sepeti'ne gider, istersen geri alabilirsin. Alan, Çöp boşaltılınca açılır.", count, CleanerFormat.bytes(total), trash)
+            : L("%@ öğe temizlenecek (%@). Hepsi gerektiğinde kendiliğinden yeniden oluşur.", count, CleanerFormat.bytes(total))
         return VStack(alignment: .leading, spacing: 8) {
             Text(text).font(.system(size: 11)).fixedSize(horizontal: false, vertical: true)
-            Text("Her öğe silinmeden hemen önce bir kez daha kontrol edilir; o an kullanılıyorsa atlanır.")
+            Text(L("Her öğe silinmeden hemen önce bir kez daha kontrol edilir; o an kullanılıyorsa atlanır."))
                 .font(.system(size: 10)).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack {
-                SmallButton(title: "Vazgeç", icon: "xmark", prominent: false) { cleaner.confirming = false }
+                SmallButton(title: L("Vazgeç"), icon: "xmark", prominent: false) { cleaner.confirming = false }
                 Spacer()
-                SmallButton(title: "Evet, temizle", icon: "checkmark", prominent: true) {
+                SmallButton(title: L("Evet, temizle"), icon: "checkmark", prominent: true) {
                     cleaner.confirming = false
                     cleaner.onClean()
                 }

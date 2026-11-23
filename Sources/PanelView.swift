@@ -214,6 +214,16 @@ enum Palette {
 
 // MARK: - Ana panel
 
+/// Panel genişliği sabittir; kaydırılan içerik de sabit genişlikte çizilir (kaydırma çubuğu belirip kaybolunca
+/// ya da bir satır açılıp kapanınca kartlar sağa sola oynamaz).
+enum PanelLayout {
+    static let width: CGFloat = 360
+    static let padding: CGFloat = 16
+    static let scrollGutter: CGFloat = 14
+    static var contentWidth: CGFloat { width - padding * 2 }
+    static var scrollContentWidth: CGFloat { contentWidth - scrollGutter }
+}
+
 struct PanelView: View {
     @ObservedObject var model: PanelModel
 
@@ -226,10 +236,11 @@ struct PanelView: View {
         }
         return VStack(alignment: .leading, spacing: 14) {
             PanelHeader(model: model)
-            content
+            content.frame(width: PanelLayout.contentWidth, alignment: .leading)
         }
-        .padding(16)
-        .frame(width: 360)
+        .padding(PanelLayout.padding)
+        .frame(width: PanelLayout.width)
+        .fixedSize(horizontal: true, vertical: false)
         .background(VisualEffectBackground().ignoresSafeArea())
         .preferredColorScheme(.dark)
     }
@@ -288,8 +299,8 @@ private struct TabPicker: View {
 
     var body: some View {
         Picker("", selection: $model.selectedTab) {
-            Text("Masaüstü").tag(PanelTab.desktop)
-            Text("Uyku").tag(PanelTab.sleep)
+            Text(L("Masaüstü")).tag(PanelTab.desktop)
+            Text(L("Uyku")).tag(PanelTab.sleep)
             Text("Remote").tag(PanelTab.remote)
             Text("Tools").tag(PanelTab.tools)
         }
@@ -329,7 +340,7 @@ private struct PanelFooter: View {
     var body: some View {
         HStack {
             Button(action: { model.page = .settings }) {
-                Label("Ayarlar", systemImage: "gearshape")
+                Label(L("Ayarlar"), systemImage: "gearshape")
             }
             .buttonStyle(.plain)
             Spacer()
@@ -344,7 +355,7 @@ private struct QuitButton: View {
     @ObservedObject var model: PanelModel
     var body: some View {
         Button(action: { model.onQuit() }) {
-            Label("Workstation'dan çık", systemImage: "power")
+            Label(L("Workstation'dan çık"), systemImage: "power")
         }
         .buttonStyle(.plain)
         .foregroundColor(Color.red.opacity(0.9))
@@ -356,7 +367,7 @@ private struct StatusPill: View {
     let transitioning: Bool
 
     var body: some View {
-        let text: String = transitioning ? "GEÇİŞ" : "AKTİF"
+        let text: String = transitioning ? L("GEÇİŞ") : L("AKTİF")
         let color: Color = transitioning ? .yellow : .green
         return HStack(spacing: 5) {
             Circle().fill(color).frame(width: 6, height: 6)
@@ -446,7 +457,7 @@ private struct DesktopReturnButton: View {
     @ObservedObject var model: PanelModel
     var body: some View {
         if model.mode != .desktop {
-            StartButton(title: "Masaüstüne dön",
+            StartButton(title: L("Masaüstüne dön"),
                         systemImage: WorkMode.desktop.symbolName,
                         tint: .accentColor,
                         disabled: model.transitioning,
@@ -459,7 +470,7 @@ private struct MonitorListHeader: View {
     @ObservedObject var model: PanelModel
     var body: some View {
         HStack {
-            SectionTitle(text: "MONİTÖRLER")
+            SectionTitle(text: L("MONİTÖRLER"))
             if model.loadingMonitors {
                 ProgressView().controlSize(.small).scaleEffect(0.6)
             }
@@ -469,7 +480,7 @@ private struct MonitorListHeader: View {
             }
             .buttonStyle(.plain)
             .foregroundColor(.secondary)
-            .help("Monitörleri yeniden tara")
+            .help(L("Monitörleri yeniden tara"))
         }
     }
 }
@@ -478,7 +489,7 @@ private struct DesktopModeHint: View {
     let mode: WorkMode
     var body: some View {
         if mode != .desktop {
-            let text: String = "Şu an \(mode.title) açık, monitörler kapalı. Burada yaptığın ayarlar saklanır, Masaüstüne dönünce uygulanır."
+            let text: String = L("Şu an %@ açık, monitörler kapalı. Burada yaptığın ayarlar saklanır, Masaüstüne dönünce uygulanır.", mode.title)
             Text(text)
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
@@ -491,7 +502,7 @@ private struct MonitorList: View {
     @ObservedObject var model: PanelModel
     var body: some View {
         if model.monitors.isEmpty && !model.loadingMonitors {
-            Text("Bağlı monitör bulunamadı")
+            Text(L("Bağlı monitör bulunamadı"))
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 44)
@@ -519,11 +530,11 @@ private struct SleepTab: View {
 private struct SleepInfoCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Uyku", systemImage: WorkMode.sleep.symbolName)
+            Label(L("Uyku"), systemImage: WorkMode.sleep.symbolName)
                 .font(.system(size: 13, weight: .semibold))
-            InfoRow(icon: "display", text: "Monitörler tamamen kapanır, Mac en az enerjiyle uyur.")
-            InfoRow(icon: "moon.zzz", text: "Bir dakika sonra Mac uykuya geçer.")
-            InfoRow(icon: "hand.tap", text: "Klavye ya da fareye dokunduğunda her şey kaldığı gibi geri gelir.")
+            InfoRow(icon: "display", text: L("Monitörler tamamen kapanır, Mac en az enerjiyle uyur."))
+            InfoRow(icon: "moon.zzz", text: L("Bir dakika sonra Mac uykuya geçer."))
+            InfoRow(icon: "hand.tap", text: L("Klavye ya da fareye dokunduğunda her şey kaldığı gibi geri gelir."))
         }
         .cardStyle()
     }
@@ -533,9 +544,9 @@ private struct SleepStartButton: View {
     @ObservedObject var model: PanelModel
     var body: some View {
         if model.mode == .sleep {
-            StartButton(title: "Uyku açık", systemImage: "checkmark", tint: .gray, disabled: true, action: {})
+            StartButton(title: L("Uyku açık"), systemImage: "checkmark", tint: .gray, disabled: true, action: {})
         } else {
-            StartButton(title: "Başlat", systemImage: "play.fill", tint: Palette.sleepTint,
+            StartButton(title: L("Başlat"), systemImage: "play.fill", tint: Palette.sleepTint,
                         disabled: model.transitioning, action: { model.onStart(.sleep) })
         }
     }
@@ -560,13 +571,13 @@ private struct RemoteTab: View {
 private struct RemoteInfoCard: View {
     let resolution: String
     var body: some View {
-        let line: String = "Monitörler kapanır, sadece uzaktan bağlanan Mac için bir sanal ekran açık kalır."
+        let line: String = L("Monitörler kapanır, sadece uzaktan bağlanan Mac için bir sanal ekran açık kalır.")
         return VStack(alignment: .leading, spacing: 8) {
             Label("Remote", systemImage: WorkMode.remote.symbolName)
                 .font(.system(size: 13, weight: .semibold))
             InfoRow(icon: "rectangle.on.rectangle", text: line)
-            InfoRow(icon: "bolt", text: "Sen bağlıyken Mac asla uyumaz, elektrik kesilip gelirse kendi açılır.")
-            InfoRow(icon: "display", text: "Monitörler sadece Masaüstüne dönünce açılır.")
+            InfoRow(icon: "bolt", text: L("Sen bağlıyken Mac asla uyumaz, elektrik kesilip gelirse kendi açılır."))
+            InfoRow(icon: "display", text: L("Monitörler sadece Masaüstüne dönünce açılır."))
         }
         .cardStyle()
     }
@@ -580,19 +591,19 @@ private struct PresetCard: View {
     }
 
     private var autoHint: String {
-        let tail: String = " Bağlanan Mac'te bağlanma komutunu çalıştırınca ekran boyutu kendiliğinden ayarlanır."
+        let tail: String = L(" Bağlanan Mac'te bağlanma komutunu çalıştırınca ekran boyutu kendiliğinden ayarlanır.")
         if let last = model.lastClientResolution {
-            let text: String = "Son bağlanan Mac'in ekranı: \(last).\(tail)"
+            let text: String = L("Son bağlanan Mac'in ekranı: %@.%@", last, tail)
             return text
         }
-        let text: String = "Henüz bağlanan olmadı, şimdilik 14 inç MacBook Pro boyutu kullanılır.\(tail)"
+        let text: String = L("Henüz bağlanan olmadı, şimdilik 14 inç MacBook Pro boyutu kullanılır.%@", tail)
         return text
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Bağlanan Mac").font(.system(size: 11, weight: .semibold))
+                Text(L("Bağlanan Mac")).font(.system(size: 11, weight: .semibold))
                 Spacer()
                 Picker("", selection: selection) {
                     ForEach(RemotePreset.all) { (p: RemotePreset) in
@@ -613,7 +624,7 @@ private struct PresetCard: View {
     }
 
     static func label(for p: RemotePreset) -> String {
-        if p.id == "auto" { return "Otomatik" }
+        if p.id == "auto" { return L("Otomatik") }
         return p.title
     }
 }
@@ -638,16 +649,16 @@ private struct BetterDisplayStatusContent: View {
             }
         case .downloading(let fraction, let text):
             VStack(alignment: .leading, spacing: 4) {
-                Text("Sanal ekran aracı (BetterDisplay) indiriliyor… " + text).font(.system(size: 11))
+                Text(L("Sanal ekran aracı (BetterDisplay) indiriliyor… ") + text).font(.system(size: 11))
                 ProgressView(value: fraction).progressViewStyle(.linear)
             }
         case .failed(let message):
             HStack {
-                Label("Kurulamadı: " + message, systemImage: "xmark.octagon.fill")
+                Label(L("Kurulamadı: ") + message, systemImage: "xmark.octagon.fill")
                     .font(.system(size: 11))
                     .foregroundColor(.red)
                 Spacer()
-                Button("Tekrar dene", action: { model.onInstallBD() }).font(.system(size: 11))
+                Button(L("Tekrar dene"), action: { model.onInstallBD() }).font(.system(size: 11))
             }
         default:
             BetterDisplayIdleStatus(model: model)
@@ -659,16 +670,16 @@ private struct BetterDisplayIdleStatus: View {
     @ObservedObject var model: PanelModel
     var body: some View {
         if model.bdInstalled {
-            Label("Sanal ekran aracı hazır", systemImage: "checkmark.seal.fill")
+            Label(L("Sanal ekran aracı hazır"), systemImage: "checkmark.seal.fill")
                 .font(.system(size: 11))
                 .foregroundColor(.green)
         } else {
             HStack {
-                Label("Sanal ekran aracı yok, Başlat'a basınca kendisi kurulur", systemImage: "arrow.down.circle")
+                Label(L("Sanal ekran aracı yok, Başlat'a basınca kendisi kurulur"), systemImage: "arrow.down.circle")
                     .font(.system(size: 11))
                     .foregroundColor(.orange)
                 Spacer()
-                Button("Şimdi kur", action: { model.onInstallBD() }).font(.system(size: 11))
+                Button(L("Şimdi kur"), action: { model.onInstallBD() }).font(.system(size: 11))
             }
         }
     }
@@ -679,7 +690,7 @@ private struct RemoteStartButton: View {
     var body: some View {
         let isRemote: Bool = model.mode == .remote
         let busy: Bool = model.transitioning || model.isInstalling
-        return StartButton(title: isRemote ? "Yeniden uygula" : "Başlat",
+        return StartButton(title: isRemote ? L("Yeniden uygula") : L("Başlat"),
                            systemImage: isRemote ? "arrow.clockwise" : "play.fill",
                            tint: Palette.remoteTint,
                            disabled: busy,
@@ -695,7 +706,7 @@ private struct SettingsPage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Button(action: { model.page = .main }) {
-                Label("Geri", systemImage: "chevron.left")
+                Label(L("Geri"), systemImage: "chevron.left")
             }
             .buttonStyle(.plain)
             .foregroundColor(.secondary)
@@ -703,7 +714,9 @@ private struct SettingsPage: View {
             // Kart sayısı arttığı için kaydırılabilir; sabit yükseklik popover boyutunu kararlı tutar.
             ScrollView(.vertical, showsIndicators: true) {
                 SettingsCards(model: model)
-                    .padding(.trailing, 4)
+                    .frame(width: PanelLayout.scrollContentWidth, alignment: .leading)
+                    .padding(.trailing, PanelLayout.scrollGutter)
+                    .transaction { $0.animation = nil }
             }
             .frame(height: 540)
         }
@@ -715,20 +728,20 @@ private struct SettingsCards: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(text: "AYARLAR")
+            SectionTitle(text: L("AYARLAR"))
             SettingsActionsCard(model: model)
             MethodCard(model: model)
             CountdownSettingCard(model: model)
-            SectionTitle(text: "OTOMASYON")
+            SectionTitle(text: L("OTOMASYON"))
             AutoSwitchCard(model: model)
             ScheduleCard(model: model)
             AudioCard(model: model)
             NotificationsCard(model: model)
-            SectionTitle(text: "DİSK TEMİZLİĞİ")
+            SectionTitle(text: L("DİSK TEMİZLİĞİ"))
             CleanerSettingsCard(cleaner: model.cleaner)
-            SectionTitle(text: "GÜNCELLEME")
+            SectionTitle(text: L("GÜNCELLEME"))
             UpdateSettingsCard(updater: model.updater, currentVersion: model.appVersion)
-            SectionTitle(text: "DURUM")
+            SectionTitle(text: L("DURUM"))
             StatusGridCard(model: model)
             HStack {
                 Spacer()
@@ -775,17 +788,17 @@ private struct SettingsActionsCard: View {
     @ObservedObject var model: PanelModel
 
     var body: some View {
-        let bdTitle: String = model.bdInstalled ? "Sanal ekran aracını aç" : "Sanal ekran aracını kur"
-        let bdSubtitle: String = model.bdInstalled ? "BetterDisplay kurulu" : "BetterDisplay indirilip kurulur"
+        let bdTitle: String = model.bdInstalled ? L("Sanal ekran aracını aç") : L("Sanal ekran aracını kur")
+        let bdSubtitle: String = model.bdInstalled ? L("BetterDisplay kurulu") : L("BetterDisplay indirilip kurulur")
         return VStack(alignment: .leading, spacing: 8) {
-            SettingsRow(icon: "doc.text.magnifyingglass", title: "Günlük",
-                        subtitle: "Uygulamanın yaptığı her şeyin kaydı", action: { model.onOpenLog() })
+            SettingsRow(icon: "doc.text.magnifyingglass", title: L("Günlük"),
+                        subtitle: L("Uygulamanın yaptığı her şeyin kaydı"), action: { model.onOpenLog() })
             Divider().opacity(0.2)
-            SettingsRow(icon: "arrow.clockwise", title: "Monitörleri yeniden tara",
+            SettingsRow(icon: "arrow.clockwise", title: L("Monitörleri yeniden tara"),
                         subtitle: nil, action: { model.onRescan() })
             Divider().opacity(0.2)
-            SettingsRow(icon: "rectangle.badge.plus", title: "Sanal ekranı onar",
-                        subtitle: "Remote'ta ekran gelmezse dene", action: { model.onRepairVirtual() })
+            SettingsRow(icon: "rectangle.badge.plus", title: L("Sanal ekranı onar"),
+                        subtitle: L("Remote'ta ekran gelmezse dene"), action: { model.onRepairVirtual() })
             Divider().opacity(0.2)
             SettingsRow(icon: "arrow.down.app", title: bdTitle,
                         subtitle: bdSubtitle, action: { model.onInstallBD() })
@@ -803,13 +816,13 @@ private struct CountdownSettingCard: View {
 
     var body: some View {
         let label: String = model.countdownSeconds == 0
-            ? "Geri sayım: kapalı"
-            : "Geri sayım: \(model.countdownSeconds) sn"
+            ? L("Geri sayım: kapalı")
+            : L("Geri sayım: %@ sn", model.countdownSeconds)
         return HStack {
             Image(systemName: "timer").frame(width: 18).foregroundColor(.accentColor)
             VStack(alignment: .leading, spacing: 1) {
                 Text(label).font(.system(size: 12, weight: .medium))
-                Text("Uyku ve Remote başlamadan önce bekleme (0 = hemen)").font(.system(size: 10)).foregroundColor(.secondary)
+                Text(L("Uyku ve Remote başlamadan önce bekleme (0 = hemen)")).font(.system(size: 10)).foregroundColor(.secondary)
             }
             Spacer()
             Stepper("", value: value, in: 0...10).labelsHidden()
@@ -831,8 +844,8 @@ private struct MethodCard: View {
             HStack(spacing: 10) {
                 Image(systemName: "rectangle.on.rectangle.slash").frame(width: 18).foregroundColor(.accentColor)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Monitör kapatma yöntemi").font(.system(size: 12, weight: .medium))
-                    Text("Emin değilsen Otomatik'te bırak").font(.system(size: 10)).foregroundColor(.secondary)
+                    Text(L("Monitör kapatma yöntemi")).font(.system(size: 12, weight: .medium))
+                    Text(L("Emin değilsen Otomatik'te bırak")).font(.system(size: 10)).foregroundColor(.secondary)
                 }
                 Spacer()
             }
@@ -880,14 +893,14 @@ private struct StatusGridCard: View {
     var body: some View {
         let info: SettingsInfo = model.settingsInfo
         return VStack(alignment: .leading, spacing: 7) {
-            StatusRow(icon: "switch.2", label: "Monitör kontrolü", value: info.method)
-            StatusRow(icon: "display", label: "Monitörler", value: info.monitors)
-            StatusRow(icon: "rectangle.dashed", label: "Sanal ekran", value: info.virtualScreen)
-            StatusRow(icon: "app.badge", label: "Sanal ekran aracı", value: info.betterDisplay)
-            StatusRow(icon: "bolt", label: "Enerji", value: info.power)
+            StatusRow(icon: "switch.2", label: L("Monitör kontrolü"), value: info.method)
+            StatusRow(icon: "display", label: L("Monitörler"), value: info.monitors)
+            StatusRow(icon: "rectangle.dashed", label: L("Sanal ekran"), value: info.virtualScreen)
+            StatusRow(icon: "app.badge", label: L("Sanal ekran aracı"), value: info.betterDisplay)
+            StatusRow(icon: "bolt", label: L("Enerji"), value: info.power)
             Divider().opacity(0.2)
-            StatusRow(icon: "memorychip", label: "Bellek", value: model.memoryText)
-            StatusRow(icon: "info.circle", label: "Sürüm", value: model.appVersion)
+            StatusRow(icon: "memorychip", label: L("Bellek"), value: model.memoryText)
+            StatusRow(icon: "info.circle", label: L("Sürüm"), value: model.appVersion)
         }
         .cardStyle()
     }
@@ -902,7 +915,7 @@ private struct MonitorCard: View {
 
     var body: some View {
         let dimmed: Bool = !(monitor.isActive || monitor.desiredEnabled)
-        let menuTitle: String = monitor.forceSoftware ? "Monitörün kendi parlaklığını tekrar dene" : "Ekranı yazılımla karart"
+        let menuTitle: String = monitor.forceSoftware ? L("Monitörün kendi parlaklığını tekrar dene") : L("Ekranı yazılımla karart")
         return VStack(alignment: .leading, spacing: 10) {
             MonitorCardHeader(monitor: monitor, panel: panel)
             MonitorBrightnessRow(monitor: monitor, card: card, panel: panel)
@@ -1005,7 +1018,7 @@ private struct MethodBadge: View {
 
     private var text: String {
         switch monitor.brightnessMethod {
-        case .ddc: return "monitör"
+        case .ddc: return L("monitör")
         case .software: return "karartma"
         case .unknown: return "?"
         }
@@ -1021,10 +1034,10 @@ private struct MethodBadge: View {
 
     private var tooltip: String {
         if monitor.autoSoftware {
-            return "Bu monitör parlaklık komutuna yanıt vermedi (çoğu zaman dock ya da adaptör yüzünden), bu yüzden görüntü yazılımla karartılıyor. Sağ tıklayıp tekrar deneyebilirsin."
+            return L("Bu monitör parlaklık komutuna yanıt vermedi (çoğu zaman dock ya da adaptör yüzünden), bu yüzden görüntü yazılımla karartılıyor. Sağ tıklayıp tekrar deneyebilirsin.")
         }
-        if monitor.brightnessMethod == .software { return "Görüntü yazılımla karartılıyor. Sağ tıklayıp monitörün kendi parlaklığını deneyebilirsin." }
-        return "Monitörün kendi parlaklığı değişiyor. Sağ tıklayıp yazılımla karartmaya geçebilirsin."
+        if monitor.brightnessMethod == .software { return L("Görüntü yazılımla karartılıyor. Sağ tıklayıp monitörün kendi parlaklığını deneyebilirsin.") }
+        return L("Monitörün kendi parlaklığı değişiyor. Sağ tıklayıp yazılımla karartmaya geçebilirsin.")
     }
 
     var body: some View {
@@ -1045,15 +1058,23 @@ private struct ToolsTab: View {
     @ObservedObject var model: PanelModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(text: "FAN KONTROLÜ")
-            FanToolCard(model: model)
-            SectionTitle(text: "SİSTEM")
-            SystemStatsCard(model: model)
-            KeepAwakeCard(model: model)
-            SectionTitle(text: "DİSK")
-            DiskCleanerCard(cleaner: model.cleaner)
+        // Sabit yükseklikli kaydırma alanı: kartlar açılıp kapanınca popover zıplamaz; temizleyici hemen fanın altında.
+        ScrollView(.vertical, showsIndicators: true) {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionTitle(text: L("FAN KONTROLÜ"))
+                FanToolCard(model: model)
+                SectionTitle(text: L("DİSK TEMİZLEYİCİ"))
+                DiskCleanerCard(cleaner: model.cleaner)
+                AutoCleanQuickCard(cleaner: model.cleaner, openSettings: { model.page = .settings })
+                SectionTitle(text: L("SİSTEM"))
+                SystemStatsCard(model: model)
+                KeepAwakeCard(model: model)
+            }
+            .frame(width: PanelLayout.scrollContentWidth, alignment: .leading)
+            .padding(.trailing, PanelLayout.scrollGutter)
+            .transaction { $0.animation = nil }
         }
+        .frame(height: 470)
     }
 }
 
@@ -1083,8 +1104,8 @@ private struct FanHeader: View {
     private var spinMax: Double { fans.map { $0.maximum }.max() ?? 0 }
 
     private var subtitle: String {
-        guard let st = model.fanStatus else { return "Okunuyor…" }
-        if st.fans.isEmpty { return st.error ?? "Bu Mac'te fan yok" }
+        guard let st = model.fanStatus else { return L("Okunuyor…") }
+        if st.fans.isEmpty { return st.error ?? L("Bu Mac'te fan yok") }
         let n = st.fans.count
         let rpm = Int(spinRPM.rounded())
         return "\(n) fan · \(rpm) RPM · \(model.fanMode.title)"
@@ -1096,7 +1117,7 @@ private struct FanHeader: View {
             SpinningFanView(rpm: rpm, maxRPM: spinMax, tintKey: model.fanMode.rawValue)
                 .frame(width: 42, height: 42)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Fanlar").font(.system(size: 13, weight: .semibold))
+                Text(L("Fanlar")).font(.system(size: 13, weight: .semibold))
                 Text(subtitle).font(.system(size: 11)).foregroundColor(.secondary)
             }
             Spacer()
@@ -1137,9 +1158,9 @@ private struct FanCardBody: View {
     var body: some View {
         let st: FanStatus? = model.fanStatus
         if st == nil {
-            HStack { ProgressView().controlSize(.small); Text("Fanlar okunuyor…").font(.system(size: 11)).foregroundColor(.secondary) }
+            HStack { ProgressView().controlSize(.small); Text(L("Fanlar okunuyor…")).font(.system(size: 11)).foregroundColor(.secondary) }
         } else if let s = st, s.fans.isEmpty {
-            InfoRow(icon: "wind", text: s.error.map { _ in "Fan bilgisi okunamadı" } ?? "Bu Mac'te fan yok")
+            InfoRow(icon: "wind", text: s.error.map { _ in L("Fan bilgisi okunamadı") } ?? L("Bu Mac'te fan yok"))
         } else {
             FanControls(model: model)
         }
@@ -1184,7 +1205,7 @@ private struct FanRow: View {
             HStack {
                 Text("Fan \(fan.index + 1)").font(.system(size: 11, weight: .medium))
                 if fan.manual {
-                    Text("ELLE").font(.system(size: 8, weight: .bold))
+                    Text(L("ELLE")).font(.system(size: 8, weight: .bold))
                         .padding(.horizontal, 4).padding(.vertical, 1)
                         .background(Capsule().fill(Color.orange.opacity(0.2)))
                         .foregroundColor(.orange)
@@ -1207,14 +1228,14 @@ private struct FanNoteView: View {
     var body: some View {
         let text: String
         if !model.fanHelperInstalled {
-            text = "Fan hızını değiştirmek için kurulumu bir kez daha çalıştır. Şimdilik sadece izleyebilirsin."
+            text = L("Fan hızını değiştirmek için kurulumu bir kez daha çalıştır. Şimdilik sadece izleyebilirsin.")
         } else if let n = model.fanNote {
             text = n
         } else {
             switch model.fanMode {
-            case .auto: text = "Fanları Mac kendisi yönetiyor."
-            case .half: text = "Fanlar yarı hızda döner. Mac çok ısınırsa kendiliğinden tam hıza çıkar."
-            case .max: text = "Fanlar tam hızda döner. Mac uyuyunca ya da uygulama kapanınca normale döner."
+            case .auto: text = L("Fanları Mac kendisi yönetiyor.")
+            case .half: text = L("Fanlar yarı hızda döner. Mac çok ısınırsa kendiliğinden tam hıza çıkar.")
+            case .max: text = L("Fanlar tam hızda döner. Mac uyuyunca ya da uygulama kapanınca normale döner.")
             }
         }
         return Text(text)
@@ -1258,7 +1279,7 @@ final class FanSpinNSView: NSView {
         blade.speed = 0
     }
 
-    required init?(coder: NSCoder) { fatalError("init(coder:) yok") }
+    required init?(coder: NSCoder) { fatalError(L("init(coder:) yok")) }
 
     override func layout() {
         super.layout()

@@ -9,24 +9,33 @@
 # Örnek: ssh studio workstation remote 1512x982
 # İstemci Mac'te otomatik çözünürlük için: workstation-connect studio
 
+# Dil: macOS'un ilk tercih edilen dili Türkçe ise Türkçe, değilse İngilizce (WORKSTATION_LANG=tr|en zorlar).
+if [[ -n "${WORKSTATION_LANG:-}" ]]; then [[ "$WORKSTATION_LANG" == tr* ]] && WS_TR=1 || WS_TR=0
+else
+  _wl=$(/usr/bin/defaults read -g AppleLanguages 2>/dev/null | /usr/bin/sed -n '2p' | /usr/bin/tr -d ' ",')
+  [[ "$_wl" == tr* ]] && WS_TR=1 || WS_TR=0
+fi
+t() { if (( WS_TR )); then print -r -- "$1"; else print -r -- "$2"; fi; }
+tn() { if (( WS_TR )); then print -rn -- "$1"; else print -rn -- "$2"; fi; }
+
 APP="/Applications/Workstation.app"
 BUNDLE_ID="com.tolgahanayaz.workstationmode"
 
 usage() {
-  echo "Kullanım: workstation remote [WxH|ön ayar] | sleep | desktop | status | log | netinfo"
-  echo "          workstation profile <ad> | fan auto|half|max | keepawake on|off|1h|3h|90m"
-  echo "  remote  → sanal ekran (verilen çözünürlük, yoksa uygulamadaki ön ayar) açık, fiziksel monitörler kapalı"
-  echo "            ön ayarlar: mba13 1470x956 · mba15 1710x1107 · mbp14 1512x982 · mbp16 1728x1117 · imac24 2240x1260"
-  echo "  sleep   → fiziksel monitörler kapalı, düşük güç, sistem uykusuna izin"
-  echo "  desktop → fiziksel monitörler açık, sanal ekran kapalı, normal güç"
-  echo "  status  → geçerli mod"
-  echo "  log     → son 40 günlük satırı"
-  echo "  netinfo → Wake-on-LAN için MAC/IP/yayın adresi (KEY=değer)"
-  echo "  profile → kayıtlı çalışma alanı profilini uygula (monitörler + parlaklık + fan)"
-  echo "  fan     → fan modu: auto (Otomatik) | half (Yarım) | max (Full Blast)"
-  echo "  keepawake → Uyanık tut: on (süresiz) | off | 1h | 3h | 90m"
-  echo "  clean   → disk temizleyici: --dry-run (varsayılan, sadece listeler) | --yes (temizle) | --auto (güvenli küme)"
-  echo "            --verbose: atlanan öğeleri ve nedenlerini de göster · scan-app: taramayı uygulamada başlat"
+  t "Kullanım: workstation remote [WxH|ön ayar] | sleep | desktop | status | log | netinfo" "Usage: workstation remote [WxH|preset] | sleep | desktop | status | log | netinfo"
+  t "          workstation profile <ad> | fan auto|half|max | keepawake on|off|1h|3h|90m" "          workstation profile <name> | fan auto|half|max | keepawake on|off|1h|3h|90m"
+  t "  remote  → sanal ekran (verilen çözünürlük, yoksa uygulamadaki ön ayar) açık, fiziksel monitörler kapalı" "  remote  → virtual screen on (given resolution, or the preset in the app), physical monitors off"
+  t "            ön ayarlar: mba13 1470x956 · mba15 1710x1107 · mbp14 1512x982 · mbp16 1728x1117 · imac24 2240x1260" "            presets: mba13 1470x956 · mba15 1710x1107 · mbp14 1512x982 · mbp16 1728x1117 · imac24 2240x1260"
+  t "  sleep   → fiziksel monitörler kapalı, düşük güç, sistem uykusuna izin" "  sleep   → physical monitors off, low power, system sleep allowed"
+  t "  desktop → fiziksel monitörler açık, sanal ekran kapalı, normal güç" "  desktop → physical monitors on, virtual screen off, normal power"
+  t "  status  → geçerli mod" "  status  → current mode"
+  t "  log     → son 40 günlük satırı" "  log     → last 40 log lines"
+  t "  netinfo → Wake-on-LAN için MAC/IP/yayın adresi (KEY=değer)" "  netinfo → MAC/IP/broadcast address for Wake-on-LAN (KEY=value)"
+  t "  profile → kayıtlı çalışma alanı profilini uygula (monitörler + parlaklık + fan)" "  profile → apply a saved workspace profile (monitors + brightness + fans)"
+  t "  fan     → fan modu: auto (Otomatik) | half (Yarım) | max (Full Blast)" "  fan     → fan mode: auto | half | max (Full Blast)"
+  t "  keepawake → Uyanık tut: on (süresiz) | off | 1h | 3h | 90m" "  keepawake → keep awake: on (indefinitely) | off | 1h | 3h | 90m"
+  t "  clean   → disk temizleyici: --dry-run (varsayılan, sadece listeler) | --yes (temizle) | --auto (güvenli küme)" "  clean   → disk cleaner: --dry-run (default, only lists) | --yes (clean) | --auto (safe set)"
+  t "            --verbose: atlanan öğeleri ve nedenlerini de göster · scan-app: taramayı uygulamada başlat" "            --verbose: also show skipped items and why · scan-app: start a scan in the app"
 }
 
 # URL yolu bileşeni için yüzde kodlama (UTF-8 bayt bayt).
@@ -40,31 +49,31 @@ urlencode() {
 }
 
 open_url() {
-  if /usr/bin/open -g "$1"; then echo "Workstation → $1 isteği gönderildi."; else echo "Açılamadı: $1" >&2; exit 1; fi
+  if /usr/bin/open -g "$1"; then t "Workstation → $1 isteği gönderildi." "Workstation → $1 request sent."; else t "Açılamadı: $1" "Couldn't open: $1" >&2; exit 1; fi
 }
 
 case "${1:-}" in
   clean)
     shift
     if [[ "${1:-}" == "scan-app" ]]; then open_url "workstation://clean/scan"; exit 0; fi
-    [[ -x "$APP/Contents/MacOS/Workstation" ]] || { echo "Uygulama bulunamadı: $APP" >&2; exit 1; }
+    [[ -x "$APP/Contents/MacOS/Workstation" ]] || { t "Uygulama bulunamadı: $APP" "App not found: $APP" >&2; exit 1; }
     exec "$APP/Contents/MacOS/Workstation" --clean "$@"
     ;;
   profile)
-    [[ -n "${2:-}" ]] || { echo "Profil adı gerekli: workstation profile <ad>" >&2; exit 1; }
+    [[ -n "${2:-}" ]] || { t "Profil adı gerekli: workstation profile <ad>" "Profile name required: workstation profile <name>" >&2; exit 1; }
     shift
     open_url "workstation://profile/$(urlencode "$*")"
     ;;
   fan)
     case "${2:-}" in
       auto|half|max) open_url "workstation://fan/$2" ;;
-      *) echo "Kullanım: workstation fan auto|half|max" >&2; exit 1 ;;
+      *) t "Kullanım: workstation fan auto|half|max" "Usage: workstation fan auto|half|max" >&2; exit 1 ;;
     esac
     ;;
   keepawake)
     ARG="${2:-on}"
     if [[ "$ARG" =~ '^(on|off|[0-9]+(\.[0-9]+)?[hm]?)$' ]]; then open_url "workstation://keepawake/$ARG"
-    else echo "Kullanım: workstation keepawake on|off|1h|3h|90m" >&2; exit 1; fi
+    else t "Kullanım: workstation keepawake on|off|1h|3h|90m" "Usage: workstation keepawake on|off|1h|3h|90m" >&2; exit 1; fi
     ;;
   remote|sleep|desktop)
     MODE="$1"
@@ -79,11 +88,11 @@ case "${1:-}" in
       elif [[ "$ARG" =~ '^(mba13|mba15|mbp14|mbp16|imac24)$' ]]; then
         QUERY="?preset=$ARG"; CLI_EXTRA=(--preset "$ARG")
       else
-        echo "Geçersiz çözünürlük/ön ayar: $2" >&2; usage; exit 1
+        t "Geçersiz çözünürlük/ön ayar: $2" "Invalid resolution/preset: $2" >&2; usage; exit 1
       fi
     fi
     if /usr/bin/open -g "workstation://${MODE}${QUERY}"; then
-      echo "Workstation → ${MODE}${QUERY:+ ($QUERY)} isteği gönderildi."
+      t "Workstation → ${MODE}${QUERY:+ ($QUERY)} isteği gönderildi." "Workstation → ${MODE}${QUERY:+ ($QUERY)} request sent."
     else
       # Yedek yol: uygulamanın komut satırı argümanı
       "$APP/Contents/MacOS/Workstation" --mode "$MODE" "${CLI_EXTRA[@]}"

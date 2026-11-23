@@ -15,6 +15,15 @@
 #   WAKE_TIMEOUT=90          SSH erişilebilir olana kadar azami bekleme (sn)
 # Ortam: WS_VNC_HOST → VNC_HOST ile aynı (geriye dönük uyumluluk)
 
+# Dil: macOS'un ilk tercih edilen dili Türkçe ise Türkçe, değilse İngilizce (WORKSTATION_LANG=tr|en zorlar).
+if [[ -n "${WORKSTATION_LANG:-}" ]]; then [[ "$WORKSTATION_LANG" == tr* ]] && WS_TR=1 || WS_TR=0
+else
+  _wl=$(/usr/bin/defaults read -g AppleLanguages 2>/dev/null | /usr/bin/sed -n '2p' | /usr/bin/tr -d ' ",')
+  [[ "$_wl" == tr* ]] && WS_TR=1 || WS_TR=0
+fi
+t() { if (( WS_TR )); then print -r -- "$1"; else print -r -- "$2"; fi; }
+tn() { if (( WS_TR )); then print -rn -- "$1"; else print -rn -- "$2"; fi; }
+
 CONFIG_DIR="$HOME/.config/workstation"
 CONFIG="$CONFIG_DIR/config"
 HOST="studio"; MAC=""; BROADCAST="255.255.255.255"; VNC_HOST=""; WAKE_TIMEOUT=90
@@ -42,7 +51,7 @@ while (( $# > 0 )); do
     --setup) SETUP=1 ;;
     --wake-only) WAKE_ONLY=1 ;;
     -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
-    -*) echo "Bilinmeyen seçenek: $1" >&2; exit 2 ;;
+    -*) t "Bilinmeyen seçenek: $1" "Unknown option: $1" >&2; exit 2 ;;
     *) HOST="$1" ;;
   esac
   shift
@@ -92,22 +101,22 @@ PY
 
 wake() {
   if ! valid_mac "$MAC"; then
-    echo "Wake-on-LAN atlandı: MAC tanımlı değil (workstation-connect --setup $HOST veya --mac)." >&2
+    t "Wake-on-LAN atlandı: MAC tanımlı değil (workstation-connect --setup $HOST veya --mac)." "Wake-on-LAN skipped: no MAC set (workstation-connect --setup $HOST or --mac)." >&2
     return 1
   fi
-  echo "→ Wake-on-LAN: $MAC → $BROADCAST"
-  send_magic "$MAC" "$BROADCAST" || { echo "Sihirli paket gönderilemedi." >&2; return 1; }
+  t "→ Wake-on-LAN: $MAC → $BROADCAST" "→ Wake-on-LAN: $MAC → $BROADCAST"
+  send_magic "$MAC" "$BROADCAST" || { t "Sihirli paket gönderilemedi." "Couldn't send the magic packet." >&2; return 1; }
 }
 
 # --- --setup: değerleri uzak Mac'ten al -----------------------------------------
 if (( SETUP )); then
-  echo "→ $HOST üzerinden ağ bilgisi alınıyor…"
+  t "→ $HOST üzerinden ağ bilgisi alınıyor…" "→ Getting network info from $HOST…"
   INFO=$(/usr/bin/ssh -o ConnectTimeout=5 "$HOST" "/usr/local/bin/workstation netinfo" 2>/dev/null) \
-    || { echo "SSH başarısız: önce 'ssh $HOST' çalıştığından emin olun (Mac mini uyanık olmalı)." >&2; exit 1; }
+    || { t "SSH başarısız: önce 'ssh $HOST' çalıştığından emin olun (Mac mini uyanık olmalı)." "SSH failed: first make sure 'ssh $HOST' works (the Mac mini must be awake)." >&2; exit 1; }
   R_MAC=$(echo "$INFO" | /usr/bin/awk -F= '$1=="MAC"{print $2}')
   R_BC=$(echo "$INFO" | /usr/bin/awk -F= '$1=="BROADCAST"{print $2}')
   R_HOSTNAME=$(echo "$INFO" | /usr/bin/awk -F= '$1=="HOSTNAME"{print $2}')
-  valid_mac "$R_MAC" || { echo "Uzak MAC okunamadı: $INFO" >&2; exit 1; }
+  valid_mac "$R_MAC" || { t "Uzak MAC okunamadı: $INFO" "Couldn't read the remote MAC: $INFO" >&2; exit 1; }
   mkdir -p "$CONFIG_DIR"
   {
     echo "# workstation-connect yapılandırması ($(date '+%Y-%m-%d %H:%M'))"
@@ -117,7 +126,7 @@ if (( SETUP )); then
     [[ -n "$R_HOSTNAME" ]] && echo "VNC_HOST=$R_HOSTNAME"
     echo "WAKE_TIMEOUT=$WAKE_TIMEOUT"
   } > "$CONFIG"
-  echo "✓ Kaydedildi: $CONFIG"; cat "$CONFIG"
+  t "✓ Kaydedildi: $CONFIG" "✓ Saved: $CONFIG"; cat "$CONFIG"
   exit 0
 fi
 
@@ -126,20 +135,20 @@ if (( WAKE_ONLY )); then wake; exit $?; fi
 # --- 1) Uyandır ve SSH'yi bekle ----------------------------------------------------
 if ! ssh_ok; then
   if (( DO_WAKE )) && wake; then
-    echo -n "→ $HOST bekleniyor (en fazla ${WAKE_TIMEOUT} sn)"
+    tn "→ $HOST bekleniyor (en fazla ${WAKE_TIMEOUT} sn)" "→ Waiting for $HOST (up to ${WAKE_TIMEOUT} s)"
     START=$SECONDS; SENT_AGAIN=0
     until ssh_ok; do
       if (( SECONDS - START >= WAKE_TIMEOUT )); then
-        echo; echo "$HOST ${WAKE_TIMEOUT} sn içinde erişilebilir olmadı. Ethernet/Wake-on-LAN ayarını ve ağı kontrol edin." >&2
+        echo; t "$HOST ${WAKE_TIMEOUT} sn içinde erişilebilir olmadı. Ethernet/Wake-on-LAN ayarını ve ağı kontrol edin." "$HOST wasn't reachable within ${WAKE_TIMEOUT} s. Check the Ethernet/Wake-on-LAN setting and the network." >&2
         exit 1
       fi
       # 15 sn sonra paketi bir kez daha gönder (ilk paket kaybolmuş olabilir).
       if (( SECONDS - START >= 15 && !SENT_AGAIN )); then send_magic "$MAC" "$BROADCAST" >/dev/null 2>&1; SENT_AGAIN=1; fi
       echo -n "."; sleep 2
     done
-    echo " uyandı."
+    t " uyandı." " awake."
   else
-    echo "$HOST erişilemiyor; yine de deneniyor…" >&2
+    t "$HOST erişilemiyor; yine de deneniyor…" "$HOST is unreachable; trying anyway…" >&2
   fi
 fi
 
@@ -155,14 +164,14 @@ if [[ -z "$RES" ]]; then
   fi
 fi
 if [[ ! "$RES" =~ '^[0-9]+x[0-9]+$' ]]; then
-  echo "Ekran boyutu algılanamadı; uzak Mac'teki ön ayar kullanılacak." >&2
+  t "Ekran boyutu algılanamadı; uzak Mac'teki ön ayar kullanılacak." "Couldn't detect the screen size; the preset on the remote Mac will be used." >&2
   RES=""
 fi
 
 # --- 3) Remote + Ekran Paylaşımı ----------------------------------------------------
-echo "→ $HOST Remote moduna alınıyor${RES:+ ($RES)}…"
+t "→ $HOST Remote moduna alınıyor${RES:+ ($RES)}…" "→ Switching $HOST to Remote${RES:+ ($RES)}…"
 if ! /usr/bin/ssh "$HOST" "/usr/local/bin/workstation remote $RES"; then
-  echo "SSH komutu başarısız. 'ssh $HOST' bağlantısını ve uzak Mac'te Workstation kurulumunu kontrol edin." >&2
+  t "SSH komutu başarısız. 'ssh $HOST' bağlantısını ve uzak Mac'te Workstation kurulumunu kontrol edin." "SSH command failed. Check the 'ssh $HOST' connection and the Workstation install on the remote Mac." >&2
   exit 1
 fi
 

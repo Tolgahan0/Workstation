@@ -112,8 +112,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // Fan: önceki oturum manuel modda çöktüyse reset; Uyku modunda değilsek tercih edilen modu uygula.
         fans.onWatchdog = { [weak self] temp in
             guard let self = self else { return }
-            self.panelModel.fanNote = "Mac çok ısındı (\(Int(temp)) °C), fanlar güvenlik için tam hıza alındı."
-            self.notifyOverheat(temp, extra: "Fanlar tam hıza alındı.")
+            self.panelModel.fanNote = L("Mac çok ısındı (%@ °C), fanlar güvenlik için tam hıza alındı.", Int(temp))
+            self.notifyOverheat(temp, extra: L("Fanlar tam hıza alındı."))
             self.refreshFanStatus()
         }
         fans.launchRecovery(reapply: currentMode != .sleep)
@@ -121,12 +121,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             guard let self = self else { return }
             if unexpectedExit && self.notifySettings.unexpectedExit {
                 Log.warn("Önceki oturum beklenmedik şekilde bitti (temiz çıkış bayrağı yok)")
-                self.notifier.notify(kind: "unexpectedExit", title: "Workstation beklenmedik şekilde kapanmıştı",
-                                     body: "Uygulama ya da Mac düzgün kapanmamış (elektrik kesintisi olabilir). Her şey normale döndürüldü.")
+                self.notifier.notify(kind: "unexpectedExit", title: L("Workstation beklenmedik şekilde kapanmıştı"),
+                                     body: L("Uygulama ya da Mac düzgün kapanmamış (elektrik kesintisi olabilir). Her şey normale döndürüldü."))
             }
             self.checkDiskSpace()
             self.configureCleanerAuto()
-            self.cleanerSpaceCheck(reason: "açılış")
+            self.cleanerSpaceCheck(reason: L("açılış"))
         }
         panelModel.fanMode = fans.preferredMode
 
@@ -138,12 +138,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self.configureAutoSwitch()
             let queued = self.pendingRoutes
             self.pendingRoutes = []
-            for r in queued { self.dispatchRoute(r, source: "açılış URL'si") }
+            for r in queued { self.dispatchRoute(r, source: L("açılış URL'si")) }
             self.lastScheduleCheck = Date()
             self.rescheduleModes(catchUp: false)
+            // Açılışta planlı uyanmayı kurallarla eşitle (tüm kurallar kapalıysa bizim kurduğumuz pmset repeat silinir).
+            if self.scheduleSettings.wakeEnabled || UserDefaults.standard.bool(forKey: "pmsetRepeatOwned") {
+                self.applyScheduledWake()
+            }
             if let pending = self.pendingLaunch {
                 self.pendingLaunch = nil
-                self.requestMode(pending.0, source: "açılış URL'si", resolution: pending.1)
+                self.requestMode(pending.0, source: L("açılış URL'si"), resolution: pending.1)
             } else {
                 self.restoreModeAtLaunch()
             }
@@ -153,16 +157,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// Remote: yeniden uygulanır · Uyku: Masaüstü'ne dönülür · Masaüstü: monitör başına istenen durum uygulanır.
     private func restoreModeAtLaunch() {
         switch currentMode {
-        case .remote: setMode(.remote, source: "açılışta geri yükleme")
-        case .sleep: setMode(.desktop, source: "açılış (uyku modundan dönüş)")
-        case .desktop: scheduleReconcile(reason: "açılış", applyBrightness: true)
+        case .remote: setMode(.remote, source: L("açılışta geri yükleme"))
+        case .sleep: setMode(.desktop, source: L("açılış (uyku modundan dönüş)"))
+        case .desktop: scheduleReconcile(reason: L("açılış"), applyBrightness: true)
         }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         Log.info("Workstation kapanıyor (mod: \(currentMode.rawValue)). Ekran durumu değiştirilmedi.")
         // Güvenlik: fanlar asla manuel modda bırakılmaz (tercih saklı kalır, açılışta yeniden uygulanır).
-        fans.resetSync(reason: "uygulama kapanıyor")
+        fans.resetSync(reason: L("uygulama kapanıyor"))
         CleanExit.markClean()
     }
 
@@ -287,7 +291,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self.panelModel.fanMode = mode
             self.panelModel.fanApplying = true
             self.panelModel.fanNote = nil
-            self.fans.apply(mode, reason: "kullanıcı") { [weak self] err in
+            self.fans.apply(mode, reason: L("kullanıcı")) { [weak self] err in
                 guard let self = self else { return }
                 self.panelModel.fanApplying = false
                 if let e = err {
@@ -531,9 +535,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         UserDefaults.standard.set(mode.rawValue, forKey: currentModeKey)
         // Fan güvenliği: Uyku'ya geçerken otomatiğe dön; Uyku'dan çıkınca tercih edilen modu geri yükle.
         if mode == .sleep {
-            fans.resetSync(reason: "Uyku moduna geçiş")
+            fans.resetSync(reason: L("Uyku moduna geçiş"))
         } else if previous == .sleep {
-            fans.reapplyPreferred(reason: "Uyku modundan çıkış")
+            fans.reapplyPreferred(reason: L("Uyku modundan çıkış"))
         }
         // Ses: Remote'ta (ayar açıksa) sessize al; Masaüstü'nde yalnızca bizim kapattığımızı geri aç.
         if mode == .remote && AudioControl.enabled {
@@ -558,7 +562,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self.isTransitioning = false
                 self.lastError = error
                 if mode != .sleep {
-                    self.scheduleReconcile(reason: "\(mode.rawValue) sonrası doğrulama", applyBrightness: mode == .desktop,
+                    self.scheduleReconcile(reason: L("%@ sonrası doğrulama", mode.rawValue), applyBrightness: mode == .desktop,
                                            delays: [Self.callbackQuietPeriod + 0.5, 8])
                 }
             }
@@ -618,7 +622,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         let added = flags.contains(.addFlag) || flags.contains(.enabledFlag)
         Log.info("Ekran yapılandırması değişti (displayID \(display), bayraklar 0x\(String(flags.rawValue, radix: 16))) → 3,5 sn sonra denetlenecek")
-        scheduleReconcile(reason: "ekran yapılandırması değişti (\(display))", applyBrightness: added,
+        scheduleReconcile(reason: L("ekran yapılandırması değişti (%@)", display), applyBrightness: added,
                           delays: [Self.callbackQuietPeriod + 0.5, 8])
     }
 
@@ -631,7 +635,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self.sleepInputMonitor = NSEvent.addGlobalMonitorForEvents(
                 matching: [.mouseMoved, .leftMouseDown, .rightMouseDown, .scrollWheel, .keyDown]
             ) { [weak self] _ in
-                self?.handleWake(kind: "fare/klavye girdisi")
+                self?.handleWake(kind: L("fare/klavye girdisi"))
             }
         }
     }
@@ -660,7 +664,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func systemWillSleep(_ note: Notification) {
         Log.info("NSWorkspace.willSleepNotification → fanlar otomatiğe")
-        fans.resetSync(reason: "sistem uykuya geçiyor")
+        fans.resetSync(reason: L("sistem uykuya geçiyor"))
     }
 
     @objc private func clockChanged(_ note: Notification) {
@@ -698,9 +702,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         switch currentMode {
         case .sleep:
             guard !isTransitioning, Date().timeIntervalSince(sleepModeEnteredAt) > 5 else { return }
-            setMode(.desktop, source: "\(kind) uyanması")
+            setMode(.desktop, source: L("%@ uyanması", kind))
         case .remote, .desktop:
-            scheduleReconcile(reason: "\(kind) uyanması", applyBrightness: true)
+            scheduleReconcile(reason: L("%@ uyanması", kind), applyBrightness: true)
         }
     }
 
@@ -719,7 +723,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func distributedSetMode(_ note: Notification) {
         guard let raw = note.object as? String, let route = URLRoute.parse(raw, scheme: urlScheme) else { return }
-        DispatchQueue.main.async { [weak self] in self?.dispatchRoute(route, source: "dağıtık bildirim") }
+        DispatchQueue.main.async { [weak self] in self?.dispatchRoute(route, source: L("dağıtık bildirim")) }
     }
 
     /// Açılış bitmeden gelen istekler sıraya alınır.
@@ -736,7 +740,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 applyProfile(p, source: source)
             } else {
                 Log.error("Profil bulunamadı: \(name)")
-                panelModel.profileNote = "Profil yok: \(name)"
+                panelModel.profileNote = L("Profil yok: %@", name)
             }
         case .fan(let mode):
             panelModel.fanMode = mode
@@ -757,13 +761,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func showCLIWarning() {
         let alert = NSAlert()
-        alert.messageText = "Sanal ekran aracına bir izin vermen gerekiyor"
-        alert.informativeText = """
-        Remote'taki sanal ekranı BetterDisplay açıyor. Bir kerelik olarak BetterDisplay'i aç, \
-        Ayarlar › Application › Integration bölümünde "CLI" seçeneğini işaretle.
-        """
+        alert.messageText = L("Sanal ekran aracına bir izin vermen gerekiyor")
+        alert.informativeText = L10n.isTurkish
+            ? "Remote'taki sanal ekranı BetterDisplay açıyor. Bir kerelik olarak BetterDisplay'i aç, Ayarlar › Application › Integration bölümünde \"CLI\" seçeneğini işaretle."
+            : "BetterDisplay opens the virtual screen used in Remote. Open BetterDisplay once and tick \"CLI\" under Settings › Application › Integration."
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "Tamam")
+        alert.addButton(withTitle: L("Tamam"))
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
     }

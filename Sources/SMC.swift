@@ -75,11 +75,11 @@ enum SMCError: Error, CustomStringConvertible {
 
     var description: String {
         switch self {
-        case .openFailed: return "AppleSMC açılamadı"
-        case .ioKit(let c): return "IOKit hatası 0x\(String(UInt32(bitPattern: c), radix: 16))"
-        case .firmware(let c): return "SMC hatası 0x\(String(c, radix: 16))"
-        case .badKey(let k): return "geçersiz anahtar \(k)"
-        case .typeMismatch(let t): return "beklenmeyen veri türü \(t)"
+        case .openFailed: return L("AppleSMC açılamadı")
+        case .ioKit(let c): return L("IOKit hatası 0x%@", String(UInt32(bitPattern: c), radix: 16))
+        case .firmware(let c): return L("SMC hatası 0x%@", String(c, radix: 16))
+        case .badKey(let k): return L("geçersiz anahtar %@", k)
+        case .typeMismatch(let t): return L("beklenmeyen veri türü %@", t)
         }
     }
 }
@@ -167,8 +167,8 @@ enum FanMode: String, CaseIterable, Identifiable, Codable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .auto: return "Otomatik"
-        case .half: return "Yarım"
+        case .auto: return L("Otomatik")
+        case .half: return L("Yarım")
         case .max: return "Full Blast"
         }
     }

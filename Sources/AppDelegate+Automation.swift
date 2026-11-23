@@ -8,7 +8,7 @@ extension AppDelegate {
         autoSwitchTimer = nil
         autoEngine.reset()
         guard autoSettings.enabled else {
-            panelModel.autoSwitchStatus = "Kapalı"
+            panelModel.autoSwitchStatus = L("Kapalı")
             return
         }
         Log.info("Otomatik mod geçişi açık (SSH: \(autoSettings.includeSSH ? "evet" : "hayır"), sonra: \(autoSettings.after.title), \(autoSettings.idleMinutes) dk)")
@@ -32,13 +32,13 @@ extension AppDelegate {
     private func handleSessionProbe(screenSharing: Bool, ssh: Bool) {
         guard autoSettings.enabled else { return }
         var parts: [String] = []
-        parts.append(screenSharing ? "Ekran Paylaşımı: bağlı" : "Ekran Paylaşımı: yok")
-        if autoSettings.includeSSH { parts.append(ssh ? "SSH: bağlı" : "SSH: yok") }
+        parts.append(screenSharing ? L("Ekran Paylaşımı: bağlı") : L("Ekran Paylaşımı: yok"))
+        if autoSettings.includeSSH { parts.append(ssh ? L("SSH: bağlı") : L("SSH: yok")) }
         if let e = autoEngine.endedAt, currentMode == .remote, autoSettings.after != .none {
             let left = max(0, Double(autoSettings.idleMinutes) * 60 - Date().timeIntervalSince(e))
-            parts.append("\(Int(ceil(left / 60))) dk sonra \(autoSettings.after.title)")
+            parts.append(L("%@ dk sonra %@", Int(ceil(left / 60)), autoSettings.after.title))
         }
-        let status = "Şu an: " + parts.joined(separator: " · ")
+        let status = L("Şu an: ") + parts.joined(separator: " · ")
         if panelModel.autoSwitchStatus != status { panelModel.autoSwitchStatus = status }
 
         // Geçiş sürerken karar verme (bir sonraki taramada yeniden değerlendirilir).
@@ -50,10 +50,10 @@ extension AppDelegate {
             break
         case .enterRemote(let reason):
             Log.info("Otomatik: \(reason) algılandı → Remote")
-            requestMode(.remote, source: "otomatik (\(reason))")
+            requestMode(.remote, source: L("otomatik (%@)", reason))
         case .leaveRemote(let mode):
             Log.info("Otomatik: uzak oturum \(autoSettings.idleMinutes) dk önce bitti → \(mode.rawValue)")
-            requestMode(mode, source: "otomatik (oturum bitti)")
+            requestMode(mode, source: L("otomatik (oturum bitti)"))
         }
     }
 }
@@ -73,13 +73,13 @@ extension AppDelegate {
         }
         lastScheduleCheck = now
         guard let next = ScheduleEngine.nextFire(after: now, rules: rules) else {
-            panelModel.scheduleNext = rules.isEmpty ? "" : "Etkin kural yok"
+            panelModel.scheduleNext = rules.isEmpty ? "" : (rules.contains { $0.enabled } ? L("Etkin kural yok") : L("Tüm kurallar kapalı"))
             return
         }
         let f = DateFormatter()
-        f.locale = Locale(identifier: "tr_TR")
+        f.locale = L10n.locale
         f.dateFormat = "EEE HH:mm"
-        panelModel.scheduleNext = "Sonraki: \(f.string(from: next.date)) → \(next.rule.mode == .desktop ? "Masaüstü" : (next.rule.mode == .sleep ? "Uyku" : "Remote"))"
+        panelModel.scheduleNext = L("Sonraki: %@ → %@", f.string(from: next.date), next.rule.mode == .desktop ? L("Masaüstü") : (next.rule.mode == .sleep ? L("Uyku") : "Remote"))
         let t = Timer(fire: next.date, interval: 0, repeats: false) { [weak self] _ in
             self?.rescheduleModes(catchUp: true)
         }
@@ -94,7 +94,7 @@ extension AppDelegate {
             return
         }
         Log.info("Zamanlama \(rule.timeText) (\(rule.daysText)) → \(rule.mode.rawValue)")
-        requestMode(rule.mode, source: "zamanlama \(rule.timeText)")
+        requestMode(rule.mode, source: L("zamanlama %@", rule.timeText))
     }
 
     /// pmset repeat wakeorpoweron: yalnızca bu ayar açıkken yazılır; kapatılınca (yalnızca bizim
@@ -124,24 +124,24 @@ extension AppDelegate {
         let list = ProfileStore.upsert(p, into: ProfileStore.load())
         ProfileStore.save(list)
         panelModel.profiles = list
-        panelModel.profileNote = "“\(name)” kaydedildi"
+        panelModel.profileNote = L("“%@” kaydedildi", name)
         Log.info("Profil kaydedildi: \(name) (\(p.summary))")
     }
 
     /// Profili uygular (panel, URL, CLI). Remote/Uyku'da monitör durumları yalnızca kaydedilir.
     func applyProfile(_ p: WorkspaceProfile, source: String) {
         Log.info("Profil uygulanıyor: \(p.name) (kaynak: \(source), mod: \(currentMode.rawValue))")
-        panelModel.profileNote = "“\(p.name)” uygulanıyor…"
+        panelModel.profileNote = L("“%@” uygulanıyor…", p.name)
         beginOwnChangeForFeature()
         controller.applyProfile(p, mode: currentMode) { [weak self] notes in
             guard let self = self else { return }
             self.endOwnChangeForFeature()
-            self.panelModel.profileNote = notes.isEmpty ? "“\(p.name)” uygulandı" : notes.joined(separator: "; ")
+            self.panelModel.profileNote = notes.isEmpty ? L("“%@” uygulandı", p.name) : notes.joined(separator: "; ")
             self.refreshMonitors()
         }
         if let f = p.fanMode, f != fans.preferredMode {
             panelModel.fanMode = f
-            fans.apply(f, reason: "profil \(p.name)") { [weak self] err in
+            fans.apply(f, reason: L("profil %@", p.name)) { [weak self] err in
                 if let e = err { self?.panelModel.fanNote = "Profildeki fan ayarı uygulanamadı."; Log.warn("Profil fan: \(e)") }
             }
         }
@@ -184,14 +184,14 @@ extension AppDelegate {
     func notifyLowDisk(free: Int64?, total: Int64?) {
         guard notifySettings.lowDisk, let f = free, let t = total, t > 0 else { return }
         let pct = Int((Double(f) / Double(t) * 100).rounded())
-        notifier.notify(kind: "lowDisk", title: "Disk alanı azaldı",
-                        body: "Diskte sadece \(StatsFormat.bytes(Double(f))) (%\(pct)) boş yer kaldı. Tools › Disk'ten temizleyebilirsin.")
+        notifier.notify(kind: "lowDisk", title: L("Disk alanı azaldı"),
+                        body: L("Diskte sadece %@ (%%@) boş yer kaldı. Tools › Disk'ten temizleyebilirsin.", StatsFormat.bytes(Double(f)), pct))
     }
 
     func notifyOverheat(_ temp: Double, extra: String?) {
         guard notifySettings.overheat else { return }
-        notifier.notify(kind: "overheat", title: "Mac mini çok ısındı: \(Int(temp)) °C",
-                        body: "Mac çok ısındı. Havalandırmasının açık olduğundan emin ol." + (extra.map { " " + $0 } ?? ""))
+        notifier.notify(kind: "overheat", title: L("Mac mini çok ısındı: %@ °C", Int(temp)),
+                        body: L("Mac çok ısındı. Havalandırmasının açık olduğundan emin ol.") + (extra.map { " " + $0 } ?? ""))
     }
 
     /// `kill`/`pkill` (SIGTERM) gelince de temiz kapan: fanlar otomatiğe, temiz çıkış bayrağı yazılır.

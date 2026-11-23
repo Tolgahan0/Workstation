@@ -9,7 +9,7 @@ struct WakeConnectCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Uzaktan uyandır ve bağlan", systemImage: "wifi.router")
+            Label(L("Uzaktan uyandır ve bağlan"), systemImage: "wifi.router")
                 .font(.system(size: 12, weight: .semibold))
             WakeConnectBody(info: model.netInfo)
         }
@@ -23,11 +23,11 @@ private struct WakeConnectBody: View {
     var body: some View {
         if let n = info {
             VStack(alignment: .leading, spacing: 6) {
-                CopyLine(label: "Bağlantı", value: n.friendlyInterface.isEmpty ? "—" : n.friendlyInterface, copy: "")
-                CopyLine(label: "MAC", value: n.mac.isEmpty ? "bulunamadı" : n.mac, copy: n.mac)
+                CopyLine(label: L("Bağlantı"), value: n.friendlyInterface.isEmpty ? "—" : n.friendlyInterface, copy: "")
+                CopyLine(label: "MAC", value: n.mac.isEmpty ? L("bulunamadı") : n.mac, copy: n.mac)
                 CopyLine(label: "IP", value: n.ip.isEmpty ? "—" : n.ip, copy: n.ip)
-                CopyLine(label: "Komut", value: n.connectCommand, copy: n.connectCommand)
-                Text("Bu komutu bağlanacağın Mac'te Terminal'e yapıştır. Bu Mac uyuyorsa uyanır, Remote'a geçer ve ekranı açılır.")
+                CopyLine(label: L("Komut"), value: n.connectCommand, copy: n.connectCommand)
+                Text(L("Bu komutu bağlanacağın Mac'te Terminal'e yapıştır. Bu Mac uyuyorsa uyanır, Remote'a geçer ve ekranı açılır."))
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -35,7 +35,7 @@ private struct WakeConnectBody: View {
         } else {
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small).scaleEffect(0.6)
-                Text("Ağ bilgisi okunuyor…")
+                Text(L("Ağ bilgisi okunuyor…"))
                     .font(.system(size: 10)).foregroundColor(.secondary)
             }
         }
@@ -64,7 +64,7 @@ private struct CopyLine: View {
             .buttonStyle(.plain)
             .foregroundColor(.accentColor)
             .disabled(copy.isEmpty)
-            .help("Kopyala")
+            .help(L("Kopyala"))
         }
     }
 }

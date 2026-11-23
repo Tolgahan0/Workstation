@@ -47,7 +47,7 @@ final class BetterDisplayInstaller: NSObject, URLSessionDownloadDelegate {
         Log.info("BetterDisplay kurulu değil; otomatik kurulum başlıyor.")
 
         for brew in ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"] where FileManager.default.isExecutableFile(atPath: brew) {
-            report(.working("Homebrew ile kuruluyor…"))
+            report(.working(L("Homebrew ile kuruluyor…")))
             let r = Shell.run(brew, ["install", "--cask", "betterdisplay"], timeout: 900)
             if Self.isInstalled {
                 Log.info("BetterDisplay Homebrew ile kuruldu.")
@@ -60,7 +60,7 @@ final class BetterDisplayInstaller: NSObject, URLSessionDownloadDelegate {
     }
 
     private func finish() -> String? {
-        report(.working("BetterDisplay başlatılıyor…"))
+        report(.working(L("BetterDisplay başlatılıyor…")))
         Shell.run("/usr/bin/open", ["-g", "-a", Self.appPath], timeout: 15)
         report(.done)
         return nil
@@ -73,8 +73,8 @@ final class BetterDisplayInstaller: NSObject, URLSessionDownloadDelegate {
     }
 
     private func installFromGitHub() -> String? {
-        report(.working("Son sürüm aranıyor (GitHub)…"))
-        guard let dmgURL = latestDMGURL() else { return fail("GitHub'da DMG bulunamadı") }
+        report(.working(L("Son sürüm aranıyor (GitHub)…")))
+        guard let dmgURL = latestDMGURL() else { return fail(L("GitHub'da DMG bulunamadı")) }
 
         report(.downloading(0, dmgURL.lastPathComponent))
         downloadDone = DispatchSemaphore(value: 0)
@@ -85,13 +85,13 @@ final class BetterDisplayInstaller: NSObject, URLSessionDownloadDelegate {
         session.downloadTask(with: dmgURL).resume()
         if downloadDone.wait(timeout: .now() + 900) == .timedOut {
             session.invalidateAndCancel()
-            return fail("İndirme zaman aşımı")
+            return fail(L("İndirme zaman aşımı"))
         }
         session.finishTasksAndInvalidate()
-        guard let dmg = downloadedFile else { return fail(downloadError ?? "İndirme başarısız") }
+        guard let dmg = downloadedFile else { return fail(downloadError ?? L("İndirme başarısız")) }
         defer { try? FileManager.default.removeItem(at: dmg) }
 
-        report(.working("DMG bağlanıyor…"))
+        report(.working(L("DMG bağlanıyor…")))
         let mount = FileManager.default.temporaryDirectory.appendingPathComponent("bd-mount-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: mount, withIntermediateDirectories: true)
         let attach = Shell.run("/usr/bin/hdiutil", ["attach", "-nobrowse", "-readonly", "-noautoopen",
@@ -104,13 +104,13 @@ final class BetterDisplayInstaller: NSObject, URLSessionDownloadDelegate {
 
         let apps = (try? FileManager.default.contentsOfDirectory(atPath: mount.path))?.filter { $0.hasSuffix(".app") } ?? []
         guard let appName = apps.first(where: { $0.lowercased().contains("betterdisplay") }) ?? apps.first else {
-            return fail("DMG içinde uygulama bulunamadı")
+            return fail(L("DMG içinde uygulama bulunamadı"))
         }
 
-        report(.working("/Applications'a kopyalanıyor…"))
+        report(.working(L("/Applications'a kopyalanıyor…")))
         let copy = Shell.run("/usr/bin/ditto", [mount.appendingPathComponent(appName).path, Self.appPath], timeout: 300)
         guard copy.succeeded, Self.isInstalled else {
-            return fail("Kopyalama başarısız (yönetici izni?): \(copy.stderr.prefix(200))")
+            return fail(L("Kopyalama başarısız (yönetici izni?): %@", copy.stderr.prefix(200)))
         }
         Shell.run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", Self.appPath], timeout: 30)
         Log.info("BetterDisplay GitHub sürümünden kuruldu (\(dmgURL.lastPathComponent)).")
@@ -152,7 +152,7 @@ final class BetterDisplayInstaller: NSObject, URLSessionDownloadDelegate {
             try FileManager.default.moveItem(at: location, to: dest)
             downloadedFile = dest
         } catch {
-            downloadError = "İndirilen dosya taşınamadı: \(error.localizedDescription)"
+            downloadError = L("İndirilen dosya taşınamadı: %@", error.localizedDescription)
         }
     }
 

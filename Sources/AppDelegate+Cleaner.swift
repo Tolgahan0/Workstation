@@ -44,7 +44,7 @@ extension AppDelegate {
         c.scanning = true
         c.confirming = false
         c.note = nil
-        c.stage = "Hazırlanıyor…"
+        c.stage = L("Hazırlanıyor…")
         c.fraction = 0
         Log.info("Temizleyici taraması başladı (\(trigger.rawValue), \(cats.count) kategori)")
         cleanerQueue.async { [weak self] in
@@ -52,19 +52,19 @@ extension AppDelegate {
             guard lock.acquire() else {
                 DispatchQueue.main.async {
                     c.scanning = false
-                    c.note = "Başka bir temizlik zaten çalışıyor."
+                    c.note = L("Başka bir temizlik zaten çalışıyor.")
                 }
                 return
             }
             defer { lock.release() }
-            DispatchQueue.main.async { c.stage = "Açık dosyalar ve çalışan programlar kontrol ediliyor…" }
+            DispatchQueue.main.async { c.stage = L("Açık dosyalar ve çalışan programlar kontrol ediliyor…") }
             let scanner = CleanerScanner(settings: settings, cancel: token)
             scanner.progress = { stage, f in DispatchQueue.main.async { c.stage = stage; c.fraction = f } }
             let report = scanner.scan(cats)
             Log.info("Temizleyici taraması bitti: \(CleanerRules.formatBytes(report.selectedBytes)) temizlenebilir, \(Int(report.duration)) sn\(report.cancelled ? " (durduruldu)" : "")")
             var record: CleanRunRecord?
             if autoClean && !token.isCancelled && !report.selectedItems.isEmpty {
-                DispatchQueue.main.async { c.scanning = false; c.cleaning = true; c.stage = "Temizleniyor…" }
+                DispatchQueue.main.async { c.scanning = false; c.cleaning = true; c.stage = L("Temizleniyor…") }
                 let exec = CleanerExecutor(settings: settings, cancel: token)
                 exec.progress = { stage, f in DispatchQueue.main.async { c.stage = stage; c.fraction = f } }
                 record = exec.run(report.selectedItems, trigger: trigger)
@@ -79,12 +79,12 @@ extension AppDelegate {
                     c.note = self.summary(r)
                     self.notifyCleaned(r)
                 } else if report.cancelled {
-                    c.note = "Tarama durduruldu."
+                    c.note = L("Tarama durduruldu.")
                 } else if trigger == .url {
-                    self.notifier.notify(kind: "cleanerScan", title: "Disk taraması bitti",
+                    self.notifier.notify(kind: "cleanerScan", title: L("Disk taraması bitti"),
                                          body: report.selectedBytes > 0
-                                            ? "\(CleanerRules.formatBytes(report.selectedBytes)) güvenle temizlenebilir. Tools › Disk'ten bakabilirsin."
-                                            : "Temizlenecek bir şey bulunamadı.")
+                                            ? L("%@ güvenle temizlenebilir. Tools › Disk'ten bakabilirsin.", CleanerRules.formatBytes(report.selectedBytes))
+                                            : L("Temizlenecek bir şey bulunamadı."))
                 }
                 self.refreshCleanerDisk()
             }
@@ -100,11 +100,11 @@ extension AppDelegate {
         cleanerCancel = token
         c.cleaning = true
         c.fraction = 0
-        c.stage = "Temizleniyor…"
+        c.stage = L("Temizleniyor…")
         cleanerQueue.async { [weak self] in
             let lock = CleanerLock()
             guard lock.acquire() else {
-                DispatchQueue.main.async { c.cleaning = false; c.note = "Başka bir temizlik zaten çalışıyor." }
+                DispatchQueue.main.async { c.cleaning = false; c.note = L("Başka bir temizlik zaten çalışıyor.") }
                 return
             }
             defer { lock.release() }
@@ -124,17 +124,17 @@ extension AppDelegate {
 
     func summary(_ r: CleanRunRecord) -> String {
         var parts: [String] = []
-        if r.reclaimed > 0 { parts.append("\(CleanerRules.formatBytes(r.reclaimed)) yer açıldı") }
-        if r.trashed > 0 { parts.append("\(CleanerRules.formatBytes(r.trashed)) Çöp Sepeti'ne taşındı") }
-        let skipped = r.entries.filter { $0.result.hasPrefix("atlandı") }.count
-        if skipped > 0 { parts.append("\(skipped) öğe o an kullanıldığı için atlandı") }
-        if r.errors > 0 { parts.append("\(r.errors) öğe silinemedi (ayrıntı günlükte)") }
-        return parts.isEmpty ? "Temizlenecek bir şey kalmamış." : parts.joined(separator: " · ")
+        if r.reclaimed > 0 { parts.append(L("%@ yer açıldı", CleanerRules.formatBytes(r.reclaimed))) }
+        if r.trashed > 0 { parts.append(L("%@ Çöp Sepeti'ne taşındı", CleanerRules.formatBytes(r.trashed))) }
+        let skipped = r.entries.filter { $0.result.hasPrefix(L("atlandı")) }.count
+        if skipped > 0 { parts.append(L("%@ öğe o an kullanıldığı için atlandı", skipped)) }
+        if r.errors > 0 { parts.append(L("%@ öğe silinemedi (ayrıntı günlükte)", r.errors)) }
+        return parts.isEmpty ? L("Temizlenecek bir şey kalmamış.") : parts.joined(separator: " · ")
     }
 
     func notifyCleaned(_ r: CleanRunRecord) {
         let total = r.reclaimed + r.trashed
         guard total > 0 || r.errors > 0 else { return }
-        notifier.notify(kind: "cleaner", title: "Disk temizlendi: \(CleanerRules.formatBytes(total))", body: summary(r))
+        notifier.notify(kind: "cleaner", title: L("Disk temizlendi: %@", CleanerRules.formatBytes(total)), body: summary(r))
     }
 }

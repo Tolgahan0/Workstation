@@ -7,8 +7,8 @@ enum WorkMode: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .desktop: return "Masaüstü"
-        case .sleep: return "Uyku"
+        case .desktop: return L("Masaüstü")
+        case .sleep: return L("Uyku")
         case .remote: return "Remote"
         }
     }
@@ -236,7 +236,7 @@ enum DisplayMatching {
         if up.contains("DP") || down.contains("DP") {
             return "USB-C / Thunderbolt (DP)" + suffix
         }
-        return (dispext != nil ? "Harici" : "Bilinmeyen port") + suffix
+        return (dispext != nil ? L("Harici") : L("Bilinmeyen port")) + suffix
     }
 }
 
@@ -282,7 +282,7 @@ struct RemotePreset: Identifiable, Equatable {
     var resolution: String { "\(width)x\(height)" }
 
     /// Varsayılan "looks like" (HiDPI) çözünürlükleri (Apple Silicon modelleri).
-    static let auto = RemotePreset(id: "auto", title: "Otomatik", width: 0, height: 0)
+    static let auto = RemotePreset(id: "auto", title: L("Otomatik"), width: 0, height: 0)
     static let all: [RemotePreset] = [
         auto,
         RemotePreset(id: "mba13", title: "MacBook Air 13\"", width: 1470, height: 956),
@@ -381,7 +381,7 @@ enum PhysicalMethod: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .auto: return "Otomatik"
+        case .auto: return L("Otomatik")
         case .betterDisplay: return "BetterDisplay"
         case .system: return "macOS"
         }
@@ -416,9 +416,9 @@ enum PmsetSummary {
             values[parts[0]] = parts[1]
         }
         var out: [String] = []
-        if let v = values["sleep"] { out.append(v == "0" ? "Mac uyumaz" : "Mac \(v) dk sonra uyur") }
-        if let v = values["displaysleep"] { out.append(v == "0" ? "ekran kararmaz" : "ekran \(v) dk sonra kararır") }
-        if let lp = values["lowpowermode"] { out.append(lp == "1" ? "enerji tasarrufu açık" : "enerji tasarrufu kapalı") }
+        if let v = values["sleep"] { out.append(v == "0" ? L("Mac uyumaz") : L("Mac %@ dk sonra uyur", v)) }
+        if let v = values["displaysleep"] { out.append(v == "0" ? L("ekran kararmaz") : L("ekran %@ dk sonra kararır", v)) }
+        if let lp = values["lowpowermode"] { out.append(lp == "1" ? L("enerji tasarrufu açık") : L("enerji tasarrufu kapalı")) }
         return out.isEmpty ? "—" : out.joined(separator: " · ")
     }
 }

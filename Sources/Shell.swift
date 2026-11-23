@@ -23,7 +23,7 @@ enum Shell {
     static func run(_ launchPath: String, _ arguments: [String], timeout: TimeInterval = 15,
                     environment: [String: String]? = nil, currentDirectory: String? = nil) -> CommandResult {
         guard FileManager.default.isExecutableFile(atPath: launchPath) else {
-            return CommandResult(status: 127, stdout: "", stderr: "Çalıştırılabilir dosya bulunamadı: \(launchPath)", timedOut: false)
+            return CommandResult(status: 127, stdout: "", stderr: L("Çalıştırılabilir dosya bulunamadı: %@", launchPath), timedOut: false)
         }
 
         let process = Process()
@@ -63,7 +63,7 @@ enum Shell {
             try? outPipe.fileHandleForWriting.close()
             try? errPipe.fileHandleForWriting.close()
             readGroup.wait()
-            return CommandResult(status: 126, stdout: "", stderr: "Başlatılamadı: \(error.localizedDescription)", timedOut: false)
+            return CommandResult(status: 126, stdout: "", stderr: L("Başlatılamadı: %@", error.localizedDescription), timedOut: false)
         }
 
         var timedOut = false

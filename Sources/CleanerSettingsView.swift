@@ -16,27 +16,75 @@ struct CleanerSettingsCard: View {
     var body: some View {
         let s: CleanerSettings = cleaner.settings
         return VStack(alignment: .leading, spacing: 8) {
-            CardTitleRow(icon: "sparkles", title: "Otomatik disk temizliği",
-                         subtitle: "Sadece en güvenli kalemler; kullanılan hiçbir şeye dokunulmaz")
-            ToggleRow(title: "Otomatik temizlik", isOn: binding(\.autoEnabled))
+            CardTitleRow(icon: "sparkles", title: L("Otomatik disk temizliği"),
+                         subtitle: L("Sadece en güvenli kalemler; kullanılan hiçbir şeye dokunulmaz"))
+            ToggleRow(title: L("Otomatik temizlik"), isOn: binding(\.autoEnabled))
             if s.autoEnabled {
-                ToggleRow(title: "Her gün belirli saatte", isOn: binding(\.autoDaily))
+                ToggleRow(title: L("Her gün belirli saatte"), isOn: binding(\.autoDaily))
                 if s.autoDaily { AutoTimeRow(cleaner: cleaner) }
-                ToggleRow(title: "Disk dolmaya başlayınca", isOn: binding(\.autoLowSpace))
+                ToggleRow(title: L("Disk dolmaya başlayınca"), isOn: binding(\.autoLowSpace))
                 if s.autoLowSpace {
-                    StepperRow(label: "Boş alan \(s.autoLowSpaceGB) GB'ın altına inince", value: binding(\.autoLowSpaceGB), range: 0...500, step: 5)
-                    StepperRow(label: "ya da %\(s.autoLowSpacePercent)'in altına inince", value: binding(\.autoLowSpacePercent), range: 0...50, step: 1)
+                    StepperRow(label: L("Boş alan %@ GB'ın altına inince", s.autoLowSpaceGB), value: binding(\.autoLowSpaceGB), range: 0...500, step: 5)
+                    StepperRow(label: L("ya da %%@'in altına inince", s.autoLowSpacePercent), value: binding(\.autoLowSpacePercent), range: 0...50, step: 1)
                 }
-                Text("Mac meşgulken ya da pil azken beklenir.").font(.system(size: 10)).foregroundColor(.secondary)
+                NoteText(text: L("Mac meşgulken ya da pil azken beklenir."))
                 AutoCategoryList(cleaner: cleaner)
             }
             Divider().opacity(0.2)
-            PathListEditor(cleaner: cleaner, title: "Asla dokunma", hint: "Bu klasörler ve içindekiler hiç silinmez",
+            PathListEditor(cleaner: cleaner, title: L("Asla dokunma"), hint: L("Bu klasörler ve içindekiler hiç silinmez"),
                            list: \.neverTouch, newValue: \.newNeverTouch)
-            PathListEditor(cleaner: cleaner, title: "Ek proje klasörleri", hint: "Ev klasörü zaten taranır; başka disk ya da klasör ekleyebilirsin",
+            PathListEditor(cleaner: cleaner, title: L("Ek proje klasörleri"), hint: L("Ev klasörü zaten taranır; başka disk ya da klasör ekleyebilirsin"),
                            list: \.extraRoots, newValue: \.newRoot)
         }
         .cardStyle()
+    }
+}
+
+// MARK: - Tools › Otomatik temizlik kartı (hızlı ayar)
+
+struct AutoCleanQuickCard: View {
+    @ObservedObject var cleaner: CleanerModel
+    let openSettings: () -> Void
+
+    private func binding<T>(_ path: WritableKeyPath<CleanerSettings, T>) -> Binding<T> {
+        let c = cleaner
+        return Binding<T>(get: { c.settings[keyPath: path] }, set: { v in c.update { $0[keyPath: path] = v } })
+    }
+
+    private var summary: String {
+        let s = cleaner.settings
+        guard s.autoEnabled else { return L("Kapalı · açınca sadece en güvenli kalemler temizlenir") }
+        var parts: [String] = []
+        if s.autoDaily { parts.append(L("her gün %@", String(format: "%02d:%02d", s.autoHour, s.autoMinute))) }
+        if s.autoLowSpace { parts.append(L("boş alan %@ GB altına inince", s.autoLowSpaceGB)) }
+        if parts.isEmpty { return L("Açık · bir tetikleyici seç") }
+        return L("Açık · %@", parts.joined(separator: " · "))
+    }
+
+    var body: some View {
+        let s: CleanerSettings = cleaner.settings
+        return VStack(alignment: .leading, spacing: 8) {
+            CardTitleRow(icon: s.autoEnabled ? "sparkles" : "sparkles.rectangle.stack", title: L("Otomatik temizlik"), subtitle: summary)
+            ToggleRow(title: L("Otomatik temizliği aç"), isOn: binding(\.autoEnabled))
+            if s.autoEnabled {
+                ToggleRow(title: L("Her gün belirli saatte"), isOn: binding(\.autoDaily))
+                if s.autoDaily { AutoTimeRow(cleaner: cleaner) }
+                ToggleRow(title: L("Disk dolmaya başlayınca"), isOn: binding(\.autoLowSpace))
+                if s.autoLowSpace {
+                    StepperRow(label: L("Boş alan %@ GB'ın altına inince", s.autoLowSpaceGB), value: binding(\.autoLowSpaceGB), range: 0...500, step: 5)
+                }
+                NoteText(text: L("Mac meşgulken ya da pil azken beklenir."))
+            }
+            Button(action: openSettings) {
+                Label(L("Neler temizlensin, nelere dokunulmasın? Ayarlar"), systemImage: "gearshape")
+                    .font(.system(size: 10, weight: .medium))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.accentColor)
+        }
+        .cardStyle()
+        .transaction { $0.animation = nil }
     }
 }
 
@@ -53,7 +101,7 @@ private struct AutoTimeRow: View {
     }
     var body: some View {
         HStack {
-            Text("Saat").font(.system(size: 11))
+            Text(L("Saat")).font(.system(size: 11))
             Spacer()
             DatePicker("", selection: date, displayedComponents: .hourAndMinute).labelsHidden().controlSize(.small)
         }
@@ -67,9 +115,9 @@ private struct StepperRow: View {
     let step: Int
     var body: some View {
         HStack {
-            Text(label).font(.system(size: 11))
-            Spacer()
-            Stepper("", value: value, in: range, step: step).labelsHidden().controlSize(.small)
+            Text(label).font(.system(size: 11)).fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Stepper("", value: value, in: range, step: step).labelsHidden().controlSize(.small).fixedSize()
         }
     }
 }
@@ -82,7 +130,7 @@ private struct AutoCategoryList: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Otomatik temizlenecekler").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)
+            Text(L("Otomatik temizlenecekler")).font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)
             ForEach(CleanCategory.allCases.filter { $0.autoEligible }) { (c: CleanCategory) in
                 ToggleRow(title: c.title, isOn: binding(c))
             }
@@ -127,7 +175,7 @@ private struct PathListEditor: View {
         let items: [String] = cleaner.settings[keyPath: list]
         return VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.system(size: 11, weight: .medium))
-            Text(hint).font(.system(size: 10)).foregroundColor(.secondary)
+            NoteText(text: hint)
             ForEach(items, id: \.self) { (p: String) in
                 HStack {
                     Text(p).font(.system(size: 10)).lineLimit(1).truncationMode(.middle)
@@ -139,7 +187,7 @@ private struct PathListEditor: View {
                 }
             }
             HStack(spacing: 6) {
-                TextField("~/klasör", text: text, onCommit: add).textFieldStyle(.roundedBorder).font(.system(size: 10))
+                TextField(L("~/klasör"), text: text, onCommit: add).textFieldStyle(.roundedBorder).font(.system(size: 10))
                 Button(action: choose) { Image(systemName: "folder") }.buttonStyle(.plain)
                 Button(action: add) { Image(systemName: "plus.circle.fill") }.buttonStyle(.plain).foregroundColor(.accentColor)
             }

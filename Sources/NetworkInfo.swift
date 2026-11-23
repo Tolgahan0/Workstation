@@ -49,7 +49,7 @@ struct NetworkInfo: Equatable {
     var friendlyInterface: String {
         let p = port.lowercased()
         if p.contains("wi-fi") || p.contains("airport") { return "Wi-Fi" }
-        if p.contains("ethernet") || p.contains("lan") { return "Kablolu (Ethernet)" }
+        if p.contains("ethernet") || p.contains("lan") { return L("Kablolu (Ethernet)") }
         return port.isEmpty ? interface : port
     }
 
