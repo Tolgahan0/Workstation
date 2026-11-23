@@ -223,6 +223,9 @@ workstation/
 ├── install.sh                     # Kaynaktan tek adımlık kurulum (herhangi bir kullanıcı/Mac için)
 ├── scripts/                       # install-helper.sh, postinstall.sh, Kurulum.command, make-dmg.sh
 ├── .github/workflows/release.yml  # v* etiketinde DMG + zip + latest.json yayınlar
+├── .github/workflows/pages.yml    # site/ → GitHub Pages (tolgahan0.github.io/workstation)
+├── site/                          # tanıtım sitesi: saf HTML/CSS/JS, TR/EN otomatik dil
+├── Tools/DMGBackground/           # DMG penceresi arka planını çizer (scripts/dmg/)
 ├── Tests/                         # Linux/macOS'ta çalışan çekirdek testleri (Tests/run-tests.sh)
 ├── workstation                    # Sunucu tarafı yardımcı komut (/usr/local/bin/workstation)
 ├── workstation-connect            # Bağlanan Mac'te: Wake-on-LAN → ekran boyutunu algıla → ssh ile Remote → Ekran Paylaşımı

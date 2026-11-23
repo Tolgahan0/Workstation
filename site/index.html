@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workstation — Your Mac Studio, without a monitor</title>
+<meta name="description" content="Workstation turns a Mac mini or Mac Studio into a headless workstation you control from your MacBook. Monitors stay dark, the screen matches your laptop, sleep sips power.">
+<meta name="theme-color" content="#000000">
+<meta property="og:title" content="Workstation">
+<meta property="og:description" content="Run your Mac Studio or Mac mini headless and drive it from another Mac.">
+<meta property="og:image" content="assets/icon.png">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/icon-256.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main" data-i18n="skip">Skip to content</a>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="brand" href="#top" aria-label="Workstation">
+      <img src="assets/icon-256.png" alt="" width="26" height="26"><span>Workstation</span>
+    </a>
+    <nav class="links" aria-label="Sections">
+      <a href="#modes" data-i18n="nav.modes">Modes</a>
+      <a href="#how" data-i18n="nav.how">How it works</a>
+      <a href="#tools" data-i18n="nav.tools">Tools</a>
+      <a href="#download" data-i18n="nav.download">Download</a>
+    </nav>
+    <div class="nav-right">
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang="tr" aria-pressed="false">TR</button>
+      </div>
+      <a class="btn btn-sm" href="https://github.com/Tolgahan0/workstation/releases/latest" data-i18n="nav.get">Download</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+<!-- HERO -->
+<section class="hero" id="top">
+  <div class="aurora" aria-hidden="true"></div>
+  <div class="hero-copy">
+    <img class="hero-icon reveal" src="assets/icon.png" alt="Workstation app icon" width="132" height="132">
+    <p class="eyebrow reveal" data-i18n="hero.eyebrow">For Mac mini &amp; Mac Studio</p>
+    <h1 class="reveal" data-i18n="hero.title">Your Mac Studio.<br><span class="grad">No monitor required.</span></h1>
+    <p class="lead reveal" data-i18n="hero.lead">Workstation turns the Mac under your desk into a headless workstation you drive from your MacBook. Monitors stay dark, the screen is sized to your laptop, and sleep sips power — one click, or one command.</p>
+    <div class="cta reveal">
+      <a class="btn" href="https://github.com/Tolgahan0/workstation/releases/latest" data-i18n="hero.cta">Download for macOS</a>
+      <a class="btn btn-ghost" href="#how" data-i18n="hero.cta2">See how it works</a>
+    </div>
+    <p class="fine reveal" data-i18n="hero.fine">Free · Native Swift · macOS 13 or later</p>
+  </div>
+
+  <!-- Menu bar + popover mock -->
+  <div class="desk reveal" aria-hidden="true">
+    <div class="menubar">
+      <span class="apple"></span><b>Finder</b><span>File</span><span>Edit</span><span>View</span>
+      <span class="spacer"></span>
+      <span class="mb-icon"><svg viewBox="0 0 24 24"><rect x="2.5" y="8" width="19" height="9" rx="2.2" fill="currentColor"/><circle cx="7" cy="14" r=".9" fill="#000"/><circle cx="9.3" cy="14" r=".9" fill="#000"/></svg><i class="dot"></i></span>
+      <span class="clock">9:41</span>
+    </div>
+    <div class="win">
+      <div class="wbar"><i></i><i></i><i></i><span>~/projects/app — studio.local</span></div>
+      <div class="wcode"><i style="--w:42%"></i><i style="--w:68%;--c:#30d158;--x:16px"></i><i style="--w:55%;--c:#ff9f0a;--x:16px"></i><i style="--w:74%;--c:#64d2ff;--x:32px"></i><i style="--w:38%;--c:#64d2ff;--x:32px"></i><i style="--w:50%;--x:16px"></i><i style="--w:28%"></i><i style="--w:62%;--c:#30d158"></i><i style="--w:46%;--c:#ff9f0a;--x:16px"></i></div>
+      <div class="wfoot">1512 × 982 · HiDPI</div>
+    </div>
+    <div class="popover">
+      <div class="pop-head">
+        <img src="assets/icon-256.png" alt="" width="34" height="34">
+        <div><b>Workstation</b><small class="pop-mode" data-i18n="mock.mode.remote">Remote</small></div>
+      </div>
+      <div class="tabs" role="presentation">
+        <span class="pill"></span>
+        <span data-tab="0" data-i18n="mock.desktop">Desktop</span>
+        <span data-tab="1" data-i18n="mock.sleep">Sleep</span>
+        <span data-tab="2" data-i18n="mock.remote">Remote</span>
+        <span data-tab="3">Tools</span>
+      </div>
+      <div class="cards">
+        <div class="card" data-card="0">
+          <b data-i18n="mock.c0.t">Monitors</b>
+          <div class="mon"><span>Odyssey G50F</span><i class="sw on"></i></div>
+          <div class="bar"><i style="width:80%"></i></div>
+          <div class="mon"><span>HP P27h G5</span><i class="sw on"></i></div>
+          <div class="bar"><i style="width:65%"></i></div>
+        </div>
+        <div class="card" data-card="1">
+          <b data-i18n="mock.c1.t">Sleep</b>
+          <p data-i18n="mock.c1.p">Monitors off, low power mode, wakes back to Desktop.</p>
+          <span class="go blue" data-i18n="mock.start">Start</span>
+        </div>
+        <div class="card" data-card="2">
+          <b data-i18n="mock.c2.t">Remote work</b>
+          <p data-i18n="mock.c2.p">Monitors off · virtual screen 1512×982 HiDPI</p>
+          <span class="go green" data-i18n="mock.start">Start</span>
+        </div>
+        <div class="card" data-card="3">
+          <b data-i18n="mock.c3.t">Fans</b>
+          <div class="fanrow"><svg class="fan" viewBox="0 0 40 40"><g fill="currentColor"><path d="M20 20c0-8 3-14 8-14s4 8-8 14z"/><path d="M20 20c8 0 14 3 14 8s-8 4-14-8z"/><path d="M20 20c0 8-3 14-8 14s-4-8 8-14z"/><path d="M20 20c-8 0-14-3-14-8s8-4 14 8z"/></g><circle cx="20" cy="20" r="3" fill="#1c1d20"/></svg>
+            <div class="seg"><span>Auto</span><span>Half</span><span class="sel">Full</span></div></div>
+          <p class="rpm">4 900 rpm</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATEMENT -->
+<section class="statement">
+  <p class="big reveal" data-i18n="st.p1">Other display tools assume there’s a monitor on your desk.</p>
+  <p class="big dim reveal" data-i18n="st.p2">Workstation assumes there isn’t.</p>
+  <p class="body reveal" data-i18n="st.p3">Keep the Mac Studio in another room, or on a shelf with the monitors dark. Connect from your MacBook over Screen Sharing or SSH and get a desktop that fits your laptop pixel-for-pixel — while the real monitors stay off and never wake up from remote input.</p>
+</section>
+
+<!-- MODES (sticky stage) -->
+<section class="modes" id="modes">
+  <h2 class="reveal" data-i18n="modes.title">Three modes. One click.</h2>
+  <div class="modes-grid">
+    <div class="stage-wrap">
+      <div class="stage" data-mode="0" aria-hidden="true">
+        <div class="screens">
+          <div class="screen s1"><i></i></div>
+          <div class="screen s2"><i></i></div>
+          <div class="screen virtual"><span>1512 × 982</span></div>
+        </div>
+        <div class="mini"><span></span></div>
+        <div class="meter"><span class="lbl" data-i18n="stage.power">Power</span><span class="track"><i></i></span></div>
+        <div class="zz">z<sup>z</sup></div>
+      </div>
+    </div>
+    <div class="steps">
+      <article class="step" data-step="0">
+        <span class="tag t-desk" data-i18n="m0.tag">Desktop</span>
+        <h3 data-i18n="m0.h">Sit down. Everything’s back.</h3>
+        <p data-i18n="m0.p">Physical monitors come on, each with its own brightness and on/off state remembered — even after sleep. Turn any single monitor off and the others stay put.</p>
+      </article>
+      <article class="step" data-step="1">
+        <span class="tag t-sleep" data-i18n="m1.tag">Sleep</span>
+        <h3 data-i18n="m1.h">Lights out. Minimum power.</h3>
+        <p data-i18n="m1.p">Monitors are cut, low-power mode kicks in and no virtual screen is ever opened. Wake it up and you’re back on Desktop.</p>
+      </article>
+      <article class="step" data-step="2">
+        <span class="tag t-remote" data-i18n="m2.tag">Remote</span>
+        <h3 data-i18n="m2.h">A screen made for your MacBook.</h3>
+        <p data-i18n="m2.p">The physical monitors switch off and a HiDPI virtual screen appears, sized to the Mac that connects — 1512×982 for a 14″ MacBook Pro. The Mac never sleeps, and the monitors only come back when you choose Desktop.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <h2 class="reveal" data-i18n="how.title">From your laptop to your studio.</h2>
+  <p class="sub reveal" data-i18n="how.sub">Wake it, switch it, connect — from anywhere on your network.</p>
+  <div class="diagram reveal" aria-hidden="true">
+    <div class="dev macbook">
+      <div class="lid"><div class="code"><i></i><i></i><i></i><i></i><i></i></div></div><div class="base"></div>
+      <b>MacBook Pro</b>
+    </div>
+    <div class="link">
+      <svg viewBox="0 0 300 40" preserveAspectRatio="none"><path d="M0 20 H300" class="wire"/><path d="M0 20 H300" class="pulse"/></svg>
+      <span class="chip" data-i18n="how.chip">Screen Sharing · SSH · Wake-on-LAN</span>
+    </div>
+    <div class="dev studio">
+      <div class="box"><span></span><span></span></div>
+      <div class="monitors"><i></i><i></i></div>
+      <b>Mac Studio · Mac mini</b>
+    </div>
+  </div>
+  <div class="terminal reveal">
+    <div class="tbar"><i></i><i></i><i></i><span>zsh</span></div>
+    <pre><code><span class="pr">~ %</span> <span class="typed" data-text="ssh studio workstation remote"></span><span class="caret"></span>
+<span class="out" data-i18n="how.out1">✔ Virtual screen 1512×982 HiDPI · monitors off · never sleeps</span>
+<span class="pr">~ %</span> workstation-connect
+<span class="out" data-i18n="how.out2">✔ Woke studio.local · Remote · opening Screen Sharing…</span></code></pre>
+  </div>
+  <ol class="how-steps">
+    <li class="reveal"><b>1</b><span data-i18n="how.s1">Install Workstation on the Mac Studio or Mac mini.</span></li>
+    <li class="reveal"><b>2</b><span data-i18n="how.s2">From the MacBook, run <code>workstation-connect</code> — or open <code>workstation://remote</code>.</span></li>
+    <li class="reveal"><b>3</b><span data-i18n="how.s3">Work. When you’re back at the desk, pick Desktop.</span></li>
+  </ol>
+</section>
+
+<!-- TOOLS -->
+<section class="tools" id="tools">
+  <h2 class="reveal" data-i18n="tools.title">The quiet little extras.</h2>
+  <div class="tiles">
+    <article class="tile reveal">
+      <div class="art fan-art"><svg class="fan big" viewBox="0 0 40 40"><g fill="currentColor"><path d="M20 20c0-8 3-14 8-14s4 8-8 14z"/><path d="M20 20c8 0 14 3 14 8s-8 4-14-8z"/><path d="M20 20c0 8-3 14-8 14s-4-8 8-14z"/><path d="M20 20c-8 0-14-3-14-8s8-4 14 8z"/></g><circle cx="20" cy="20" r="3" fill="#111"/></svg></div>
+      <h3 data-i18n="t1.h">Fan control</h3>
+      <p data-i18n="t1.p">Auto, Half or Full Blast. Safe by design: falls back to automatic on sleep, quit or any error.</p>
+    </article>
+    <article class="tile reveal">
+      <div class="art clean-art"><div class="disk"><i class="used"></i><i class="junk"></i></div><span class="freed">+42 GB</span></div>
+      <h3 data-i18n="t2.h">Developer disk cleaner</h3>
+      <p data-i18n="t2.p">Old builds, caches and AI-agent leftovers. Never touches files in use or active projects — re-checked right before every delete, sent to the Trash.</p>
+    </article>
+    <article class="tile reveal">
+      <div class="art auto-art"><span class="clock-face"><i></i></span></div>
+      <h3 data-i18n="t3.h">Automation</h3>
+      <p data-i18n="t3.p">Switch to Remote when someone connects, schedule Sleep at night, profiles, keep-awake and Shortcuts via <code>workstation://</code> links.</p>
+    </article>
+    <article class="tile reveal">
+      <div class="art stats-art"><i style="--h:40%"></i><i style="--h:70%"></i><i style="--h:55%"></i><i style="--h:85%"></i><i style="--h:35%"></i><i style="--h:60%"></i></div>
+      <h3 data-i18n="t4.h">Light as air</h3>
+      <p data-i18n="t4.p">Native Swift and AppKit, no third-party libraries. Nothing runs in a loop while idle — and it updates itself from GitHub Releases.</p>
+    </article>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section class="download" id="download">
+  <img class="dl-icon reveal" src="assets/icon.png" alt="" width="112" height="112">
+  <h2 class="reveal" data-i18n="dl.title">Put your studio to work.</h2>
+  <p class="sub reveal" data-i18n="dl.sub">Open the DMG, drag Workstation to Applications, done.</p>
+  <a class="btn btn-lg reveal" href="https://github.com/Tolgahan0/workstation/releases/latest" data-i18n="dl.cta">Download the latest release</a>
+  <ul class="req reveal">
+    <li><b data-i18n="req.os.k">macOS</b><span data-i18n="req.os.v">13 Ventura or later</span></li>
+    <li><b data-i18n="req.mac.k">Mac</b><span data-i18n="req.mac.v">Apple Silicon Mac mini or Mac Studio (universal build)</span></li>
+    <li><b data-i18n="req.bd.k">Remote</b><span data-i18n="req.bd.v">BetterDisplay — installed automatically</span></li>
+    <li><b data-i18n="req.cl.k">Client</b><span data-i18n="req.cl.v">Any Mac with Screen Sharing</span></li>
+  </ul>
+</section>
+</main>
+
+<footer class="foot">
+  <p><span data-i18n="foot.by">Made by</span> <a href="https://github.com/Tolgahan0">Tolgahan Ayaz</a> · MIT · <a href="https://github.com/Tolgahan0/workstation">GitHub</a></p>
+</footer>
+
+<script src="app.js" defer></script>
+</body>
+</html>

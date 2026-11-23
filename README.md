@@ -12,6 +12,8 @@
 
 # Workstation
 
+🌐 **Web sitesi:** [tolgahan0.github.io/workstation](https://tolgahan0.github.io/workstation/) (Türkçe / English)
+
 **Mac mini'ni tek tıkla işe, uykuya ya da uzaktan çalışmaya hazırlayan menü çubuğu uygulaması.**
 Monitörleri kapatıp açar, MacBook'tan bağlanınca doğru boyutta bir ekran hazırlar, fanları yönetir, geliştirici araçlarının şişirdiği diski güvenle temizler ve kendini günceller.
 
@@ -242,4 +244,4 @@ Tests/run-tests.sh                 # çekirdek testleri (macOS ya da Linux)
 
 ### English summary
 
-**Workstation** is a macOS menu bar app for a Mac mini that switches between **Desktop**, **Sleep** and **Remote** modes in one click. Remote turns off the physical monitors and creates a HiDPI virtual display sized to the connecting MacBook. It also includes fan control, a **safe developer disk cleaner** and an **auto-updater** that works through GitHub Releases. The cleaner re-checks open files, running processes, git-tracked files and project activity right before each delete, and moves items to the Trash by default. The updater verifies SHA-256, bundle id and code signature before it swaps the app. Install from the DMG on the [Releases](https://github.com/Tolgahan0/workstation/releases) page (right-click › Open), or run `./install.sh` from source (Command Line Tools only). Publish a release by pushing a `v*` tag. MIT licensed.
+**Workstation** is a macOS menu bar app for a Mac mini that switches between **Desktop**, **Sleep** and **Remote** modes in one click. Remote turns off the physical monitors and creates a HiDPI virtual display sized to the connecting MacBook. It also includes fan control, a **safe developer disk cleaner** and an **auto-updater** that works through GitHub Releases. The cleaner re-checks open files, running processes, git-tracked files and project activity right before each delete, and moves items to the Trash by default. The updater verifies SHA-256, bundle id and code signature before it swaps the app. Website: https://tolgahan0.github.io/workstation/. Install from the DMG on the [Releases](https://github.com/Tolgahan0/workstation/releases) page: drag Workstation to Applications, right-click › Open, then run `Kurulum.command` once for fan control, password-less mode switching and the CLI, or run `./install.sh` from source (Command Line Tools only). Publish a release by pushing a `v*` tag. MIT licensed.
