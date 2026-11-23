@@ -47,6 +47,7 @@ func printUsage() {
           Workstation --mode sleep                 Sleep / Night
           Workstation --mode desktop               Desktop
           Workstation --status                     Prints the current mode
+          Workstation --rescue                     Turns every monitor back on if none is showing a picture
           Workstation --clean [--dry-run]          Disk cleaner: only scans and lists
           Workstation --clean --yes                Cleans the selected categories (each item is re-checked before deletion)
           Workstation --clean --auto               Cleans the safe set used by auto mode
@@ -64,6 +65,7 @@ func printUsage() {
       Workstation --mode sleep                 Uyku / Gece
       Workstation --mode desktop               Masaüstü
       Workstation --status                     Geçerli modu yazdırır
+      Workstation --rescue                     Hiç monitör görüntü vermiyorsa hepsini geri açar
       Workstation --clean [--dry-run]          Disk temizleyici: yalnızca tarar ve listeler
       Workstation --clean --yes                Seçili kategorileri temizler (her öğe silmeden önce yeniden denetlenir)
       Workstation --clean --auto               Otomatik moddaki güvenli kümeyi temizler
@@ -115,6 +117,17 @@ let arguments = CommandLine.arguments
 if arguments.contains("--clean") {
     setvbuf(stdout, nil, _IOLBF, 0)
     exit(CleanerCLI.run(arguments))
+}
+// Acil kurtarma: hiçbir monitör görüntü vermiyorsa (SSH'tan da) hepsini geri açar. Örn. `workstation rescue`.
+if arguments.contains("--rescue") {
+    setvbuf(stdout, nil, _IOLBF, 0)
+    _ = NSApplication.shared
+    let dm = DisplayManager()
+    dm.configureBackend()
+    _ = dm.monitorSnapshot() // bilinen monitörlerin displayID'lerini topla
+    let ok = dm.emergencyRestore(reason: L("komut satırı"))
+    print(ok ? L("Monitörler açık.") : L("Monitörler açılamadı. Kabloyu çıkarıp takın ya da Mac'i yeniden başlatın; ayrıntı: workstation log"))
+    exit(ok ? 0 : 1)
 }
 if arguments.contains("--help") || arguments.contains("-h") {
     printUsage()

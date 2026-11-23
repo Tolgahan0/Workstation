@@ -2,7 +2,7 @@
 # Workstation yardımcı komutu (Mac mini / sunucu tarafı).
 # Kullanım (yerelde veya SSH ile):
 #   workstation remote [WxH | mba13 | mba15 | mbp14 | mbp14n | mbp16 | mbp16n | imac24]
-#   workstation sleep | desktop | status | log
+#   workstation sleep | desktop | status | log | rescue
 #   workstation profile <ad> | fan auto|half|max | keepawake on|off|1h|90m
 #   workstation clean [--dry-run | --yes | --auto] [--verbose]   (geliştirici disk temizleyici)
 #   workstation netinfo        (Wake-on-LAN için MAC / IP / yayın adresi; workstation-connect --setup kullanır)
@@ -26,9 +26,10 @@ usage() {
   t "          workstation profile <ad> | fan auto|half|max | keepawake on|off|1h|3h|90m" "          workstation profile <name> | fan auto|half|max | keepawake on|off|1h|3h|90m"
   t "  remote  → sanal ekran (verilen çözünürlük, yoksa uygulamadaki ön ayar) açık, fiziksel monitörler kapalı" "  remote  → virtual screen on (given resolution, or the preset in the app), physical monitors off"
   t "            ön ayarlar: mba13 1470x956 · mba15 1710x1107 · mbp14 1512x982 · mbp14n 1512x945 · mbp16 1728x1117 · mbp16n 1728x1080 · imac24 2240x1260" "            presets: mba13 1470x956 · mba15 1710x1107 · mbp14 1512x982 · mbp14n 1512x945 · mbp16 1728x1117 · mbp16n 1728x1080 · imac24 2240x1260"
-  t "  sleep   → fiziksel monitörler kapalı, düşük güç, sistem uykusuna izin" "  sleep   → physical monitors off, low power, system sleep allowed"
+  t "  sleep   → monitörler ekran uykusunda (bağlantı kesilmez), düşük güç, sistem uykusuna izin" "  sleep   → monitors in display sleep (not disconnected), low power, system sleep allowed"
   t "  desktop → fiziksel monitörler açık, sanal ekran kapalı, normal güç" "  desktop → physical monitors on, virtual screen off, normal power"
   t "  status  → geçerli mod" "  status  → current mode"
+  t "  rescue  → hiç monitör görüntü vermiyorsa hepsini geri açar (uzaktan kurtarma)" "  rescue  → turns every monitor back on if none shows a picture (remote recovery)"
   t "  log     → son 40 günlük satırı" "  log     → last 40 log lines"
   t "  netinfo → Wake-on-LAN için MAC/IP/yayın adresi (KEY=değer)" "  netinfo → MAC/IP/broadcast address for Wake-on-LAN (KEY=value)"
   t "  profile → kayıtlı çalışma alanı profilini uygula (monitörler + parlaklık + fan)" "  profile → apply a saved workspace profile (monitors + brightness + fans)"
@@ -53,6 +54,9 @@ open_url() {
 }
 
 case "${1:-}" in
+  rescue)
+    exec "$APP/Contents/MacOS/Workstation" --rescue
+    ;;
   clean)
     shift
     if [[ "${1:-}" == "scan-app" ]]; then open_url "workstation://clean/scan"; exit 0; fi

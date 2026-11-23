@@ -30,7 +30,7 @@ Monitörleri kapatıp açar, MacBook'tan bağlanınca doğru boyutta bir ekran h
 
 | | | |
 |---|---|---|
-| 🖥️ **Masaüstü** <br> Monitörler açılır, her biri son parlaklığıyla gelir. | 🌙 **Uyku** <br> Monitörler kapanır, Mac az enerjiyle dinlenir. | 🛰️ **Remote** <br> Monitörler kapanır, MacBook'un boyutunda sanal ekran açılır. |
+| 🖥️ **Masaüstü** <br> Monitörler açılır, her biri son parlaklığıyla gelir. | 🌙 **Uyku** <br> Monitörler ekran uykusuna girer (bağlantıları kesilmez, uyanınca son durumlarıyla gelir), Mac az enerjiyle dinlenir. | 🛰️ **Remote** <br> Monitörler kapanır, MacBook'un boyutunda sanal ekran açılır. |
 | 🌀 **Fan kontrolü** <br> Otomatik · Yarım · Tam hız; ısınınca kendiliğinden güvenli moda geçer. | 🧹 **Disk temizleyici** <br> Eski derlemeler, önbellekler, yapay zekâ araçlarının artıkları. Kullanılan hiçbir şeye dokunmaz. | ⬆️ **Otomatik güncelleme** <br> Yeni sürüm çıkınca haber verir, istersen kendisi kurar. |
 | 📡 **Uyandır ve bağlan** <br> MacBook'tan tek komutla uyandır, Remote'a al, Ekran Paylaşımı'nı aç. | ⏰ **Zamanlama ve otomasyon** <br> Belli saatlerde mod değiştir; biri bağlanınca Remote'a geç. | 🔗 **Kestirmeler ve terminal** <br> `workstation://` adresleri ve `workstation` komutu. |
 
@@ -231,7 +231,7 @@ Tests/run-tests.sh                 # çekirdek testleri (macOS ya da Linux)
 - **Yeni sürüm yayınlamak:** `Info.plist` sürümünü artır, commit'le, sonra
 
   ```bash
-  git tag v1.9.1 && git push origin v1.9.1
+  git tag v1.9.2 && git push origin v1.9.2
   ```
 
   GitHub Actions ([`release.yml`](.github/workflows/release.yml)) testleri çalıştırır, evrensel derler ve sürüme `Workstation-<sürüm>.dmg`, `.zip`, `SHA256SUMS.txt` ve `latest.json` ekler. Sürüm adında `-` varsa (ör. `v1.9.0-beta.1`) beta olarak yayınlanır.

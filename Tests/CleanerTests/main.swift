@@ -342,6 +342,17 @@ do {
     check(RemotePreset.fallback.resolution == "1512x982", "varsayılan 14 inç tam boy")
 }
 
+// MARK: Yer tutucu ekran (macOS'un "Generic Display"i) fiziksel monitör sayılmaz
+do {
+    let generic = PhysicalDisplayRecord(id: 34, vendor: 1970170734, model: 1986622068, serial: 0, name: "")
+    let hp = PhysicalDisplayRecord(id: 1, vendor: 8718, model: 14387, serial: 16843009, name: "HP P27h G5")
+    let odyssey = PhysicalDisplayRecord(id: 2, vendor: 19501, model: 1, serial: 0, name: "Odyssey G50F")
+    let gone = PhysicalDisplayRecord(id: 9, vendor: UInt32.max, model: UInt32.max, serial: 0, name: "")
+    check(generic.isPlaceholder, "Generic Display yer tutucu sayılır")
+    check(gone.isPlaceholder, "var olmayan displayID (0xFFFFFFFF) yer tutucu sayılır")
+    check(!hp.isPlaceholder && !odyssey.isPlaceholder, "gerçek monitörler yer tutucu değil")
+}
+
 // MARK: Dil
 do {
     check(L10n.isTurkish, "test ortamı Türkçe")

@@ -51,7 +51,8 @@ final class ModeController {
                 error = self.display.applyDesktopLayout()
                 self.power.applyDesktopProfile()
             case .sleep:
-                // Sanal ekran asla açılmaz; fiziksel ekranlar kesilir; minimum güç; ekranlar hemen uyur.
+                // Sanal ekran kapanır; monitörler KESİLMEZ (istenen durumlarında kalır) ve ekran uykusuna
+                // alınır — fare/klavye/uyanma ile macOS onları her zaman geri getirir. Minimum güç.
                 error = self.display.applySleepLayout()
                 self.power.applySleepProfile()
                 self.power.displaySleepNow()

@@ -14,6 +14,17 @@ struct PhysicalDisplayRecord: Codable, Equatable {
     func sameHardware(_ other: PhysicalDisplayRecord) -> Bool {
         vendor == other.vendor && model == other.model && serial == other.serial
     }
+
+    /// macOS'un hiç ekran kalmayınca oluşturduğu yer tutucu ("Generic Display", vendor 'unkn' / model 'virt')
+    /// ya da artık var olmayan bir displayID (CoreGraphics 0xFFFFFFFF döndürür). Bunlar fiziksel monitör DEĞİLDİR:
+    /// kapatılırsa Mac'te hiç görüntü kalmaz.
+    var isPlaceholder: Bool { Self.isPlaceholder(vendor: vendor, model: model) }
+
+    static let placeholderVendor: UInt32 = 0x756E_6B6E // "unkn"
+    static let placeholderModel: UInt32 = 0x7669_7274  // "virt"
+    static func isPlaceholder(vendor: UInt32, model: UInt32) -> Bool {
+        vendor == placeholderVendor || model == placeholderModel || vendor == UInt32.max
+    }
 }
 
 #if os(macOS)
@@ -111,10 +122,11 @@ final class PhysicalDisplayController {
         let lowered = excludedNames.map { $0.lowercased() }.filter { !$0.isEmpty }
         let virtualHardware = loadVirtualHardware()
         return onlineDisplayIDs().compactMap { id -> PhysicalDisplayRecord? in
-            if CGDisplayIsBuiltin(id) != 0 { return nil }
+            if CGDisplayIsBuiltin(id) > 0 { return nil }
             if excludedIDs.contains(id) { return nil }
             if activeOnly && !Self.isLit(id) { return nil }
             let r = record(for: id, names: names)
+            if r.isPlaceholder { return nil }
             let n = r.name.lowercased()
             if lowered.contains(where: { n.contains($0) }) { return nil }
             if virtualHardware.contains(where: { $0.sameHardware(r) }) { return nil }
@@ -151,10 +163,11 @@ final class PhysicalDisplayController {
 
     // MARK: Hatırlanan (devre dışı bırakılmış) ekranlar
 
+    /// Yer tutucu kayıtlar (eski sürümlerin yanlışlıkla hatırladığı "Generic Display") okunurken atılır.
     func loadRemembered() -> [PhysicalDisplayRecord] {
         guard let data = defaults.data(forKey: rememberedKey),
               let list = try? JSONDecoder().decode([PhysicalDisplayRecord].self, from: data) else { return [] }
-        return list
+        return list.filter { !$0.isPlaceholder }
     }
 
     private func saveRemembered(_ list: [PhysicalDisplayRecord]) {
@@ -176,7 +189,7 @@ final class PhysicalDisplayController {
         var ok = true
         for id in ids {
             // Aynalanan bir monitör önce aynadan çıkarılır (yoksa macOS yapılandırmayı reddedebilir).
-            if !enabled && CGDisplayIsInMirrorSet(id) != 0 {
+            if !enabled && CGDisplayIsInMirrorSet(id) > 0 {
                 _ = CGConfigureDisplayMirrorOfDisplay(cfg, id, kCGNullDirectDisplay)
             }
             let err = fn(cfg, id, enabled)
@@ -222,6 +235,7 @@ final class PhysicalDisplayController {
     /// Verilen fiziksel ekranları devre dışı bırakır ve yeniden açılabilmeleri için hatırlar.
     @discardableResult
     func disable(_ displays: [PhysicalDisplayRecord]) -> Bool {
+        let displays = displays.filter { !$0.isPlaceholder }
         guard !displays.isEmpty else { return true }
         var remembered = loadRemembered()
         for d in displays {
@@ -259,8 +273,29 @@ final class PhysicalDisplayController {
 
     /// Ekran gerçekten görüntü veriyor mu? Bir ayna kümesinin (ör. sanal ekranın aynası) üyesi olan
     /// monitörler için CGDisplayIsActive 0 döner ama monitör AÇIKTIR; bu yüzden ayna üyeliği de sayılır.
+    ///
+    /// DİKKAT: boolean_t döndüren CGDisplayIs* fonksiyonları artık var olmayan (bağlantısı kesilmiş, uykudan
+    /// sonra geçersizleşmiş) bir displayID için -1 döndürür. `!= 0` denetimi bunu "açık" sayıyordu; Uyku'dan
+    /// sonra kapalı monitörler açık sanılıp hiç geri açılmıyordu. Yalnızca `> 0` doğrudur.
     static func isLit(_ id: CGDirectDisplayID) -> Bool {
-        CGDisplayIsOnline(id) != 0 && (CGDisplayIsActive(id) != 0 || CGDisplayIsInMirrorSet(id) != 0)
+        CGDisplayIsOnline(id) > 0 && (CGDisplayIsActive(id) > 0 || CGDisplayIsInMirrorSet(id) > 0)
+    }
+
+    /// Bu oturumda en az bir fiziksel (yer tutucu olmayan, dahili olmayan) monitör görüntü veriyor mu?
+    func anyPhysicalLit(excludedIDs: Set<UInt32>, excludedNames: [String]) -> Bool {
+        !physicalDisplays(excludedIDs: excludedIDs, excludedNames: excludedNames, activeOnly: true).isEmpty
+    }
+
+    /// Acil kurtarma: hatırlanan tüm monitörleri ve verilen ek displayID'leri sistem API'siyle
+    /// (BetterDisplay olmadan) etkinleştirmeyi dener. Devre dışı bırakılan ekranlar displayID'lerini korur.
+    @discardableResult
+    func forceEnable(extraIDs: [CGDirectDisplayID]) -> Bool {
+        let ids = Array(Set(loadRemembered().map { $0.id } + extraIDs)).sorted().filter { !Self.isLit($0) }
+        guard !ids.isEmpty, Self.isAvailable else { return false }
+        var any = false
+        for id in ids where configure([id], enabled: true) { any = true }
+        Log.info("Acil kurtarma (sistem API'si): \(ids.map(String.init).joined(separator: ", ")) → \(any ? "denendi" : "başarısız")")
+        return any
     }
 
     /// Hatırlanan ve şu an etkin olmayan tüm fiziksel ekranları yeniden etkinleştirir.
@@ -270,7 +305,7 @@ final class PhysicalDisplayController {
         let onlineRecords = online.map { record(for: $0, names: [:]) }
         var targets = Set<CGDirectDisplayID>()
 
-        for r in loadRemembered() {
+        for r in loadRemembered() where !r.isPlaceholder {
             if online.contains(r.id) {
                 targets.insert(r.id)
             } else if let match = onlineRecords.first(where: { $0.sameHardware(r) }) {
@@ -327,6 +362,8 @@ final class PhysicalDisplayController {
     @discardableResult func enable(_ displays: [PhysicalDisplayRecord]) -> Bool { false }
     func isActive(_ id: UInt32) -> Bool { false }
     func activeDisplayIDs() -> [UInt32] { [] }
+    func anyPhysicalLit(excludedIDs: Set<UInt32>, excludedNames: [String]) -> Bool { false }
+    @discardableResult func forceEnable(extraIDs: [UInt32]) -> Bool { false }
 }
 
 #endif

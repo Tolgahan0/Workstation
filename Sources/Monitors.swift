@@ -262,6 +262,12 @@ final class MonitorManager {
         return resolved
     }
 
+    /// Son keşifte görülen tüm monitörlerin displayID'leri (kapalı olanlar dahil; acil kurtarma için).
+    func knownDisplayIDs() -> [UInt32] {
+        stateLock.lock(); defer { stateLock.unlock() }
+        return lastResolved.values.map { $0.record.id }
+    }
+
     private func cached(_ key: String) -> (ResolvedMonitor, AVOutput?)? {
         stateLock.lock(); defer { stateLock.unlock() }
         guard let r = lastResolved[key] else { return nil }
@@ -389,7 +395,7 @@ final class MonitorManager {
             var e = Set<String>(), d = Set<String>()
             for r in list {
                 let desiredOn = store.state(for: r.key)?.enabled ?? true
-                let target = mode == .desktop ? desiredOn : false
+                let target = mode == .remote ? false : desiredOn
                 let active = physical.isActive(r.record.id)
                 if target && !active { e.insert(r.key) }
                 if !target && active { d.insert(r.key) }
@@ -406,11 +412,13 @@ final class MonitorManager {
 
     /// İstenen durumu uygular:
     ///  - Masaüstü: her monitör kendi istenen durumuna (açık/kapalı) döner
-    ///  - Remote/Uyku: tüm fiziksel monitörler kapalı
+    ///  - Remote: tüm fiziksel monitörler kesilir (yalnızca sanal ekran etkinse)
+    ///  - Uyku: hiçbir şeye dokunulmaz — monitörler macOS ekran uykusuyla kapanır, bağlantıları kesilmez
     /// Koruma: Masaüstü'nde son açık ekran kapatılmaz; Remote'da sanal ekran etkin değilse kapatılmaz.
     @discardableResult
     func reconcile(mode: WorkMode, virtualActive: Bool, applyBrightness: Bool,
                    excludedIDs: Set<UInt32>, excludedNames: [String]) -> [String] {
+        if mode == .sleep { return [] }
         var notes: [String] = []
         let list = discover(excludedIDs: excludedIDs, excludedNames: excludedNames)
         // Yalnızca istenen durumda OLMAYAN monitörlere dokunulur; geçici flaş anları için iki örnek alınır.
@@ -627,6 +635,7 @@ final class MonitorManager {
     func setBrightness(key: String, percent: Double) -> BrightnessMethod { .unknown }
     func setForceSoftware(key: String, _ force: Bool) {}
     func method(for key: String) -> BrightnessMethod { .unknown }
+    func knownDisplayIDs() -> [UInt32] { [] }
 }
 
 #endif

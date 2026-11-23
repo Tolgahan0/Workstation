@@ -465,9 +465,10 @@ final class DisplayManager {
             Log.info("BetterDisplay: set -tagID=\(tag) -connected=\(on ? "on" : "off")  (\(r.name))")
             let res = cli(["set", "-tagID=\(tag)", "-connected=\(on ? "on" : "off")"], timeout: 10)
             if !res.succeeded { failed.append(r); continue }
-            // macOS'un yeniden yapılandırmasını bekle (en fazla 4 sn).
+            // macOS'un yeniden yapılandırmasını bekle. Açmak (HDMI/DP bağlantı el sıkışması) kapatmaktan çok
+            // daha uzun sürebilir; 4 sn yetmeyince sistem API'si araya girip 1001 hatası alıyordu.
             var reached = false
-            for _ in 0..<20 {
+            for _ in 0..<(on ? 50 : 20) {
                 Thread.sleep(forTimeInterval: 0.2)
                 if physical.isActive(r.id) == on { reached = true; break }
             }
@@ -667,12 +668,14 @@ final class DisplayManager {
 
     /// Desktop: her monitörü KENDİ istenen durumuna döndür (kullanıcının kapattığı kapalı kalır),
     /// ardından (BetterDisplay çalışıyorsa) sanal ekranı kapat. Sıra, sistemin ekransız kalmaması içindir.
+    /// Hiçbir fiziksel monitör görüntü vermiyorsa acil kurtarma çalışır: Mac ASLA ekransız bırakılmaz.
     func applyDesktopLayout() -> String? {
         configureBackend()
         let ok: Bool
         if usesNativePhysicalControl {
             monitors.reconcile(mode: .desktop, virtualActive: false, applyBrightness: true,
                                excludedIDs: betterDisplayNonPhysicalIDs(), excludedNames: excludedNames)
+            if activeNativePhysicalDisplays().isEmpty { emergencyRestore(reason: "Masaüstü: hiç monitör açılmadı") }
             ok = !activeNativePhysicalDisplays().isEmpty
         } else {
             ok = setPhysicalConnected(true)
@@ -689,14 +692,65 @@ final class DisplayManager {
         Thread.sleep(forTimeInterval: 1)
         monitors.reconcile(mode: .desktop, virtualActive: false, applyBrightness: false,
                            excludedIDs: betterDisplayNonPhysicalIDs(), excludedNames: excludedNames)
+        if activeNativePhysicalDisplays().isEmpty { emergencyRestore(reason: "Masaüstü: sanal ekran kapandıktan sonra monitör yok") }
         return !activeNativePhysicalDisplays().isEmpty ? nil : L("Bazı fiziksel ekranlar açılamadı (günlüğe bakın)")
     }
 
-    /// Sleep: sanal ekran ASLA açılmaz/oluşturulmaz; açıksa kapatılır. Fiziksel ekranlar kesilir.
-    /// BetterDisplay yalnızca sanal ekranı kapatmak için kullanılır; çalışmıyorsa başlatılmaz
-    /// (sanal ekranlar ancak BetterDisplay çalışırken var olabilir).
+    /// Sleep: monitörlerin bağlantısı KESİLMEZ. Masaüstü düzeni (her monitör kendi istenen durumunda, sanal
+    /// ekran kapalı) kurulur; ardından ModeController `pmset displaysleepnow` ile ekranları uyutur.
+    ///
+    /// Neden: Uyku'da bağlantıyı kesmek (BetterDisplay `connected=off` / CGSConfigureDisplayEnabled) hiçbir ek
+    /// tasarruf sağlamaz — uyuyan monitör zaten DPMS bekleme modundadır (<0,5 W) — ama uyanmayı kırılgan yapar:
+    /// kesilen monitör fare/klavyeyle kendiliğinden geri gelmez, displayID'ler geçersizleşir ve macOS yerine
+    /// bir "Generic Display" koyar. Ekran uykusu ise macOS'un kendi uyanma yoludur; her zaman geri gelir.
+    /// Remote'tan Uyku'ya geçişte de kesilmiş monitörler önce geri açılır (uyanınca ekran hazır olsun).
     func applySleepLayout() -> String? {
-        if isBetterDisplayRunning() { setVirtualConnected(false) }
-        return setPhysicalConnected(false) ? nil : L("Fiziksel ekranlar kesilemedi (günlüğe bakın)")
+        applyDesktopLayout()
+    }
+
+    // MARK: - Acil kurtarma
+
+    /// Hiç fiziksel monitör görüntü vermiyorsa: BetterDisplay ile bilinen tüm monitörleri bağla, ardından
+    /// sistem API'siyle hatırlanan / IORegistry'de görülen her displayID'yi etkinleştir.
+    /// - Returns: en az bir fiziksel monitör açık mı.
+    @discardableResult
+    func emergencyRestore(reason: String) -> Bool {
+        let excludedIDs = betterDisplayNonPhysicalIDs()
+        if physical.anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames) { return true }
+        Log.warn("Acil kurtarma başladı (\(reason)): hiçbir fiziksel monitör görüntü vermiyor")
+        // 1) BetterDisplay: kestiği monitörleri yalnızca kendisi düzgün geri bağlar.
+        if BetterDisplayInstaller.isInstalled {
+            ensureBetterDisplayRunning()
+            var tags = Set(((defaults.dictionary(forKey: bdTagKey) as? [String: String]) ?? [:]).values)
+            for d in listAll() where Self.isPhysical(d) && !Self.isGenericPlaceholder(d) {
+                if let t = d.tagID, !t.isEmpty { tags.insert(t) }
+            }
+            for tag in tags.sorted() {
+                Log.info("Acil kurtarma: BetterDisplay set -tagID=\(tag) -connected=on")
+                cli(["set", "-tagID=\(tag)", "-connected=on"], timeout: 12, logFailure: false)
+            }
+            for _ in 0..<40 where !physical.anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames) {
+                Thread.sleep(forTimeInterval: 0.25)
+            }
+        }
+        // 2) Sistem API'si: devre dışı bırakılan ekranlar displayID'lerini korur.
+        if !physical.anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames) {
+            physical.forceEnable(extraIDs: monitors.knownDisplayIDs())
+            Thread.sleep(forTimeInterval: 1.5)
+        }
+        // 3) Son çare: küçük displayID'ler (harici monitörler genellikle 1…8 alır; zaten açık olanlara dokunulmaz).
+        if !physical.anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames) {
+            physical.forceEnable(extraIDs: Array(1...8))
+            Thread.sleep(forTimeInterval: 1.5)
+        }
+        let ok = physical.anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames)
+        if ok { physical.forgetRemembered() }
+        Log.info("Acil kurtarma → \(ok ? "monitör(ler) açık" : "BAŞARISIZ (kabloyu çıkarıp takın ya da Mac'i yeniden başlatın)")")
+        return ok
+    }
+
+    /// BetterDisplay'in listelediği macOS yer tutucu ekranı ("Generic Display"): fiziksel değil.
+    static func isGenericPlaceholder(_ d: DisplayInfo) -> Bool {
+        [d.name, d.originalName ?? "", d.productName ?? ""].contains { $0.lowercased() == "generic display" }
     }
 }
