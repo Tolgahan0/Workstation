@@ -49,6 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let notifier = Notifier()
     var notifySettings = NotificationSettings.load()
     var sigtermSource: DispatchSourceSignal?
+    /// Güncellemeden sonraki "Yardımcıları güncelle" sorusu (modal olmayan pencere).
+    var helperAlert: NSAlert?
     // Geliştirici Temizleyici
     var cleanerCancel: CancelToken?
     var cleanerTimer: Timer?

@@ -165,13 +165,36 @@ extension AppDelegate {
         a.informativeText = L("Workstation %@ sürümüne güncellendi. Fan kontrolü, parolasız mod geçişi ve workstation komutu da güncellenmeli. macOS yönetici parolanı bir kez soracak.", currentAppVersion)
         a.addButton(withTitle: L("Yardımcıları güncelle"))
         a.addButton(withTitle: L("Sonra"))
+        // Modal DEĞİL: runModal ana iş parçacığını kilitler; kullanıcı uzaktayken (SSH/URL ile mod değişimi,
+        // zamanlamalar, kapanış) pencere kapanana dek her şey beklerdi. Panelde aynı düğme zaten var.
+        a.buttons[0].target = self
+        a.buttons[0].action = #selector(helperAlertUpdate(_:))
+        a.buttons[1].target = self
+        a.buttons[1].action = #selector(helperAlertLater(_:))
+        helperAlert?.window.orderOut(nil)
+        helperAlert = a
+        a.window.level = .floating
+        a.window.center()
         NSApp.activate(ignoringOtherApps: true)
-        if a.runModal() == .alertFirstButtonReturn { updateHelpers() }
+        a.window.makeKeyAndOrderFront(nil)
+    }
+
+    @objc func helperAlertUpdate(_ sender: Any?) {
+        helperAlert?.window.orderOut(nil)
+        helperAlert = nil
+        updateHelpers()
+    }
+
+    @objc func helperAlertLater(_ sender: Any?) {
+        helperAlert?.window.orderOut(nil)
+        helperAlert = nil
     }
 
     func updateHelpers() {
         let u = panelModel.updater
         guard !u.helpersBusy else { return }
+        helperAlert?.window.orderOut(nil)
+        helperAlert = nil
         u.helpersBusy = true
         u.helpersNote = nil
         let script = Updater.helperInstallAppleScript(app: Bundle.main.bundlePath, user: NSUserName())

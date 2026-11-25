@@ -197,10 +197,17 @@ extension AppDelegate {
     /// `kill`/`pkill` (SIGTERM) gelince de temiz kapan: fanlar otomatiğe, temiz çıkış bayrağı yazılır.
     func installTerminationSignalHandler() {
         signal(SIGTERM, SIG_IGN)
-        let src = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        // Ana kuyruk modal bir pencere (NSAlert) açıkken işlenmez; sinyal arka kuyrukta yakalanır ve
+        // kapanış ana run loop'un "common" modlarına (modal mod dahil) gönderilir.
+        let src = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .global(qos: .userInitiated))
         src.setEventHandler {
             Log.info("SIGTERM alındı → temiz kapanış")
-            NSApp.terminate(nil)
+            let main = CFRunLoopGetMain()
+            CFRunLoopPerformBlock(main, CFRunLoopMode.commonModes.rawValue) {
+                if NSApp.modalWindow != nil { NSApp.abortModal() }
+                NSApp.terminate(nil)
+            }
+            CFRunLoopWakeUp(main)
         }
         src.resume()
         sigtermSource = src
