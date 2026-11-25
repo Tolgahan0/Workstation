@@ -14,6 +14,7 @@
 #   VNC_HOST=studio.local    Ekran Paylaşımı adresi (varsayılan HOST)
 #   WAKE_TIMEOUT=90          SSH erişilebilir olana kadar azami bekleme (sn)
 # Ortam: WS_VNC_HOST → VNC_HOST ile aynı (geriye dönük uyumluluk)
+WS_VERSION="@VERSION@"   # build.sh VERSION dosyasından yazar (tek sürüm kaynağı)
 
 # Dil: macOS'un ilk tercih edilen dili Türkçe ise Türkçe, değilse İngilizce (WORKSTATION_LANG=tr|en zorlar).
 if [[ -n "${WORKSTATION_LANG:-}" ]]; then [[ "$WORKSTATION_LANG" == tr* ]] && WS_TR=1 || WS_TR=0
@@ -41,6 +42,7 @@ fi
 OPEN_VNC=1; DO_WAKE=1; RES=""; SETUP=0; WAKE_ONLY=0
 while (( $# > 0 )); do
   case "$1" in
+    --version|-v) print -r -- "workstation-connect $WS_VERSION"; exit 0 ;;
     --no-vnc) OPEN_VNC=0 ;;
     --no-wake) DO_WAKE=0 ;;
     --res) shift; RES="${1:-}" ;;

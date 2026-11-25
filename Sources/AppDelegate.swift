@@ -51,6 +51,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var sigtermSource: DispatchSourceSignal?
     /// Güncellemeden sonraki "Yardımcıları güncelle" sorusu (modal olmayan pencere).
     var helperAlert: NSAlert?
+    /// workstation://update: denetim bitince bulunan sürüm hemen kurulur.
+    var installAfterCheck = false
     // Geliştirici Temizleyici
     var cleanerCancel: CancelToken?
     var cleanerTimer: Timer?
@@ -793,6 +795,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             } else {
                 keepAwake.disable(reason: source)
             }
+        case .update(let install):
+            Log.info("Güncelleme isteği (\(source)): \(install ? "denetle ve kur" : "yalnızca denetle")")
+            installAfterCheck = install
+            if install, panelModel.updater.candidate != nil { installAfterCheck = false; installUpdate(automatic: false) }
+            else { checkForUpdates(manual: true) }
         case .clean(let action):
             switch action {
             case .scan: startCleanerScan(trigger: .url)

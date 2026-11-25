@@ -1,5 +1,5 @@
 # Etiket (v*) gönderilince: test → evrensel derleme → DMG + zip + latest.json → GitHub Release.
-#   git tag v1.8.0 && git push origin v1.8.0
+#   echo 1.x.y > VERSION && scripts/version.sh sync && git commit … && git tag v1.x.y && git push origin v1.x.y
 name: Release
 
 on:
@@ -29,6 +29,9 @@ jobs:
           echo "BUILD_NUM=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
           if [[ "$V" == *-* ]]; then echo "PRERELEASE=true" >> "$GITHUB_ENV"; else echo "PRERELEASE=false" >> "$GITHUB_ENV"; fi
 
+      - name: Sürüm tutarlılığı (VERSION = etiket = Info.plist = site = README)
+        run: scripts/version.sh check "$VERSION"
+
       - name: Testler (temizleyici çekirdeği)
         run: Tests/run-tests.sh
 
@@ -46,6 +49,9 @@ jobs:
             echo "**Kurulum:** DMG'yi aç, Workstation'ı Applications'a sürükle, sağ tık › Aç. Fan kontrolü, parolasız mod geçişi ve \`workstation\` komutu için DMG'de aşağı kaydır: \`Kurulum.command\` › sağ tık › Aç (bir kez)."
           } > notes.md
           cat notes.md
+
+      - name: Derlenen sürümler (uygulama, workstation, fan yardımcısı)
+        run: scripts/version.sh check-app build/Workstation.app
 
       - name: DMG + zip + latest.json
         run: scripts/make-dmg.sh "$VERSION" "$BUILD_NUM" "${{ github.repository }}" notes.md

@@ -27,9 +27,15 @@ struct SetResult: Codable {
 }
 
 let args = Array(CommandLine.arguments.dropFirst())
-let usage = "Kullanım: wm-fanhelper status | set <fanIndex|all> auto|half|max | reset"
+let usage = "Kullanım: wm-fanhelper status | set <fanIndex|all> auto|half|max | reset | version"
 
 guard let command = args.first else { fail(usage, code: 2) }
+
+// Sürüm (build.sh VERSION dosyasından üretir); root gerektirmez, SMC açılmaz.
+if command == "version" || command == "--version" {
+    print(workstationVersion)
+    exit(0)
+}
 
 #if os(macOS)
 func openSMC() -> FanSMC {

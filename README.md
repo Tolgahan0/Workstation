@@ -223,15 +223,16 @@ rm -rf ~/.config/workstation                    # MacBook'ta (workstation-connec
 
 ```bash
 ./build.sh                         # build/Workstation.app (bu Mac'in mimarisi)
-./build.sh --universal --version 1.8.0 --build 42
+./build.sh --universal --build 42  # sürüm her zaman VERSION dosyasından
 Tests/run-tests.sh                 # çekirdek testleri (macOS ya da Linux)
 ```
 
 - Kod yalnızca **Command Line Tools** ile derlenir; bu yüzden SwiftUI makroları (`@State`, `@Observable`, `#Preview`) kullanılmaz.
-- **Yeni sürüm yayınlamak:** `Info.plist` sürümünü artır, commit'le, sonra
+- **Tek sürüm kaynağı:** depo kökündeki [`VERSION`](VERSION). Uygulama (`Info.plist`), fan yardımcısı (`wm-fanhelper version`), `workstation version` / `workstation-connect --version`, sitedeki sürüm yazısı, bu README ve `latest.json` hep bu sürümü taşır. `scripts/version.sh check` farkı yakalar; CI her push'ta ve her yayında bunu denetler.
+- **Yeni sürüm yayınlamak:** `VERSION`'ı artır, `scripts/version.sh sync` çalıştır, commit'le, sonra
 
   ```bash
-  git tag v1.9.2 && git push origin v1.9.2
+  git tag v1.9.4 && git push origin v1.9.4
   ```
 
   GitHub Actions ([`release.yml`](.github/workflows/release.yml)) testleri çalıştırır, evrensel derler ve sürüme `Workstation-<sürüm>.dmg`, `.zip`, `SHA256SUMS.txt` ve `latest.json` ekler. Sürüm adında `-` varsa (ör. `v1.9.0-beta.1`) beta olarak yayınlanır.

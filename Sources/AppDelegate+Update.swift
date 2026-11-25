@@ -75,7 +75,10 @@ extension AppDelegate {
                     let notifiedKey = "updateNotifiedVersion"
                     let firstTime = UpdatePolicy.shouldNotify(version: c.version,
                                                               lastNotified: UserDefaults.standard.string(forKey: notifiedKey))
-                    if u.settings.autoInstall && self.currentMode != .remote && !self.isTransitioning {
+                    if self.installAfterCheck {
+                        self.installAfterCheck = false
+                        self.installUpdate(automatic: false)
+                    } else if u.settings.autoInstall && self.currentMode != .remote && !self.isTransitioning {
                         self.installUpdate(automatic: true)
                     } else if firstTime {
                         UserDefaults.standard.set(c.version, forKey: notifiedKey)
@@ -83,6 +86,8 @@ extension AppDelegate {
                                              body: L("Tek tıkla indirir, doğrular, kurar ve yeniden açar."))
                     }
                 case .success(nil):
+                    self.installAfterCheck = false
+                    Log.info("Güncelleme kontrolü: en son sürüm kurulu (\(self.currentAppVersion))")
                     u.candidate = nil
                     u.phase = manual ? .upToDate : .idle
                     self.setUpdateIcon(false)

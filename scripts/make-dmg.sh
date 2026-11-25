@@ -13,6 +13,9 @@ REPO="${3:-Tolgahan0/Workstation}"
 NOTES_FILE="${4:-}"
 APP="$ROOT/build/Workstation.app"
 DIST="$ROOT/dist"
+# Tek sürüm kaynağı: DMG/zip/latest.json ile derlenen uygulama aynı sürümü taşımalı.
+"$ROOT/scripts/version.sh" check "$VERSION"
+"$ROOT/scripts/version.sh" check-app "$APP"
 ASSETS="$ROOT/scripts/dmg"
 VOLNAME="Workstation"
 [[ -d "$APP" ]] || { echo "Önce ./build.sh çalıştır." >&2; exit 1; }

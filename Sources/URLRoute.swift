@@ -6,6 +6,7 @@ import Foundation
 ///   workstation://fan/auto|half|max
 ///   workstation://keepawake/on|off[?hours=2|minutes=90] · workstation://keepawake/3h
 ///   workstation://clean/scan · workstation://clean/auto
+///   workstation://update (denetle, varsa kur) · workstation://update/check (yalnızca denetle)
 enum URLRoute: Equatable {
     enum CleanAction: Equatable { case scan, auto }
 
@@ -14,6 +15,7 @@ enum URLRoute: Equatable {
     case fan(FanMode)
     case keepAwake(on: Bool, seconds: TimeInterval?)
     case clean(CleanAction)
+    case update(install: Bool)
 
     static func parse(_ str: String, scheme: String = "workstation") -> URLRoute? {
         let full = str.contains("://") ? str : "\(scheme)://\(str)"
@@ -35,6 +37,9 @@ enum URLRoute: Equatable {
             case "auto", "otomatik", "run": return .clean(.auto)
             default: return nil
             }
+        case "update", "guncelle":
+            let arg = (pathParts.first ?? "install").lowercased()
+            return .update(install: arg != "check" && arg != "denetle")
         case "fan":
             guard let raw = pathParts.first ?? q("mode"), let m = fanMode(raw) else { return nil }
             return .fan(m)

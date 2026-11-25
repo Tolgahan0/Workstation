@@ -1,0 +1,15 @@
+# Her push/PR'da: tüm sürüm metinleri VERSION dosyasıyla aynı mı?
+name: Version check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sürümler tutarlı mı
+        run: scripts/version.sh check

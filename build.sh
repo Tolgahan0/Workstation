@@ -2,7 +2,8 @@
 # Workstation — derleme ve paketleme (install.sh ve GitHub Actions bunu kullanır).
 #   ./build.sh                         → build/Workstation.app (bu Mac'in mimarisi)
 #   ./build.sh --universal             → arm64 + x86_64 (yayın için)
-#   ./build.sh --version 1.8.1 --build 42
+#   ./build.sh --build 42              → sürüm her zaman VERSION dosyasından (tek kaynak)
+#   ./build.sh --version X             → yalnızca VERSION ile aynıysa kabul edilir (CI etiket denetimi)
 # Çıktı: build/Workstation.app
 #   Contents/MacOS/Workstation                 menü çubuğu uygulaması
 #   Contents/Resources/wm-fanhelper            fan yardımcısı (kurulumda /usr/local/libexec'e kopyalanır)
@@ -34,6 +35,15 @@ warn() { printf '\033[1;33m⚠\033[0m %s\n' "$*" >&2; }
 
 [[ "$(uname -s)" == "Darwin" ]] || { echo "build.sh yalnızca macOS'ta çalışır." >&2; exit 1; }
 
+# Tek sürüm kaynağı: VERSION. Uygulama, fan yardımcısı, workstation(-connect) komutları ve latest.json bunu kullanır.
+FILE_VERSION="$(tr -d ' \n\r' < "$ROOT/VERSION")"
+if [[ -n "$VERSION" && "$VERSION" != "$FILE_VERSION" ]]; then
+  echo "Sürüm uyuşmuyor: --version $VERSION ≠ VERSION dosyası $FILE_VERSION (önce VERSION'ı güncelleyip scripts/version.sh sync)" >&2
+  exit 1
+fi
+VERSION="$FILE_VERSION"
+"$ROOT/scripts/version.sh" check >/dev/null || { "$ROOT/scripts/version.sh" check; exit 1; }
+
 if [[ $UNIVERSAL == 1 ]]; then ARCHS=(arm64 x86_64); else ARCHS=("$(uname -m)"); fi
 TMP="$(mktemp -d -t workstation-build)"
 trap 'rm -rf "$TMP"' EXIT
@@ -55,9 +65,10 @@ ok "Uygulama derlendi."
 info "Fan yardımcısı (wm-fanhelper) derleniyor…"
 FAN_OK=1
 FBINS=()
+printf 'let workstationVersion = "%s"\n' "$VERSION" > "$TMP/BuildVersion.swift"
 for a in "${ARCHS[@]}"; do
   if xcrun swiftc -O -swift-version 5 -target "$a-apple-macos13.0" -framework IOKit \
-       "$ROOT/Tools/FanHelper/main.swift" "$ROOT/Sources/SMC.swift" "$ROOT/Sources/L10n.swift" -o "$TMP/wm-fanhelper-$a" 2>"$TMP/fan-$a.log"; then
+       "$ROOT/Tools/FanHelper/main.swift" "$ROOT/Sources/SMC.swift" "$ROOT/Sources/L10n.swift" "$TMP/BuildVersion.swift" -o "$TMP/wm-fanhelper-$a" 2>"$TMP/fan-$a.log"; then
     FBINS+=("$TMP/wm-fanhelper-$a")
   else
     FAN_OK=0; warn "wm-fanhelper ($a) derlenemedi: $(tail -n 3 "$TMP/fan-$a.log")"
@@ -79,10 +90,12 @@ plutil -lint "$STAGE/Contents/Info.plist" >/dev/null
 if [[ $FAN_OK == 1 ]]; then
   cp "$TMP/wm-fanhelper" "$STAGE/Contents/Resources/wm-fanhelper"
   # Yalnızca yardımcının mantığı: L10n.swift'teki her metin değişikliği "yardımcılar güncel değil" uyarısı çıkarmasın.
-  cat "$ROOT/Tools/FanHelper/main.swift" "$ROOT/Sources/SMC.swift" | shasum -a 256 | cut -c1-16 > "$STAGE/Contents/Resources/helper-version"
+  { cat "$ROOT/Tools/FanHelper/main.swift" "$ROOT/Sources/SMC.swift"; echo "$VERSION"; } | shasum -a 256 | cut -c1-16 > "$STAGE/Contents/Resources/helper-version"
 fi
-install -m 0755 "$ROOT/workstation" "$STAGE/Contents/Resources/bin/workstation"
-install -m 0755 "$ROOT/workstation-connect" "$STAGE/Contents/Resources/bin/workstation-connect"
+for c in workstation workstation-connect; do
+  sed "s/^WS_VERSION=\"@VERSION@\".*/WS_VERSION=\"$VERSION\"/" "$ROOT/$c" > "$STAGE/Contents/Resources/bin/$c"
+  chmod 0755 "$STAGE/Contents/Resources/bin/$c"
+done
 install -m 0755 "$ROOT/scripts/postinstall.sh" "$STAGE/Contents/Resources/postinstall.sh"
 install -m 0755 "$ROOT/scripts/install-helper.sh" "$STAGE/Contents/Resources/install-helper.sh"
 

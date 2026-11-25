@@ -129,6 +129,10 @@ if arguments.contains("--rescue") {
     print(ok ? L("Monitörler açık.") : L("Monitörler açılamadı. Kabloyu çıkarıp takın ya da Mac'i yeniden başlatın; ayrıntı: workstation log"))
     exit(ok ? 0 : 1)
 }
+if arguments.contains("--version") {
+    print((Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "?")
+    exit(0)
+}
 if arguments.contains("--help") || arguments.contains("-h") {
     printUsage()
     exit(0)

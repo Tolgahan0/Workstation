@@ -8,6 +8,7 @@
 #   workstation netinfo        (Wake-on-LAN için MAC / IP / yayın adresi; workstation-connect --setup kullanır)
 # Örnek: ssh studio workstation remote 1512x982
 # İstemci Mac'te otomatik çözünürlük için: workstation-connect studio
+WS_VERSION="@VERSION@"   # build.sh VERSION dosyasından yazar (tek sürüm kaynağı)
 
 # Dil: macOS'un ilk tercih edilen dili Türkçe ise Türkçe, değilse İngilizce (WORKSTATION_LANG=tr|en zorlar).
 if [[ -n "${WORKSTATION_LANG:-}" ]]; then [[ "$WORKSTATION_LANG" == tr* ]] && WS_TR=1 || WS_TR=0
@@ -31,6 +32,8 @@ usage() {
   t "  status  → geçerli mod" "  status  → current mode"
   t "  rescue  → hiç monitör görüntü vermiyorsa hepsini geri açar (uzaktan kurtarma)" "  rescue  → turns every monitor back on if none shows a picture (remote recovery)"
   t "  log     → son 40 günlük satırı" "  log     → last 40 log lines"
+  t "  version → uygulama, komut ve fan yardımcısı sürümleri" "  version → app, command and fan helper versions"
+  t "  update  → yeni sürümü denetle ve kur (update check: yalnızca denetle)" "  update  → check for and install a new version (update check: only check)"
   t "  netinfo → Wake-on-LAN için MAC/IP/yayın adresi (KEY=değer)" "  netinfo → MAC/IP/broadcast address for Wake-on-LAN (KEY=value)"
   t "  profile → kayıtlı çalışma alanı profilini uygula (monitörler + parlaklık + fan)" "  profile → apply a saved workspace profile (monitors + brightness + fans)"
   t "  fan     → fan modu: auto (Otomatik) | half (Yarım) | max (Full Blast)" "  fan     → fan mode: auto | half | max (Full Blast)"
@@ -54,6 +57,22 @@ open_url() {
 }
 
 case "${1:-}" in
+  version|--version|-v)
+    APPV=$(/usr/bin/defaults read "$APP/Contents/Info" CFBundleShortVersionString 2>/dev/null || echo "—")
+    if [[ -x /usr/local/libexec/wm-fanhelper ]]; then
+      HELPV=$(/usr/local/libexec/wm-fanhelper version 2>/dev/null) || HELPV=$(t "eski (1.9.4 öncesi)" "old (before 1.9.4)")
+    else
+      HELPV="—"
+    fi
+    print -r -- "Workstation $WS_VERSION"
+    t "  uygulama:      $APPV" "  app:           $APPV"
+    t "  workstation:   $WS_VERSION" "  workstation:   $WS_VERSION"
+    t "  fan yardımcısı: $HELPV" "  fan helper:    $HELPV"
+    if [[ "$APPV" != "$WS_VERSION" || ( "$HELPV" != "—" && "$HELPV" != "$APPV" ) ]]; then
+      t "  ⚠ sürümler farklı: panelde 'Yardımcıları güncelle'ye tıkla." "  ⚠ versions differ: click 'Update helpers' in the panel."
+      exit 1
+    fi
+    ;;
   rescue)
     exec "$APP/Contents/MacOS/Workstation" --rescue
     ;;
@@ -118,6 +137,9 @@ case "${1:-}" in
       # Yedek yol: uygulamanın komut satırı argümanı
       "$APP/Contents/MacOS/Workstation" --mode "$MODE" "${CLI_EXTRA[@]}"
     fi
+    ;;
+  update)
+    if [[ "${2:-}" == "check" ]]; then open_url "workstation://update/check"; else open_url "workstation://update"; fi
     ;;
   status)
     /usr/bin/defaults read "$BUNDLE_ID" currentMode 2>/dev/null || echo "desktop"
