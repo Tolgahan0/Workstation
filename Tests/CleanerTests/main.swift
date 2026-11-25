@@ -353,6 +353,49 @@ do {
     check(!hp.isPlaceholder && !odyssey.isPlaceholder, "gerçek monitörler yer tutucu değil")
 }
 
+// MARK: Kaynaklar: uygulamaya göre gruplama
+do {
+    let G = ProcessGrouping.classify
+    let chrome = "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/131/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)"
+    check(G("Google Chrome Helper (Renderer)", chrome, []).title == "Google Chrome", "Chrome yardımcıları Google Chrome'a toplanır")
+    check(G("Google Chrome", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", []).key == G("x", chrome, []).key, "Chrome ana süreç ile aynı grup")
+    check(G("launchd_sim", "/Library/Developer/CoreSimulator/Volumes/iOS_22A/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 18.0.simruntime/Contents/Resources/RuntimeRoot/sbin/launchd_sim", []).kind == .simulator, "launchd_sim simülatör")
+    check(G("SpringBoard", "/Library/Developer/CoreSimulator/Volumes/iOS/RuntimeRoot/System/Library/CoreServices/SpringBoard.app/SpringBoard", []).title == ProcessGrouping.simulatorTitle, "simülatör içi süreçler iOS Simülatörü")
+    check(G("Simulator", "/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app/Contents/MacOS/Simulator", []).kind == .simulator, "Simulator.app simülatör (Xcode değil)")
+    check(G("claude", "/Users/a/.local/share/claude/versions/2.0.1", []).title == "Claude Code", "claude ikilisi")
+    check(G("claude.exe", "/claude", []).title == "Claude Code", "claude.exe (yerel kurulum)")
+    check(G("SimMetalHost", "/Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/Resources/SimRenderingServices.simdeviceio/Contents/XPCServices/SimMetalHost.xpc/Contents/MacOS/SimMetalHost", []).kind == .simulator, "SimMetalHost simülatör")
+    check(G("node", "/opt/homebrew/bin/node", ["node", "/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code/cli.js"]).title == "Claude Code", "node üzerinde claude-code")
+    check(G("node", "/Users/a/.local/bin/node", ["node", "/Users/a/.local/share/cursor-agent/versions/x/index.js"]).title == "Cursor Agent", "cursor-agent")
+    check(G("node", "/opt/homebrew/bin/node", ["node", "server.js"]).title == "Node.js", "sıradan node → Node.js")
+    check(G("node", "/opt/homebrew/bin/node", ["node", "server.js"]).kind == .agent, "node aday sayılır")
+    check(G("Cursor Helper (Plugin)", "/Applications/Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)", ["node", "cursor-agent"]).title == "Cursor", "Cursor.app yardımcıları uygulamaya (ajan değil)")
+    check(G("WindowServer", "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer", []).kind == .system, "WindowServer sistem")
+    check(G("Finder", "/System/Library/CoreServices/Finder.app/Contents/MacOS/Finder", []).kind == .system, "/System içindeki uygulama sistem")
+    check(G("mds_stores", "/System/Library/Frameworks/CoreServices.framework/mds_stores", []).kind == .system, "mds sistem")
+    check(G("zsh", "/bin/zsh", []).kind == .system, "/bin sistem")
+    check(G("com.docker.backend", "/Applications/Docker.app/Contents/MacOS/com.docker.backend", []).key == "app.Docker", "Docker arka ucu Docker'a")
+    check(G("python3", "/opt/homebrew/bin/python3", []).kind == .other, "python ajan değil")
+    check(ProcessGrouping.outermostApp("/usr/local/bin/x") == nil, "uygulama paketi yok")
+}
+
+// MARK: Kaynaklar: boşta kararı ve bildirim
+do {
+    let now = Date()
+    func h(_ pts: [(Double, Double)]) -> [(Date, Double)] { pts.map { (now.addingTimeInterval(-$0.0 * 60), $0.1) } }
+    check(IdlePolicy.isIdle(history: h([(20, 10), (10, 10.5), (0, 10.6)]), now: now, minutes: 15), "15 dk'da 0.6 sn CPU → boşta")
+    check(!IdlePolicy.isIdle(history: h([(20, 10), (0, 40)]), now: now, minutes: 15), "15 dk'da 30 sn CPU → meşgul")
+    check(!IdlePolicy.isIdle(history: h([(5, 10), (0, 10)]), now: now, minutes: 15), "yeterli geçmiş yok → boşta sayılmaz")
+    check(!IdlePolicy.isIdle(history: [], now: now, minutes: 15), "geçmiş yok")
+    check(IdlePolicy.shouldNotify(level: 2, previous: 1) && IdlePolicy.shouldNotify(level: 4, previous: 2), "baskı yükselince bildirim")
+    check(!IdlePolicy.shouldNotify(level: 2, previous: 2) && !IdlePolicy.shouldNotify(level: 2, previous: 4) && !IdlePolicy.shouldNotify(level: 1, previous: 1), "aynı/düşen seviyede bildirim yok")
+    check(NotificationPolicy.minInterval("memoryPressure") == 30 * 60, "bellek bildirimi 30 dk sınırlı")
+    let old = try! JSONDecoder().decode(NotificationSettings.self, from: #"{"overheat":false,"lowDisk":true,"unexpectedExit":true}"#.data(using: .utf8)!)
+    check(!old.overheat && old.memoryPressure, "eski bildirim ayarları korunur, yeni alan varsayılan açık")
+    let mb = MemoryBreakdown(total: 16, app: 5, wired: 2, compressed: 1, cached: 6, swapUsed: 0)
+    check(mb.used == 8, "kullanılan = uygulama + sabit + sıkıştırılmış (önbellek hariç)")
+}
+
 // MARK: Dil
 do {
     check(L10n.isTurkish, "test ortamı Türkçe")

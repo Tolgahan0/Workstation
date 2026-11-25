@@ -331,6 +331,7 @@ struct NotificationsCard: View {
                          subtitle: L("Önemli bir şey olunca Mac'te bildirim gelir"))
             ToggleRow(title: L("Mac çok ısınırsa"), isOn: binding(\.overheat))
             ToggleRow(title: L("Disk dolmak üzereyse"), isOn: binding(\.lowDisk))
+            ToggleRow(title: L("Bellek baskısı yükselirse"), isOn: binding(\.memoryPressure))
             ToggleRow(title: L("Uygulama beklenmedik şekilde kapandıysa"), isOn: binding(\.unexpectedExit))
         }
         .cardStyle()

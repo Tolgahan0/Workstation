@@ -107,8 +107,13 @@ workstation-connect                  # uyandır → bekle → Remote → Ekran P
 ### Fan
 **Otomatik** (macOS yönetir) · **Yarım** · **Tam hız**. Mac 95 °C'yi geçerse fanlar kendiliğinden tam hıza çıkar; uygulama kapanınca ya da çökerse fanlar her zaman macOS'a geri bırakılır.
 
+### Kaynaklar
+Gerçek ölçüt olan **bellek baskısı** (yeşil · sarı · kırmızı), bellek dökümü (uygulama · sabit · sıkıştırılmış · önbellek — önbellek gerektiğinde hemen boşaltılır), takas, CPU ve GPU. **En çok kullananlar** uygulamaya göre toplanır (tüm Chrome yardımcıları → Google Chrome, simülatör süreçleri → iOS Simülatörü, Claude Code / Cursor Agent / Node.js ajanları); bellek Etkinlik Monitörü'yle aynı ölçüdür (phys_footprint). Panel açıkken 2 sn'de bir, kapalıyken 60 sn'de bir yalnızca baskı ölçülür.
+
+**Boştakileri kapat**: açık iOS simülatörleri (`simctl shutdown all`), terminale bağlı olmayan ve 15 dk'dır boşta duran, etkin bir projede çalışmayan Claude/Cursor/Node CLI ajanları ve Docker Desktop. Kapatılacaklar önce bir onay listesinde gösterilir; süreçler düzgünce (SIGTERM / uygulamadan çık) kapatılır, öndeki uygulamaya ve sistem süreçlerine dokunulmaz. İsteğe bağlı: **Remote/Uyku'ya geçerken ağır boştakileri kapat** (varsayılan kapalı; Docker'a dokunmaz). Bellek baskısı sarı/kırmızıya çıkınca en çok kullanan uygulamayı söyleyen bir bildirim gelir (30 dk'da en fazla bir).
+
 ### Sistem
-İşlemci, bellek, disk ve ağ özetleri; **Uyanık tut** (1 sa · 3 sa · kapatana dek). Yalnızca panel açıkken ölçülür.
+Disk ve ağ özetleri; **Uyanık tut** (1 sa · 3 sa · kapatana dek). Yalnızca panel açıkken ölçülür.
 
 ### Disk temizleyici
 Xcode, Android, JavaScript, CocoaPods, Homebrew, Docker, Python/Rust/Go ve Claude/Cursor gibi yapay zekâ araçlarının bıraktığı artıkları bulur. **Önce listeler, sen onaylayınca temizler.** Tools sekmesinde kendi kartı var: **Tara** ile elle tarama, hemen altındaki **Otomatik temizlik** kartından açma/kapama, günlük saat ve "disk dolunca" tetikleyicisi.
@@ -232,7 +237,7 @@ Tests/run-tests.sh                 # çekirdek testleri (macOS ya da Linux)
 - **Yeni sürüm yayınlamak:** `VERSION`'ı artır, `scripts/version.sh sync` çalıştır, commit'le, sonra
 
   ```bash
-  git tag v1.9.4 && git push origin v1.9.4
+  git tag v1.9.5 && git push origin v1.9.5
   ```
 
   GitHub Actions ([`release.yml`](.github/workflows/release.yml)) testleri çalıştırır, evrensel derler ve sürüme `Workstation-<sürüm>.dmg`, `.zip`, `SHA256SUMS.txt` ve `latest.json` ekler. Sürüm adında `-` varsa (ör. `v1.9.0-beta.1`) beta olarak yayınlanır.

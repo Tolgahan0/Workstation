@@ -9,10 +9,7 @@ struct SystemStatsCard: View {
         let s: SystemStatsSnapshot? = model.stats
         return VStack(alignment: .leading, spacing: 8) {
             if let st = s {
-                StatBar(icon: "cpu", label: "CPU",
-                        value: st.cpuPercent.map { String(format: "%.0f%%", $0) } ?? "…",
-                        fraction: (st.cpuPercent ?? 0) / 100, tint: .accentColor)
-                MemoryStatRow(stats: st)
+                // CPU ve bellek üstteki Kaynaklar kartında.
                 DiskStatRow(stats: st)
                 NetworkStatRow(stats: st)
             } else {

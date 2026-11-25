@@ -8,8 +8,20 @@ struct NotificationSettings: Codable, Equatable {
     var overheat = true
     var lowDisk = true
     var unexpectedExit = true
+    var memoryPressure = true
 
     static let key = "notificationSettings"
+
+    init() {}
+
+    /// Eski kayıtlarda olmayan alanlar varsayılanı alır (yeni alan eklemek ayarları sıfırlamasın).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        overheat = try c.decodeIfPresent(Bool.self, forKey: .overheat) ?? true
+        lowDisk = try c.decodeIfPresent(Bool.self, forKey: .lowDisk) ?? true
+        unexpectedExit = try c.decodeIfPresent(Bool.self, forKey: .unexpectedExit) ?? true
+        memoryPressure = try c.decodeIfPresent(Bool.self, forKey: .memoryPressure) ?? true
+    }
 
     static func load(_ d: UserDefaults = .standard) -> NotificationSettings {
         guard let data = d.data(forKey: key), let s = try? JSONDecoder().decode(NotificationSettings.self, from: data) else {
@@ -32,6 +44,8 @@ enum NotificationPolicy {
         switch kind {
         case "overheat": return 30 * 60
         case "lowDisk": return 12 * 3600
+        case "memoryPressure": return 30 * 60
+        case "memoryCritical": return 30 * 60
         default: return 0
         }
     }

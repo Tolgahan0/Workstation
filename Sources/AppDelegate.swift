@@ -45,6 +45,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let statsSampler = SystemStatsSampler()
     let statsQueue = DispatchQueue(label: "com.tolgahanayaz.workstationmode.stats", qos: .utility)
     let keepAwake = KeepAwake()
+    /// Tools › Kaynaklar (ayrı seri kuyruk; panel kapalıyken 60 sn'de bir hafif örnek).
+    let resourceSampler = ResourceSampler()
+    let resourceQueue = DispatchQueue(label: "com.tolgahanayaz.workstationmode.resources", qos: .utility)
+    var resourceForegroundTimer: Timer?
+    var resourceBackgroundTimer: Timer?
+    var lastPressureLevel = 1
     /// Yerel bildirimler (aşırı ısınma, disk, beklenmedik kapanma).
     let notifier = Notifier()
     var notifySettings = NotificationSettings.load()
@@ -108,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         wirePanelModel()
         wireCleaner()
         wireUpdater()
+        wireResources()
         registerObservers()
         updateUI()
 
@@ -421,6 +428,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func startFanPolling() {
         guard popover != nil, fanPollTimer == nil else { return }
         refreshFanStatus()
+        startResourcePolling()
         let t = Timer(timeInterval: 1.5, repeats: true) { [weak self] _ in self?.refreshFanStatus() }
         t.tolerance = 0.3
         RunLoop.main.add(t, forMode: .common)
@@ -430,6 +438,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func stopFanPolling() {
         fanPollTimer?.invalidate()
         fanPollTimer = nil
+        stopResourcePolling()
     }
 
     private func refreshFanStatus() {
@@ -591,6 +600,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 audio.restoreIfNeeded()
             }
         }
+        if mode != previousMode { closeIdleForModeSwitch(mode) }
         controller.apply(mode, resolution: resolution) { [weak self] error in
             guard let self = self else { return }
             self.endOwnChange()

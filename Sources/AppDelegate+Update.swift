@@ -15,7 +15,7 @@ extension AppDelegate {
         u.onOpenSettings = { [weak self] in self?.panelModel.page = .settings }
         u.onUpdateHelpers = { [weak self] in self?.updateHelpers() }
         notifier.onClick = { [weak self] kind in
-            if kind == "update" || kind == "helpers" { self?.openPanel() }
+            if kind == "update" || kind == "helpers" || kind.hasPrefix("memory") { self?.openPanel() }
         }
         refreshHelperState(afterLaunch: true)
         u.onSettings = { [weak self] s in

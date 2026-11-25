@@ -135,6 +135,8 @@ final class PanelModel: ObservableObject {
     @Published var notifySettings = NotificationSettings.load()
     /// Geliştirici Temizleyici (kendi yayınları olan ayrı model: tarama ilerlemesi tüm paneli yeniden çizmez).
     let cleaner = CleanerModel()
+    /// Tools › Kaynaklar (ayrı model: 2 sn'lik örnekler yalnızca kendi kartlarını çizer).
+    let resources = ResourceModel()
     /// Güncelleyici (ayrı model: indirme durumu tüm paneli yeniden çizmez).
     let updater = UpdateModel()
     var toolsVisible: Bool { selectedTab == .tools && page == .main }
@@ -1083,6 +1085,9 @@ private struct ToolsTab: View {
                 SectionTitle(text: L("DİSK TEMİZLEYİCİ"))
                 DiskCleanerCard(cleaner: model.cleaner)
                 AutoCleanQuickCard(cleaner: model.cleaner, openSettings: { model.page = .settings })
+                SectionTitle(text: L("KAYNAKLAR"))
+                ResourcesCard(res: model.resources)
+                IdleCloserCard(res: model.resources)
                 SectionTitle(text: L("SİSTEM"))
                 SystemStatsCard(model: model)
                 KeepAwakeCard(model: model)
