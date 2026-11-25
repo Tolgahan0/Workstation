@@ -15,7 +15,19 @@ final class CleanerModel: ObservableObject {
     @Published var confirming = false
     @Published var diskFree: Int64?
     @Published var diskTotal: Int64?
-    @Published var note: String?
+    /// Tarama/temizlik özeti ve uyarılar 5 sn sonra kaybolur (ayrıntı günlükte ve raporda kalır).
+    @Published var note: String? {
+        didSet {
+            guard note != nil else { return }
+            noteGeneration += 1
+            let g = noteGeneration
+            DispatchQueue.main.asyncAfter(deadline: .now() + PanelModel.noteLifetime) { [weak self] in
+                guard let self = self, self.noteGeneration == g else { return }
+                self.note = nil
+            }
+        }
+    }
+    private var noteGeneration = 0
     @Published var newNeverTouch = ""
     @Published var newRoot = ""
 

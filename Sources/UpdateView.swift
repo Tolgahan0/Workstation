@@ -25,7 +25,19 @@ final class UpdateModel: ObservableObject {
     /// Kurulu fan yardımcısı / workstation komutu bu sürümden eski.
     @Published var helpersOutdated = false
     @Published var helpersBusy = false
-    @Published var helpersNote: String?
+    /// "Yardımcılar güncellendi" / "İptal edildi" gibi sonuç metinleri de 5 sn sonra kaybolur.
+    @Published var helpersNote: String? {
+        didSet {
+            guard helpersNote != nil else { return }
+            helpersNoteGeneration += 1
+            let g = helpersNoteGeneration
+            DispatchQueue.main.asyncAfter(deadline: .now() + PanelModel.noteLifetime) { [weak self] in
+                guard let self = self, self.helpersNoteGeneration == g else { return }
+                self.helpersNote = nil
+            }
+        }
+    }
+    private var helpersNoteGeneration = 0
     var onUpdateHelpers: () -> Void = {}
 
     var onCheck: () -> Void = {}

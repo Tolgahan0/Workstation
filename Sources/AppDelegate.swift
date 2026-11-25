@@ -245,13 +245,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         m.onKeepAwake = { [weak self] on, duration in
             guard let self = self else { return }
             self.panelModel.keepAwakeDuration = duration
-            if on { self.keepAwake.enable(seconds: duration.seconds) } else { self.keepAwake.disable() }
+            if on { self.keepAwake.enable(seconds: duration.seconds) } else { self.keepAwake.disable(reason: "panel") }
         }
         keepAwake.onChange = { [weak self] in
             guard let self = self else { return }
-            self.panelModel.keepAwakeOn = self.keepAwake.isOn
-            self.panelModel.keepAwakeUntil = self.keepAwake.until
+            let ka = self.keepAwake
+            if self.panelModel.keepAwakeOn != ka.isOn { self.panelModel.keepAwakeOn = ka.isOn }
+            if self.panelModel.keepAwakeUntil != ka.until { self.panelModel.keepAwakeUntil = ka.until }
+            self.panelModel.keepAwakeTick = Date()
         }
+        keepAwake.restore()
         m.onNotifySettings = { [weak self] settings in
             guard let self = self else { return }
             self.notifySettings = settings
@@ -559,6 +562,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // Fan güvenliği: Uyku'ya geçerken otomatiğe dön; Uyku'dan çıkınca tercih edilen modu geri yükle.
         if mode == .sleep {
             fans.resetSync(reason: L("Uyku moduna geçiş"))
+            // Uyku modu Mac'in uyuyabilmesini ister: açık "Uyanık tut" onayları bunu engellerdi.
+            if keepAwake.isOn { keepAwake.disable(reason: L("Uyku modu")) }
         } else if previous == .sleep {
             fans.reapplyPreferred(reason: L("Uyku modundan çıkış"))
         }
@@ -698,6 +703,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func systemDidWake(_ note: Notification) {
         Log.info("NSWorkspace.didWakeNotification (mod: \(currentMode.rawValue))")
+        keepAwake.checkExpiry()
         // Uykuda kaçırılan zamanlamalar: yalnızca son 2 dk içindekiler (ör. pmset ile planlı uyanma) çalıştırılır.
         lastScheduleCheck = max(lastScheduleCheck, Date().addingTimeInterval(-120))
         rescheduleModes(catchUp: true)
@@ -771,7 +777,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 if let e = err { self?.panelModel.fanNote = "Fan ayarı yapılamadı."; Log.warn("Fan: \(e)") }
             }
         case .keepAwake(let on, let seconds):
-            if on { keepAwake.enable(seconds: seconds) } else { keepAwake.disable() }
+            if on {
+                if let d = KeepAwake.Duration.matching(seconds: seconds) { panelModel.keepAwakeDuration = d }
+                keepAwake.enable(seconds: seconds)
+            } else {
+                keepAwake.disable(reason: source)
+            }
         case .clean(let action):
             switch action {
             case .scan: startCleanerScan(trigger: .url)

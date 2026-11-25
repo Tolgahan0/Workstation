@@ -78,7 +78,8 @@ plutil -lint "$STAGE/Contents/Info.plist" >/dev/null
 
 if [[ $FAN_OK == 1 ]]; then
   cp "$TMP/wm-fanhelper" "$STAGE/Contents/Resources/wm-fanhelper"
-  cat "$ROOT/Tools/FanHelper/main.swift" "$ROOT/Sources/SMC.swift" "$ROOT/Sources/L10n.swift" | shasum -a 256 | cut -c1-16 > "$STAGE/Contents/Resources/helper-version"
+  # Yalnızca yardımcının mantığı: L10n.swift'teki her metin değişikliği "yardımcılar güncel değil" uyarısı çıkarmasın.
+  cat "$ROOT/Tools/FanHelper/main.swift" "$ROOT/Sources/SMC.swift" | shasum -a 256 | cut -c1-16 > "$STAGE/Contents/Resources/helper-version"
 fi
 install -m 0755 "$ROOT/workstation" "$STAGE/Contents/Resources/bin/workstation"
 install -m 0755 "$ROOT/workstation-connect" "$STAGE/Contents/Resources/bin/workstation-connect"

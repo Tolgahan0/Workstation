@@ -106,9 +106,9 @@ struct KeepAwakeCard: View {
         let subtitle: String
         if model.keepAwakeOn {
             if let u = model.keepAwakeUntil {
-                let f = DateFormatter()
-                f.dateFormat = "HH:mm"
-                subtitle = L("Açık · %@'e kadar", f.string(from: u))
+                // keepAwakeTick her yenilemede değişir; kalan süre güncel kalır.
+                let left = max(0, u.timeIntervalSince(max(model.keepAwakeTick, Date())))
+                subtitle = L("Açık · %@ kaldı (bitiş %@)", KeepAwake.format(remaining: left), KeepAwake.clock(u))
             } else {
                 subtitle = L("Açık · sen kapatana kadar")
             }

@@ -125,7 +125,11 @@ final class PanelModel: ObservableObject {
     @Published var stats: SystemStatsSnapshot?
     @Published var keepAwakeOn = false
     @Published var keepAwakeUntil: Date?
-    @Published var keepAwakeDuration: KeepAwake.Duration = .oneHour
+    @Published var keepAwakeDuration: KeepAwake.Duration = KeepAwake.savedDuration {
+        didSet { UserDefaults.standard.set(keepAwakeDuration.rawValue, forKey: KeepAwake.durationKey) }
+    }
+    /// Süreli "Uyanık tut"ta kalan süre metninin yenilenmesi için (≤30 sn'de bir).
+    @Published var keepAwakeTick = Date()
 
     // Ayarlar → bildirimler
     @Published var notifySettings = NotificationSettings.load()
