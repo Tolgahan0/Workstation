@@ -73,7 +73,7 @@ final class DisplayManager {
     }
 
     @discardableResult
-    private func cli(_ args: [String], timeout: TimeInterval = 15, logFailure: Bool = true) -> CommandResult {
+    private func cli(_ args: [String], timeout: TimeInterval = 8, logFailure: Bool = true) -> CommandResult {
         let result = Shell.run(cliPath, args, timeout: timeout)
         if logFailure && !result.succeeded {
             Log.error("BetterDisplay \(args.joined(separator: " ")) → status \(result.status)\(result.timedOut ? " (zaman aşımı)" : "") \(result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)) \(result.stdout.trimmingCharacters(in: .whitespacesAndNewlines))")
@@ -87,14 +87,12 @@ final class DisplayManager {
         if check.succeeded { return }
         Log.info("BetterDisplay çalışmıyor, başlatılıyor…")
         Shell.run("/usr/bin/open", ["-g", "-a", "BetterDisplay"], timeout: 10)
-        for _ in 0..<20 {
-            Thread.sleep(forTimeInterval: 0.5)
-            if Shell.run("/usr/bin/pgrep", ["-x", "BetterDisplay"], timeout: 5).succeeded {
-                Thread.sleep(forTimeInterval: 2) // CLI dinleyicisinin hazır olması için
-                return
-            }
+        // Sabit bekleme yok: CLI yanıt verene dek kısa aralıklarla yokla (en fazla ~10 sn).
+        let up = pollUntil(timeout: 10, interval: 0.2) {
+            Shell.run("/usr/bin/pgrep", ["-x", "BetterDisplay"], timeout: 2).succeeded
+                && cli(["get", "-identifiers"], timeout: 2, logFailure: false).succeeded
         }
-        Log.error("BetterDisplay başlatılamadı.")
+        if !up { Log.error("BetterDisplay başlatılamadı.") }
     }
 
     /// CLI erişiminin çalışıp çalışmadığını döndürür.
@@ -329,28 +327,24 @@ final class DisplayManager {
             return true
         }
         for attempt in 1...3 {
-            let r = cli(["set", "-name=\(Self.virtualScreenName)", "-resolution=\(res)", "-hiDPI=on"], logFailure: false)
-            Thread.sleep(forTimeInterval: 0.8)
-            if r.succeeded || currentVirtualResolution() == res {
+            let r = cli(["set", "-name=\(Self.virtualScreenName)", "-resolution=\(res)", "-hiDPI=on"], timeout: 5, logFailure: false)
+            if r.succeeded || pollUntil(timeout: 1.2, interval: 0.1, { currentVirtualResolution() == res }) {
                 Log.info("\(Self.virtualScreenName) çözünürlüğü \(res) HiDPI olarak ayarlandı (deneme \(attempt)).")
                 return true
             }
             // Liste henüz güncellenmemiş ya da ekran yeni bağlanmış olabilir: yapılandırıp bekle.
             configureVirtualScreen()
-            Thread.sleep(forTimeInterval: 1)
+            Thread.sleep(forTimeInterval: 0.3)
         }
         Log.error("\(Self.virtualScreenName) çözünürlüğü \(res) yapılamadı (şu an: \(currentVirtualResolution() ?? "?")).")
         return false
     }
 
     /// Sanal ekranın macOS tarafından gerçekten bağlandığını bekler (en fazla `timeout` sn).
-    private func waitForVirtualConnected(timeout: TimeInterval) {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            let r = cli(["get", "-name=\(Self.virtualScreenName)", "-connected"], timeout: 5, logFailure: false)
-            if r.stdout.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "on" { return }
-            Thread.sleep(forTimeInterval: 0.5)
-        }
+    @discardableResult
+    private func waitForVirtualConnected(timeout: TimeInterval) -> Bool {
+        // macOS'ta gerçekten etkin olana dek (yalnızca BetterDisplay'in "on" demesi yetmez) 50 ms aralıkla yokla.
+        pollUntil(timeout: timeout, interval: 0.05) { isVirtualActive() }
     }
 
     // MARK: - Fiziksel ekranlar
@@ -456,24 +450,31 @@ final class DisplayManager {
         ensureBetterDisplayRunning()
         let list = listAll()
         var failed: [PhysicalDisplayRecord] = []
+        var jobs: [(PhysicalDisplayRecord, String)] = []
         for r in records {
             guard let tag = betterDisplayTag(for: r, in: list) else {
                 Log.warn("BetterDisplay: \(r.label) için tagID bulunamadı")
                 failed.append(r)
                 continue
             }
+            jobs.append((r, tag))
+        }
+        // Birden çok monitör aynı anda kesilir/açılır (her biri ~0,1–1 sn; sırayla beklemek toplamı uzatıyordu).
+        let lock = NSLock()
+        DispatchQueue.concurrentPerform(iterations: jobs.count) { i in
+            let (r, tag) = jobs[i]
+            let sw = Stopwatch("BetterDisplay \(on ? "aç" : "kes") \(r.name)")
             Log.info("BetterDisplay: set -tagID=\(tag) -connected=\(on ? "on" : "off")  (\(r.name))")
-            let res = cli(["set", "-tagID=\(tag)", "-connected=\(on ? "on" : "off")"], timeout: 10)
-            if !res.succeeded { failed.append(r); continue }
-            // macOS'un yeniden yapılandırmasını bekle. Açmak (HDMI/DP bağlantı el sıkışması) kapatmaktan çok
-            // daha uzun sürebilir; 4 sn yetmeyince sistem API'si araya girip 1001 hatası alıyordu.
-            var reached = false
-            for _ in 0..<(on ? 50 : 20) {
-                Thread.sleep(forTimeInterval: 0.2)
-                if physical.isActive(r.id) == on { reached = true; break }
+            let res = cli(["set", "-tagID=\(tag)", "-connected=\(on ? "on" : "off")"], timeout: on ? 6 : 4)
+            var ok = res.succeeded
+            if ok {
+                // macOS'un yeniden yapılandırmasını 20 ms aralıkla bekle (açmak HDMI/DP el sıkışması nedeniyle daha uzun sürer).
+                let reached = pollUntil(timeout: on ? 8 : 3, interval: 0.02) { physical.isActive(r.id) == on }
+                Log.info("BetterDisplay: \(r.name) → \(reached ? (on ? "açık" : "kapalı") : "durum doğrulanamadı")")
+                if !reached && on { ok = false }
             }
-            Log.info("BetterDisplay: \(r.name) → \(reached ? (on ? "açık" : "kapalı") : "durum doğrulanamadı")")
-            if !reached && on { failed.append(r) }
+            sw.lap(ok ? "tamam" : "başarısız")
+            if !ok { lock.lock(); failed.append(r); lock.unlock() }
         }
         return failed
     }
@@ -497,8 +498,7 @@ final class DisplayManager {
         Shell.run("/usr/bin/osascript", ["-e", "quit app \"BetterDisplay\""], timeout: 10)
         for _ in 0..<20 where isBetterDisplayRunning() { Thread.sleep(forTimeInterval: 0.25) }
         if isBetterDisplayRunning() { Shell.run("/usr/bin/pkill", ["-x", "BetterDisplay"], timeout: 5); Thread.sleep(forTimeInterval: 1) }
-        ensureBetterDisplayRunning()
-        Thread.sleep(forTimeInterval: 2)
+        ensureBetterDisplayRunning()   // CLI yanıt verene dek yoklar
     }
 
     func isBetterDisplayRunning() -> Bool {
@@ -600,8 +600,7 @@ final class DisplayManager {
             virtualActive = isVirtualActive()
             if !virtualActive && isBetterDisplayRunning() {
                 setVirtualConnected(true)
-                Thread.sleep(forTimeInterval: 2)
-                virtualActive = isVirtualActive()
+                virtualActive = waitForVirtualConnected(timeout: 3)
             }
         }
         return monitors.reconcile(mode: mode, virtualActive: virtualActive, applyBrightness: applyBrightness,
@@ -619,12 +618,15 @@ final class DisplayManager {
 
     // MARK: - Mod dizileri
 
-    /// Remote: BetterDisplay sanal ekranı 1512x982 HiDPI açılır, 1 sn beklenir, fiziksel ekranlar
-    /// kendi API'mizle kesilir. Sanal ekran gerçekten etkin değilse Mac'i ekransız bırakmamak için
-    /// fiziksel ekranlar KESİLMEZ ve hata döner.
-    /// - Returns: Hata açıklaması veya başarıda nil.
-    func applyRemoteLayout() -> String? {
+    /// Remote'a hazırlık (geri sayım sırasında da çağrılır): BetterDisplay + CLI, sanal ekran tanımı, bağlantı
+    /// ve çözünürlük. Fiziksel monitörlere DOKUNMAZ. Hazırsa (sanal ekran etkin, doğru çözünürlük) hızlıca döner.
+    /// - Returns: hata açıklaması veya nil.
+    func prepareRemote(_ sw: Stopwatch) -> String? {
         ensureBetterDisplayRunning()
+        if remotePreparedFor == Self.virtualResolution, isVirtualActive() {
+            sw.lap("sanal ekran zaten hazır")
+            return nil
+        }
         guard isCLIAvailable() else {
             return L("BetterDisplay CLI kapalı: BetterDisplay > Settings > Application > Integration > CLI erişimini açın")
         }
@@ -632,32 +634,63 @@ final class DisplayManager {
         Log.info("Remote sanal ekran çözünürlüğü: \(Self.virtualResolution) HiDPI")
         ensureVirtualScreen()
         applyVirtualAspect()
-        configureVirtualScreen()
-        setVirtualConnected(true)
-        waitForVirtualConnected(timeout: 6)
+        if !isVirtualActive() {
+            configureVirtualScreen()
+            setVirtualConnected(true)
+            waitForVirtualConnected(timeout: 6)
+        }
+        sw.lap("sanal ekran bağlandı")
         setVirtualResolution()
-        Thread.sleep(forTimeInterval: 1)
-
+        sw.lap("çözünürlük")
         guard isVirtualActive() else {
             Log.error("\(Self.virtualScreenName) etkinleşmedi; güvenlik için fiziksel ekranlar kesilmedi.")
             return L("Sanal ekran açılamadı (BetterDisplay Pro / CLI?) – fiziksel ekranlar açık bırakıldı")
         }
         physical.rememberVirtualHardware(named: Self.virtualScreenName, ids: betterDisplayNonPhysicalIDs())
-        // Sanal ekran ana ekran olsun (menü çubuğu ve Dock orada; Ekran Paylaşımı onu gösterir).
-        cli(["set", "-name=\(Self.virtualScreenName)", "-main=on"], timeout: 5, logFailure: false)
-        // Tüm fiziksel monitörleri kes (aynalananlar dahil), sonra gerçekten kesildiğini doğrula; gerekirse yeniden dene.
+        remotePreparedFor = Self.virtualResolution
+        return nil
+    }
+
+    /// Geri sayımda hazırlanan sanal ekran (Remote'a geçilmediyse geri sayım iptalinde kapatılır).
+    private(set) var remotePreparedFor: String?
+
+    /// Geri sayım iptal edildi: hazırlıkta açılan sanal ekranı kapat (fiziksel monitörlere dokunulmadı).
+    func cancelRemotePreparation() {
+        guard remotePreparedFor != nil else { return }
+        remotePreparedFor = nil
+        if isBetterDisplayRunning() { setVirtualConnected(false) }
+        Log.info("Remote hazırlığı geri alındı (sanal ekran kapatıldı).")
+    }
+
+    /// Remote: sanal ekran (geri sayımda hazırlanmadıysa şimdi) açılır, ardından fiziksel monitörler HEMEN kesilir.
+    /// Sabit bekleme yoktur; doğrulama kısa yoklamalarla yapılır. Sanal ekran etkin değilse Mac'i ekransız
+    /// bırakmamak için fiziksel ekranlar KESİLMEZ ve hata döner.
+    /// - Returns: Hata açıklaması veya başarıda nil.
+    func applyRemoteLayout() -> String? {
+        let sw = Stopwatch("remote")
+        if let e = prepareRemote(sw) { remotePreparedFor = nil; return e }
+        remotePreparedFor = nil
+        // 1) Önce kes: kullanıcı geri sayımın bitişiyle ekranların kararmasını bekliyor.
         _ = setPhysicalConnected(false)
-        var lit = activeNativePhysicalDisplays()
-        var attempt = 1
-        while !lit.isEmpty && attempt < 3 {
+        sw.lap("fiziksel monitörler kesildi")
+        // 2) Doğrula; gerekirse yeniden dene (kısa yoklama, sabit uyku yok).
+        var lit: [PhysicalDisplayRecord] = []
+        for attempt in 1...3 {
+            var current: [PhysicalDisplayRecord] = []
+            let gone = pollUntil(timeout: attempt == 1 ? 0.6 : 1.0, interval: 0.05) {
+                current = activeNativePhysicalDisplays()
+                return current.isEmpty
+            }
+            lit = current
+            if gone || attempt == 3 { break }
             Log.warn("Remote: hâlâ açık fiziksel ekran var (\(lit.map { $0.label }.joined(separator: ", "))), yeniden deneniyor (\(attempt + 1)/3)")
-            Thread.sleep(forTimeInterval: 1.5)
             _ = setPhysicalConnected(false)
-            lit = activeNativePhysicalDisplays()
-            attempt += 1
         }
-        // Çözünürlük, monitörler kesildikten sonra bir kez daha doğrulanır (macOS yeniden yerleşim yapabilir).
+        sw.lap("doğrulandı")
+        // 3) Kritik olmayanlar: ana ekran ve çözünürlük (macOS yeniden yerleşim yapabilir).
+        cli(["set", "-name=\(Self.virtualScreenName)", "-main=on"], timeout: 3, logFailure: false)
         if currentVirtualResolution() != Self.virtualResolution { setVirtualResolution() }
+        sw.lap("ana ekran + çözünürlük denetimi")
         if lit.isEmpty {
             Log.info("Remote: yalnızca \(Self.virtualScreenName) açık (\(Self.virtualResolution) HiDPI).")
             return nil
@@ -666,46 +699,57 @@ final class DisplayManager {
         return L("Fiziksel ekranlar kesilemedi (günlüğe bakın)")
     }
 
-    /// Desktop: her monitörü KENDİ istenen durumuna döndür (kullanıcının kapattığı kapalı kalır),
-    /// ardından (BetterDisplay çalışıyorsa) sanal ekranı kapat. Sıra, sistemin ekransız kalmaması içindir.
-    /// Hiçbir fiziksel monitör görüntü vermiyorsa acil kurtarma çalışır: Mac ASLA ekransız bırakılmaz.
+    /// Desktop: her monitörü KENDİ istenen durumuna döndür (kullanıcının kapattığı kapalı kalır; hepsi tek
+    /// yapılandırma işleminde açılır), ardından sanal ekranı kapat. Sıra, sistemin ekransız kalmaması içindir.
+    /// Ekran uykusundaki/bekleme modundaki monitörler önce uyandırılır (açmaya çalışmak 10 sn'lik zaman aşımları
+    /// ve CGError 1014 üretiyordu). Hiçbir fiziksel monitör görüntü vermiyorsa acil kurtarma çalışır.
+    /// İkinci (son) uzlaştırma AppDelegate'te arka planda yapılır.
     func applyDesktopLayout() -> String? {
+        let sw = Stopwatch("desktop")
         configureBackend()
-        let ok: Bool
-        if usesNativePhysicalControl {
-            monitors.reconcile(mode: .desktop, virtualActive: false, applyBrightness: true,
-                               excludedIDs: betterDisplayNonPhysicalIDs(), excludedNames: excludedNames)
-            if activeNativePhysicalDisplays().isEmpty { emergencyRestore(reason: "Masaüstü: hiç monitör açılmadı") }
-            ok = !activeNativePhysicalDisplays().isEmpty
-        } else {
-            ok = setPhysicalConnected(true)
+        remotePreparedFor = nil
+        guard usesNativePhysicalControl else {
+            let ok = setPhysicalConnected(true)
+            if isBetterDisplayRunning() { setVirtualConnected(false) }
+            return ok ? nil : L("Bazı fiziksel ekranlar açılamadı (günlüğe bakın)")
         }
-        Thread.sleep(forTimeInterval: 1)
-        if isBetterDisplayRunning() { setVirtualConnected(false) }
-        guard usesNativePhysicalControl else { return ok ? nil : L("Bazı fiziksel ekranlar açılamadı (günlüğe bakın)") }
-        // Sanal ekran kapanınca (aynalanan) monitörler kendi moduna döner; bekle ve istenen durumu bir kez daha uygula.
-        var active = !activeNativePhysicalDisplays().isEmpty
-        for _ in 0..<10 where !active {
-            Thread.sleep(forTimeInterval: 0.3)
-            active = !activeNativePhysicalDisplays().isEmpty
-        }
-        Thread.sleep(forTimeInterval: 1)
-        monitors.reconcile(mode: .desktop, virtualActive: false, applyBrightness: false,
+        // Uyuyan ekranları uyandır (beklemeden), bizim kestiklerimizi tek işlemde aç.
+        physical.wakeDisplaysIfNeeded(excludedIDs: betterDisplayNonPhysicalIDs(), excludedNames: excludedNames)
+        monitors.reconcile(mode: .desktop, virtualActive: false, applyBrightness: true, quick: true,
                            excludedIDs: betterDisplayNonPhysicalIDs(), excludedNames: excludedNames)
-        if activeNativePhysicalDisplays().isEmpty { emergencyRestore(reason: "Masaüstü: sanal ekran kapandıktan sonra monitör yok") }
+        sw.lap("monitörler açıldı")
+        // Hâlâ hiç görüntü yoksa monitör bekleme modundan dönüyordur: açmaya zorlamak yerine bağlantıyı bekle.
+        if activeNativePhysicalDisplays().isEmpty {
+            physical.wakeDisplaysIfNeeded(excludedIDs: betterDisplayNonPhysicalIDs(), excludedNames: excludedNames, wait: true)
+            monitors.reconcile(mode: .desktop, virtualActive: false, applyBrightness: true, quick: true,
+                               excludedIDs: betterDisplayNonPhysicalIDs(), excludedNames: excludedNames)
+        }
+        if !pollUntil(timeout: 1.5, interval: 0.05, { !activeNativePhysicalDisplays().isEmpty }) {
+            emergencyRestore(reason: "Masaüstü: hiç monitör açılmadı")
+        }
+        if isBetterDisplayRunning() && isVirtualActive() {
+            setVirtualConnected(false)
+            sw.lap("sanal ekran kapatıldı")
+        }
+        // Sanal ekran kapanınca (aynalanan) monitörler kendi moduna döner: kısa yoklama.
+        if !pollUntil(timeout: 2, interval: 0.05, { !activeNativePhysicalDisplays().isEmpty }) {
+            emergencyRestore(reason: "Masaüstü: sanal ekran kapandıktan sonra monitör yok")
+        }
+        sw.lap("doğrulandı")
         return !activeNativePhysicalDisplays().isEmpty ? nil : L("Bazı fiziksel ekranlar açılamadı (günlüğe bakın)")
     }
 
     /// Sleep: monitörlerin bağlantısı KESİLMEZ. Masaüstü düzeni (her monitör kendi istenen durumunda, sanal
-    /// ekran kapalı) kurulur; ardından ModeController `pmset displaysleepnow` ile ekranları uyutur.
+    /// ekran kapalı) yalnızca GEREKİRSE (Remote'tan gelindiyse) kurulur; ardından ModeController
+    /// `pmset displaysleepnow` ile ekranları HEMEN uyutur. Masaüstü'nden geçişte düzen zaten doğrudur: hiçbir
+    /// ekran işlemi beklenmez (eskiden her seferinde ~2 sn sabit bekleme vardı).
     ///
-    /// Neden: Uyku'da bağlantıyı kesmek (BetterDisplay `connected=off` / CGSConfigureDisplayEnabled) hiçbir ek
-    /// tasarruf sağlamaz — uyuyan monitör zaten DPMS bekleme modundadır (<0,5 W) — ama uyanmayı kırılgan yapar:
-    /// kesilen monitör fare/klavyeyle kendiliğinden geri gelmez, displayID'ler geçersizleşir ve macOS yerine
-    /// bir "Generic Display" koyar. Ekran uykusu ise macOS'un kendi uyanma yoludur; her zaman geri gelir.
-    /// Remote'tan Uyku'ya geçişte de kesilmiş monitörler önce geri açılır (uyanınca ekran hazır olsun).
+    /// Neden kesilmez: uyuyan monitör zaten DPMS bekleme modundadır (<0,5 W); kesmek uyanmayı kırılgan yapar.
     func applySleepLayout() -> String? {
-        applyDesktopLayout()
+        let sw = Stopwatch("sleep")
+        let needsDesktop = BetterDisplayInstaller.isInstalled && isBetterDisplayRunning() && isVirtualActive()
+        sw.lap("düzen denetimi (\(needsDesktop ? "Remote'tan dönüş" : "değişiklik yok"))")
+        return needsDesktop ? applyDesktopLayout() : nil
     }
 
     // MARK: - Acil kurtarma
@@ -727,21 +771,21 @@ final class DisplayManager {
             }
             for tag in tags.sorted() {
                 Log.info("Acil kurtarma: BetterDisplay set -tagID=\(tag) -connected=on")
-                cli(["set", "-tagID=\(tag)", "-connected=on"], timeout: 12, logFailure: false)
+                cli(["set", "-tagID=\(tag)", "-connected=on"], timeout: 4, logFailure: false)
             }
-            for _ in 0..<40 where !physical.anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames) {
-                Thread.sleep(forTimeInterval: 0.25)
-            }
+            pollUntil(timeout: 4, interval: 0.1) { physical.anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames) }
         }
         // 2) Sistem API'si: devre dışı bırakılan ekranlar displayID'lerini korur.
         if !physical.anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames) {
             physical.forceEnable(extraIDs: monitors.knownDisplayIDs())
-            Thread.sleep(forTimeInterval: 1.5)
+            pollUntil(timeout: 1.5, interval: 0.05) { physical.anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames) }
         }
         // 3) Son çare: küçük displayID'ler (harici monitörler genellikle 1…8 alır; zaten açık olanlara dokunulmaz).
         if !physical.anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames) {
-            physical.forceEnable(extraIDs: Array(1...8))
-            Thread.sleep(forTimeInterval: 1.5)
+            // Yalnızca macOS'un çevrimiçi gördüğü kimlikler: yok olan bir displayID için her deneme ~10 sn
+            // bekleyip CGError 1014 döndürüyordu (1…8 taraması dakikalar sürüyordu).
+            physical.forceEnable(extraIDs: Array(1...8).filter { physical.onlineDisplayIDs().contains($0) })
+            pollUntil(timeout: 1.5, interval: 0.05) { physical.anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames) }
         }
         let ok = physical.anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames)
         if ok { physical.forgetRemembered() }

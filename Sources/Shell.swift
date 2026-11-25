@@ -217,3 +217,37 @@ enum Log {
         }
     }
 }
+
+/// Adım süreleri (ms) günlüğe: "⏱ remote · fiziksel kesildi: 142 ms (toplam 180 ms)".
+final class Stopwatch {
+    let name: String
+    private let start = DispatchTime.now().uptimeNanoseconds
+    private var last: UInt64
+
+    init(_ name: String) {
+        self.name = name
+        last = start
+    }
+
+    private static func ms(_ ns: UInt64) -> Int { Int(ns / 1_000_000) }
+
+    /// Toplam geçen süre (ms).
+    var elapsedMs: Int { Self.ms(DispatchTime.now().uptimeNanoseconds - start) }
+
+    func lap(_ step: String) {
+        let now = DispatchTime.now().uptimeNanoseconds
+        Log.info("⏱ \(name) · \(step): \(Self.ms(now - last)) ms (toplam \(Self.ms(now - start)) ms)")
+        last = now
+    }
+}
+
+/// Koşul sağlanana dek kısa aralıklarla yoklar (sabit uyku yerine). true = koşul sağlandı.
+@discardableResult
+func pollUntil(timeout: TimeInterval, interval: TimeInterval = 0.03, _ condition: () -> Bool) -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    repeat {
+        if condition() { return true }
+        Thread.sleep(forTimeInterval: interval)
+    } while Date() < deadline
+    return condition()
+}

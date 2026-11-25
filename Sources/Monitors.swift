@@ -416,13 +416,14 @@ final class MonitorManager {
     ///  - Uyku: hiçbir şeye dokunulmaz — monitörler macOS ekran uykusuyla kapanır, bağlantıları kesilmez
     /// Koruma: Masaüstü'nde son açık ekran kapatılmaz; Remote'da sanal ekran etkin değilse kapatılmaz.
     @discardableResult
-    func reconcile(mode: WorkMode, virtualActive: Bool, applyBrightness: Bool,
+    /// quick: açık bir mod isteği (geri sayım bitti) — tek örnek alınır, beklenmez.
+    func reconcile(mode: WorkMode, virtualActive: Bool, applyBrightness: Bool, quick: Bool = false,
                    excludedIDs: Set<UInt32>, excludedNames: [String]) -> [String] {
         if mode == .sleep { return [] }
         var notes: [String] = []
         let list = discover(excludedIDs: excludedIDs, excludedNames: excludedNames)
         // Yalnızca istenen durumda OLMAYAN monitörlere dokunulur; geçici flaş anları için iki örnek alınır.
-        let mismatch = stableMismatches(list, mode: mode, samples: 2, gap: 0.5)
+        let mismatch = stableMismatches(list, mode: mode, samples: quick ? 1 : 2, gap: 0.5)
         var toEnable: [ResolvedMonitor] = mismatch.enable
         var toDisable: [ResolvedMonitor] = mismatch.disable
 
@@ -630,7 +631,7 @@ final class MonitorManager {
     func setDesiredEnabled(key: String, enabled: Bool, mode: WorkMode, virtualActive: Bool,
                            excludedIDs: Set<UInt32>, excludedNames: [String]) -> String? { L("Desteklenmiyor") }
     @discardableResult
-    func reconcile(mode: WorkMode, virtualActive: Bool, applyBrightness: Bool,
+    func reconcile(mode: WorkMode, virtualActive: Bool, applyBrightness: Bool, quick: Bool = false,
                    excludedIDs: Set<UInt32>, excludedNames: [String]) -> [String] { [] }
     func setBrightness(key: String, percent: Double) -> BrightnessMethod { .unknown }
     func setForceSoftware(key: String, _ force: Bool) {}

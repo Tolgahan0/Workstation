@@ -41,24 +41,56 @@ final class ModeController {
         }
     }
 
+    /// pmset (sudo) çağrıları ekran işlerini beklemesin diye ayrı seri kuyrukta, paralel yürür.
+    private let powerQueue = DispatchQueue(label: "com.tolgahanayaz.workstationmode.power", qos: .userInitiated)
+
+    /// Remote geri sayımı başlarken: sanal ekranı şimdiden hazırla (bağla + çözünürlük) ki geri sayım
+    /// bitince fiziksel monitörler HEMEN kesilebilsin. Fiziksel monitörlere dokunmaz.
+    func prepareRemote(resolution: String?) {
+        queue.async {
+            guard BetterDisplayInstaller.isInstalled else { return }
+            let sw = Stopwatch("remote hazırlık (geri sayım)")
+            DisplayManager.resolutionOverride = resolution.flatMap(RemotePreset.normalize)
+            if let e = self.display.prepareRemote(sw) { Log.warn("Remote hazırlığı: \(e)") }
+            DisplayManager.resolutionOverride = nil
+            sw.lap("bitti")
+        }
+    }
+
+    /// Remote geri sayımı iptal edildi: hazırlıkta açılan sanal ekranı kapat.
+    func cancelRemotePreparation() {
+        queue.async { self.display.cancelRemotePreparation() }
+    }
+
     /// Modu uygular. `resolution`: Remote için istemciden gelen çözünürlük (nil = seçili ön ayar).
+    /// Sıra: ÖNCE ekranlar (kullanıcının gördüğü), pmset ise paralel; doğrulama sonradan.
     /// completion: hata açıklaması veya nil.
     func apply(_ mode: WorkMode, resolution: String? = nil, completion: @escaping (String?) -> Void) {
+        let power = self.power
+        let pm = DispatchGroup()
+        pm.enter()
+        powerQueue.async {
+            let sw = Stopwatch("pmset \(mode.rawValue)")
+            switch mode {
+            case .desktop: power.applyDesktopProfile()
+            case .sleep: power.applySleepProfile()
+            case .remote: power.applyRemoteProfile()   // Mac uzaktan erişim için her durumda uyanık kalsın.
+            }
+            sw.lap("uygulandı")
+            pm.leave()
+        }
         queue.async {
+            let sw = Stopwatch("mod \(mode.rawValue)")
             var error: String?
             switch mode {
             case .desktop:
                 error = self.display.applyDesktopLayout()
-                self.power.applyDesktopProfile()
             case .sleep:
-                // Sanal ekran kapanır; monitörler KESİLMEZ (istenen durumlarında kalır) ve ekran uykusuna
-                // alınır — fare/klavye/uyanma ile macOS onları her zaman geri getirir. Minimum güç.
+                // Sanal ekran kapanır (Remote'tan gelindiyse); monitörler KESİLMEZ ve hemen ekran uykusuna alınır.
                 error = self.display.applySleepLayout()
-                self.power.applySleepProfile()
                 self.power.displaySleepNow()
+                sw.lap("ekranlar uyutuldu")
             case .remote:
-                // Mac uzaktan erişim için her durumda uyanık kalsın.
-                self.power.applyRemoteProfile()
                 if !BetterDisplayInstaller.isInstalled, let e = self.installer.installSync() {
                     error = L("BetterDisplay kurulamadı: %@", e)
                 } else {
@@ -70,6 +102,9 @@ final class ModeController {
                     DisplayManager.resolutionOverride = nil
                 }
             }
+            sw.lap("ekran düzeni")
+            _ = pm.wait(timeout: .now() + 20)
+            sw.lap("pmset ile birlikte tamam")
             if let e = error { Log.error("\(mode.rawValue): \(e)") }
             let result = error
             DispatchQueue.main.async { completion(result) }

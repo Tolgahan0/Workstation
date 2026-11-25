@@ -542,6 +542,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover?.performClose(nil)
         countdownActive = true
         updateUI()
+        // Remote: sanal ekran geri sayım sırasında hazırlanır; süre bitince yalnızca fiziksel monitörler kesilir.
+        let prepared = mode == .remote && currentMode != .remote
+        if prepared { controller.prepareRemote(resolution: resolution) }
         countdown.start(mode: mode, seconds: seconds, interactive: source == "panel") { [weak self] proceed in
             guard let self = self else { return }
             self.countdownActive = false
@@ -549,6 +552,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self.setMode(mode, source: source, resolution: resolution)
             } else {
                 Log.info("Geri sayım iptal edildi: \(mode.rawValue)")
+                if prepared && self.currentMode != .remote { self.controller.cancelRemotePreparation() }
                 self.updateUI()
             }
         }
@@ -561,26 +565,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let previous = currentMode
         currentMode = mode
         UserDefaults.standard.set(mode.rawValue, forKey: currentModeKey)
-        // Fan güvenliği: Uyku'ya geçerken otomatiğe dön; Uyku'dan çıkınca tercih edilen modu geri yükle.
-        if mode == .sleep {
-            fans.resetSync(reason: L("Uyku moduna geçiş"))
-            // Uyku modu Mac'in uyuyabilmesini ister: açık "Uyanık tut" onayları bunu engellerdi.
-            if keepAwake.isOn { keepAwake.disable(reason: L("Uyku modu")) }
-        } else if previous == .sleep {
-            fans.reapplyPreferred(reason: L("Uyku modundan çıkış"))
-        }
-        // Ses: Remote'ta (ayar açıksa) sessize al; Masaüstü'nde yalnızca bizim kapattığımızı geri aç.
-        if mode == .remote && AudioControl.enabled {
-            audio.muteForRemote()
-        } else if mode == .desktop {
-            audio.restoreIfNeeded()
-        }
+        // Uyku modu Mac'in uyuyabilmesini ister: açık "Uyanık tut" onayları bunu engellerdi.
+        if mode == .sleep && keepAwake.isOn { keepAwake.disable(reason: L("Uyku modu")) }
         isTransitioning = true
         lastError = nil
         panelModel.statusNote = nil
         stopSleepInputMonitor()
         updateUI()
+        let previousMode = previous
 
+        defer {
+            // Ekran işi kuyruğa verildikten SONRA (ekranları geciktirmesin): fan güvenliği ve ses.
+            // Uyku'ya geçerken fanlar otomatiğe; Uyku'dan çıkınca tercih edilen mod geri yüklenir.
+            if mode == .sleep {
+                fans.resetSync(reason: L("Uyku moduna geçiş"))
+            } else if previousMode == .sleep {
+                fans.reapplyPreferred(reason: L("Uyku modundan çıkış"))
+            }
+            // Ses: Remote'ta (ayar açıksa) sessize al; Masaüstü'nde yalnızca bizim kapattığımızı geri aç.
+            if mode == .remote && AudioControl.enabled {
+                audio.muteForRemote()
+            } else if mode == .desktop {
+                audio.restoreIfNeeded()
+            }
+        }
         controller.apply(mode, resolution: resolution) { [weak self] error in
             guard let self = self else { return }
             self.endOwnChange()

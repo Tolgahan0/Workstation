@@ -30,6 +30,7 @@ struct PhysicalDisplayRecord: Codable, Equatable {
 #if os(macOS)
 import AppKit
 import CoreGraphics
+import IOKit.pwr_mgt
 
 /// Fiziksel monitörleri BetterDisplay Pro'ya ihtiyaç duymadan, CoreGraphics'in özel
 /// `CGSConfigureDisplayEnabled` (veya SkyLight `SLSConfigureDisplayEnabled`) API'si ile
@@ -178,6 +179,50 @@ final class PhysicalDisplayController {
 
     // MARK: Devre dışı bırak / etkinleştir
 
+    /// `configure`'ü en fazla `wait` sn bekler (macOS yok olan bir ekran için ~10 sn kilitlenebiliyor).
+    /// Süre aşılırsa false döner; çağrı arka planda kendi kendine biter.
+    private func configureBounded(_ ids: [CGDirectDisplayID], enabled: Bool, wait: TimeInterval) -> Bool {
+        let done = DispatchSemaphore(value: 0)
+        var result = false
+        let lock = NSLock()
+        DispatchQueue.global(qos: .userInitiated).async {
+            let r = self.configure(ids, enabled: enabled)
+            lock.lock(); result = r; lock.unlock()
+            done.signal()
+        }
+        if done.wait(timeout: .now() + wait) == .timedOut {
+            Log.warn("Sistem API'si \(wait) sn içinde yanıt vermedi (\(ids.map(String.init).joined(separator: ", "))); yedek yola geçiliyor")
+            return false
+        }
+        lock.lock(); defer { lock.unlock() }
+        return result
+    }
+
+    /// Ekran uykusundaki / bekleme modundaki monitörleri uyandırır (kullanıcı etkinliği bildirir) ve hiçbir
+    /// fiziksel monitör görüntü vermiyorsa kısa süre (en fazla 4 sn) bağlantının geri gelmesini bekler.
+    /// Uyumuş bir monitörü "açmaya" çalışmak yerine macOS'un kendi uyanma yolunu kullanır.
+    func wakeDisplaysIfNeeded(excludedIDs: Set<UInt32>, excludedNames: [String], wait: Bool = false) {
+        let online = onlineDisplayIDs()
+        let asleep = online.contains { CGDisplayIsAsleep($0) > 0 }
+        let anyLit = anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames)
+        guard asleep || !anyLit else { return }
+        let id = Self.declareUserActivity()
+        if wait && !anyLit {
+            let sw = Stopwatch("ekran uyandırma")
+            let ok = pollUntil(timeout: 4, interval: 0.05) { anyPhysicalLit(excludedIDs: excludedIDs, excludedNames: excludedNames) }
+            sw.lap(ok ? "monitör geri geldi" : "monitör gelmedi")
+        }
+        if id != 0 { IOPMAssertionRelease(id) }
+    }
+
+    /// "Kullanıcı etkin" bildirir: uyuyan ekranları uyandırır (fare kıpırdatmak gibi). Dönen kimlik bırakılmalı.
+    @discardableResult
+    static func declareUserActivity() -> IOPMAssertionID {
+        var id: IOPMAssertionID = 0
+        IOPMAssertionDeclareUserActivity("Workstation: Masaüstü" as CFString, kIOPMUserActiveLocal, &id)
+        return id
+    }
+
     /// Tek bir yapılandırma işleminde verilen ekranları etkinleştirir/devre dışı bırakır.
     private func configure(_ ids: [CGDirectDisplayID], enabled: Bool) -> Bool {
         guard let fn = Self.loaded?.fn, !ids.isEmpty else { return false }
@@ -211,6 +256,39 @@ final class PhysicalDisplayController {
     private func switchDisplays(_ displays: [PhysicalDisplayRecord], enabled: Bool) -> Bool {
         guard !displays.isEmpty else { return true }
         var remaining = displays
+        // AÇMA: önce sistem API'si, tüm monitörler TEK yapılandırma işleminde (ölçüm: ~0,15–0,45 sn;
+        // BetterDisplay connected=on ~1,1 sn). Yalnızca çevrimiçi ya da bizim kestiğimiz (hatırlanan) kimlikler:
+        // yok olan bir displayID için çağrı ~10 sn bekleyip CGError 1014 döndürüyordu. Başaramadıkları BetterDisplay'e.
+        if enabled {
+            // Bizim KESMEDİĞİMİZ (hatırlanmayan) ama görüntü vermeyen monitör kapalı değil, ekran uykusunda /
+            // bekleme modundadır (ör. Uyku'dan dönüş). Onu "açmaya" çalışmak BetterDisplay'de 10 sn zaman aşımı,
+            // sistem API'sinde ~10 sn bekleyip CGError 1014 veriyordu. macOS'un kendi uyanma yolu: kullanıcı etkinliği.
+            let remembered = loadRemembered()
+            let asleep = remaining.filter { r in !remembered.contains { $0.id == r.id || $0.sameHardware(r) } }
+            if !asleep.isEmpty {
+                let sw = Stopwatch("uyandır")
+                let aid = Self.declareUserActivity()
+                let back = pollUntil(timeout: 4, interval: 0.05) { asleep.allSatisfy { Self.isLit($0.id) } }
+                if aid != 0 { IOPMAssertionRelease(aid) }
+                sw.lap("\(asleep.map { $0.name }.joined(separator: ", ")) → \(back ? "uyandı" : "henüz gelmedi")")
+                remaining = remaining.filter { !Self.isLit($0.id) }
+                if remaining.isEmpty { return true }
+            }
+        }
+        if enabled && Self.isAvailable {
+            let online = Set(onlineDisplayIDs())
+            let remembered = loadRemembered()
+            let direct = remaining.filter { r in online.contains(r.id) || remembered.contains { $0.id == r.id } }
+            if !direct.isEmpty {
+                let sw = Stopwatch("sistem API'si aç")
+                let ok = configureBounded(direct.map { $0.id }, enabled: true, wait: 3)
+                let lit = pollUntil(timeout: ok ? 1.5 : 0.3, interval: 0.02) { direct.allSatisfy { Self.isLit($0.id) } }
+                sw.lap("\(direct.map { $0.name }.joined(separator: ", ")) → \(lit ? "açık" : "tamamlanmadı")")
+                lastBackend = Self.apiDescription
+                remaining = remaining.filter { !Self.isLit($0.id) }
+                if remaining.isEmpty { return true }
+            }
+        }
         if let ext = externalSwitch {
             remaining = ext(displays, enabled)
             lastBackend = "BetterDisplay"
@@ -224,6 +302,7 @@ final class PhysicalDisplayController {
             Log.warn("Sistem API'siyle kapatma atlandı (güvenli değil): \(remaining.map { $0.label }.joined(separator: ", "))")
             return false
         }
+        if enabled { return false } // sistem API'siyle açma yukarıda denendi
         lastBackend = Self.apiDescription
         var ok = configure(remaining.map { $0.id }, enabled: enabled)
         if !ok && remaining.count > 1 {
@@ -260,7 +339,7 @@ final class PhysicalDisplayController {
         let targets = displays.filter { !Self.isLit($0.id) }
         guard !targets.isEmpty else { return true }
         let ok = switchDisplays(targets, enabled: true)
-        Thread.sleep(forTimeInterval: 0.5)
+        pollUntil(timeout: 0.5, interval: 0.02) { targets.allSatisfy { Self.isLit($0.id) } }
         let nowActive = targets.filter { Self.isLit($0.id) }
         var remembered = loadRemembered()
         remembered.removeAll { r in nowActive.contains { $0.id == r.id || $0.sameHardware(r) } }
@@ -290,10 +369,11 @@ final class PhysicalDisplayController {
     /// (BetterDisplay olmadan) etkinleştirmeyi dener. Devre dışı bırakılan ekranlar displayID'lerini korur.
     @discardableResult
     func forceEnable(extraIDs: [CGDirectDisplayID]) -> Bool {
-        let ids = Array(Set(loadRemembered().map { $0.id } + extraIDs)).sorted().filter { !Self.isLit($0) }
+        let online = Set(onlineDisplayIDs())
+        let ids = Array(Set(loadRemembered().map { $0.id } + extraIDs.filter { online.contains($0) })).sorted().filter { !Self.isLit($0) }
         guard !ids.isEmpty, Self.isAvailable else { return false }
         var any = false
-        for id in ids where configure([id], enabled: true) { any = true }
+        for id in ids where configureBounded([id], enabled: true, wait: 3) { any = true }
         Log.info("Acil kurtarma (sistem API'si): \(ids.map(String.init).joined(separator: ", ")) → \(any ? "denendi" : "başarısız")")
         return any
     }
@@ -332,7 +412,7 @@ final class PhysicalDisplayController {
             return record(for: id, names: [:])
         }
         _ = switchDisplays(targetRecords, enabled: true)
-        Thread.sleep(forTimeInterval: 1)
+        pollUntil(timeout: 1, interval: 0.02) { targets.allSatisfy { Self.isLit($0) } }
         let stillOff = targets.filter { !Self.isLit($0) }
         if stillOff.isEmpty {
             forgetRemembered()
@@ -364,6 +444,8 @@ final class PhysicalDisplayController {
     func activeDisplayIDs() -> [UInt32] { [] }
     func anyPhysicalLit(excludedIDs: Set<UInt32>, excludedNames: [String]) -> Bool { false }
     @discardableResult func forceEnable(extraIDs: [UInt32]) -> Bool { false }
+    func wakeDisplaysIfNeeded(excludedIDs: Set<UInt32>, excludedNames: [String], wait: Bool = false) {}
+    func onlineDisplayIDs() -> [UInt32] { [] }
 }
 
 #endif
