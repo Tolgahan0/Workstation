@@ -1,6 +1,6 @@
 import Cocoa
 
-// Güncelleyici bağlantısı: açılıştan kısa süre sonra ve günde bir kez kontrol; boşta yoklama yok (tek zamanlayıcı).
+// Güncelleyici bağlantısı: açılıştan kısa süre sonra, uyanınca ve saatte bir kontrol (tek zamanlayıcı).
 extension AppDelegate {
 
     var currentAppVersion: String {
@@ -18,6 +18,13 @@ extension AppDelegate {
             if kind == "update" || kind == "helpers" || kind.hasPrefix("memory") { self?.openPanel() }
         }
         refreshHelperState(afterLaunch: true)
+        u.onOpenNotificationSettings = {
+            let id = Bundle.main.bundleIdentifier ?? "com.tolgahanayaz.workstationmode"
+            if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(id)") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+        refreshNotificationState()
         u.onSettings = { [weak self] s in
             let betaChanged = s.beta != u.settings.beta
             s.save()
@@ -34,7 +41,7 @@ extension AppDelegate {
         scheduleUpdateCheck(after: 20)
     }
 
-    /// Tek seferlik zamanlayıcı; her kontrolden sonra 6 saat sonrasına yeniden kurulur.
+    /// Tek seferlik zamanlayıcı; her kontrolden sonra 1 saat sonrasına yeniden kurulur.
     func scheduleUpdateCheck(after delay: TimeInterval) {
         updateTimer?.invalidate()
         let t = Timer(timeInterval: max(5, delay), repeats: false) { [weak self] _ in
@@ -45,14 +52,23 @@ extension AppDelegate {
         updateTimer = t
     }
 
-    /// Uykudan uyanınca: son kontrol 6 saatten eskiyse kısa süre sonra kontrol et.
+    /// Uykudan uyanınca: son kontrol 1 saatten eskiyse kısa süre sonra kontrol et.
     func updateCheckAfterWake() {
         let last = panelModel.updater.lastChecked ?? .distantPast
         if Date().timeIntervalSince(last) > UpdatePolicy.checkInterval { scheduleUpdateCheck(after: 60) }
     }
 
+    func refreshNotificationState() {
+        notifier.checkDenied { [weak self] denied in
+            guard let u = self?.panelModel.updater, u.notificationsDenied != denied else { return }
+            u.notificationsDenied = denied
+            if denied { Log.warn("Bildirimler kapalı: güncelleme bildirimi görünmez (Sistem Ayarları › Bildirimler › Workstation)") }
+        }
+    }
+
     func checkForUpdates(manual: Bool) {
         let u = panelModel.updater
+        refreshNotificationState()
         guard !u.busy else { return }
         if u.phase != .available { u.phase = .checking }
         let engine = Updater(bundleID: Bundle.main.bundleIdentifier ?? "com.tolgahanayaz.workstationmode",

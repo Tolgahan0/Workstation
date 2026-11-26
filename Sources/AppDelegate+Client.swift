@@ -41,8 +41,9 @@ extension AppDelegate {
             }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 10, execute: publish)
-        let t = Timer(timeInterval: 1800, repeats: true) { _ in publish() }
-        t.tolerance = 120
+        // 5 dk'da bir oku, yalnızca değiştiyse yeniden duyur (ör. Tailscale adı değişince MacBook hemen öğrenir).
+        let t = Timer(timeInterval: 300, repeats: true) { _ in publish() }
+        t.tolerance = 30
         RunLoop.main.add(t, forMode: .common)
         studioBeaconTimer = t
     }

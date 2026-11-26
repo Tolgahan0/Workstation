@@ -92,6 +92,18 @@ final class Notifier: NSObject {
     /// Bildirime tıklanınca (tür ile). Ör. "update" → paneli aç.
     var onClick: ((String) -> Void)?
 
+    /// Bildirim izni açıkça reddedilmiş mi (ana iş parçacığında döner).
+    func checkDenied(_ done: @escaping (Bool) -> Void) {
+        #if os(macOS)
+        UNUserNotificationCenter.current().getNotificationSettings { s in
+            let denied = s.authorizationStatus == .denied
+            DispatchQueue.main.async { done(denied) }
+        }
+        #else
+        done(false)
+        #endif
+    }
+
     func notify(kind: String, title: String, body: String) {
         let now = Date()
         let lastKey = "lastNotification.\(kind)"

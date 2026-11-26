@@ -157,7 +157,7 @@ Kestirmeler › yeni kestirme › **URL'yi Aç** → yukarıdaki adreslerden bir
 
 ## Otomatik güncelleme
 
-Uygulama açılıştan kısa süre sonra ve günde bir kez GitHub'daki son sürüme bakar. Yeni sürüm varsa başlıkta **"Güncelleme var"** rozeti çıkar; **Ayarlar › Güncelleme › Güncelle**'ye basman yeter.
+Uygulama açılıştan kısa süre sonra, uykudan uyanınca ve saatte bir GitHub'daki son sürüme bakar. Yeni sürüm varsa menü çubuğu simgesi kırmızı olur ve başlıkta **"Güncelleme var"** rozeti çıkar; **Ayarlar › Güncelleme › Güncelle**'ye basman yeter.
 
 ```mermaid
 flowchart LR
@@ -240,7 +240,7 @@ Tests/run-tests.sh                 # çekirdek testleri (macOS ya da Linux)
 - **Yeni sürüm yayınlamak:** `VERSION`'ı artır, `scripts/version.sh sync` çalıştır, commit'le, sonra
 
   ```bash
-  git tag v1.9.7 && git push origin v1.9.7
+  git tag v1.9.8 && git push origin v1.9.8
   ```
 
   GitHub Actions ([`release.yml`](.github/workflows/release.yml)) testleri çalıştırır, evrensel derler ve sürüme `Workstation-<sürüm>.dmg`, `.zip`, `SHA256SUMS.txt` ve `latest.json` ekler. Sürüm adında `-` varsa (ör. `v1.9.0-beta.1`) beta olarak yayınlanır.

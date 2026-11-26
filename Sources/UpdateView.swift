@@ -4,6 +4,9 @@ import AppKit
 // Güncelleme: başlık rozeti + Ayarlar kartı. Makro yok; durum UpdateModel'de (@Published).
 
 final class UpdateModel: ObservableObject {
+    /// macOS'ta Workstation bildirimleri kapalı → "güncelleme var" bildirimi hiç görünmez; kartta uyarılır.
+    @Published var notificationsDenied = false
+    var onOpenNotificationSettings: () -> Void = {}
     enum Phase: Equatable {
         case idle
         case checking
@@ -192,8 +195,15 @@ struct UpdateSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             CardTitleRow(icon: "arrow.down.circle", title: L("Güncellemeler"),
-                         subtitle: L("Şu an %@ kullanıyorsun. Açılışta ve 6 saatte bir yeni sürüm var mı diye bakılır.", currentVersion))
+                         subtitle: L("Şu an %@ kullanıyorsun. Açılışta, uyanınca ve saatte bir yeni sürüm var mı diye bakılır; varsa menü çubuğu simgesi kırmızı olur.", currentVersion))
             UpdateStatusRow(updater: updater)
+            if updater.notificationsDenied {
+                HStack(spacing: 6) {
+                    Text(L("Bildirimler kapalı: yeni sürüm bildirimi gelmez (simge yine kırmızı olur)."))
+                        .font(.system(size: 10)).foregroundColor(.orange).fixedSize(horizontal: false, vertical: true)
+                    Button(L("Aç")) { updater.onOpenNotificationSettings() }.controlSize(.small)
+                }
+            }
             if let c = updater.candidate, updater.phase == .available || isWorking {
                 UpdateNotesBox(candidate: c)
             }

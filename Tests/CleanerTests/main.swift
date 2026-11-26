@@ -317,7 +317,7 @@ do {
 
 // MARK: Güncelleme bildirimi, depo adı, test beslemesi
 do {
-    check(UpdatePolicy.checkInterval == 6 * 3600, "6 saatte bir kontrol")
+    check(UpdatePolicy.checkInterval == 3600, "saatte bir kontrol")
     check(UpdatePolicy.shouldNotify(version: "1.9.1", lastNotified: nil), "ilk kez bildir")
     check(!UpdatePolicy.shouldNotify(version: "1.9.1", lastNotified: "1.9.1"), "aynı sürüm için bir kez")
     check(UpdatePolicy.shouldNotify(version: "1.9.2", lastNotified: "1.9.1"), "yeni sürüm yeniden bildirilir")
@@ -430,8 +430,8 @@ do {
     check(!RemoteAccessDiagnostics.screenSharingEnabled(launchctlOutput: "\t\t\"com.apple.screensharing\" => disabled"), "Ekran Paylaşımı kapalı")
     check(!RemoteAccessDiagnostics.screenSharingEnabled(launchctlOutput: "\"com.openssh.sshd\" => enabled"), "anahtar yoksa kapalı")
     check(NetworkInfo.isTailscale("100.98.61.110") && !NetworkInfo.isTailscale("100.200.1.1") && !NetworkInfo.isTailscale("192.168.1.34"), "Tailscale CGNAT aralığı")
-    let n = NetworkInfo.parse("IP=192.168.1.34\nHOSTNAME=studio.local\nTAILSCALE_IP=100.98.61.110\nTAILSCALE_NAME=tolgahan-mac-mini.tail9cb433.ts.net\n")
-    check(n.remoteAddress == "tolgahan-mac-mini.tail9cb433.ts.net", "dışarıdan adres MagicDNS adı")
+    let n = NetworkInfo.parse("IP=192.168.1.34\nHOSTNAME=studio.local\nTAILSCALE_IP=100.98.61.110\nTAILSCALE_NAME=studio.tail9cb433.ts.net\n")
+    check(n.remoteAddress == "studio.tail9cb433.ts.net", "dışarıdan adres MagicDNS adı")
     check(NetworkInfo.parse("TAILSCALE_IP=100.98.61.110").remoteAddress == "100.98.61.110", "ad yoksa Tailscale IP")
     check(NetworkInfo.parse("HOSTNAME=studio.local").remoteAddress.isEmpty, "Tailscale yoksa dışarıdan adres yok")
 }
@@ -457,17 +457,17 @@ do {
 // MARK: İstemci: Mac mini duyurusu → yapılandırma
 do {
     var info = NetworkInfo()
-    info.hostname = "studio.local"; info.tailscaleName = "tolgahan-mac-mini.tail9cb433.ts.net"; info.tailscaleIP = "100.98.61.110"
+    info.hostname = "studio.local"; info.tailscaleName = "studio.tail9cb433.ts.net"; info.tailscaleIP = "100.98.61.110"
     info.mac = "c8:80:6d:38:80:c0"; info.broadcast = "192.168.1.255"
     let txt = StudioBeacon.txt(info: info, user: "ayaz", version: "1.9.7")
     let cfg = StudioBeacon.config(fromTXT: txt)
-    check(cfg?["HOST"] == "studio.local" && cfg?["ALT_HOST"] == "tolgahan-mac-mini.tail9cb433.ts.net", "duyurudan ev + Tailscale adresi")
+    check(cfg?["HOST"] == "studio.local" && cfg?["ALT_HOST"] == "studio.tail9cb433.ts.net", "duyurudan ev + Tailscale adresi")
     check(cfg?["SSH_USER"] == "ayaz" && cfg?["MAC"] == "c8:80:6d:38:80:c0" && cfg?["BROADCAST"] == "192.168.1.255", "kullanıcı, MAC, yayın")
     check(StudioBeacon.config(fromTXT: ["host": "x.local"]) == nil, "studio olmayan duyuru yok sayılır")
     var user = ClientConfig.parse("# elle\nHOST=studio\nVNC_HOST=\"studio.local\"\nWAKE_TIMEOUT=60\n")
     check(user.values["HOST"] == "studio" && user.values["VNC_HOST"] == "studio.local", "yapılandırma okunur (tırnaklar atılır)")
     let changed = user.merge(cfg!, overwrite: ["ALT_HOST", "MAC", "BROADCAST", "SSH_USER"])
-    check(changed && user.values["HOST"] == "studio" && user.values["ALT_HOST"] == "tolgahan-mac-mini.tail9cb433.ts.net", "kullanıcının HOST'u korunur, Tailscale eklenir")
+    check(changed && user.values["HOST"] == "studio" && user.values["ALT_HOST"] == "studio.tail9cb433.ts.net", "kullanıcının HOST'u korunur, Tailscale eklenir")
     check(user.values["WAKE_TIMEOUT"] == "60", "diğer ayarlar korunur")
     check(!user.merge(cfg!, overwrite: ["ALT_HOST"]), "aynı duyuru ikinci kez değişiklik yapmaz")
     let out = user.serialized(header: "test")

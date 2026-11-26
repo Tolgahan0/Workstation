@@ -216,8 +216,14 @@ enum ClientEnvironment {
 /// Mac mini: kendini ev ağında duyurur (istemci MacBook'lar adresleri buradan öğrenir).
 final class StudioAdvertiser: NSObject, NetServiceDelegate {
     private var service: NetService?
+    private var lastTXT: [String: String]?
 
     func publish(txt: [String: String]) {
+        if txt == lastTXT { return }
+        if let old = lastTXT, old["ts"] != txt["ts"] || old["host"] != txt["host"] {
+            Log.info("Bonjour: adres değişti (\(old["ts"] ?? "yok") → \(txt["ts"] ?? "yok")), duyuru güncellendi")
+        }
+        lastTXT = txt
         let data = NetService.data(fromTXTRecord: txt.mapValues { Data($0.utf8) })
         if let s = service {
             s.setTXTRecord(data)

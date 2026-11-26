@@ -99,8 +99,8 @@ struct UpdateSettings: Codable, Equatable {
 }
 
 enum UpdatePolicy {
-    /// Açılışta + 6 saatte bir (tek zamanlayıcı, yoklama yok).
-    static let checkInterval: TimeInterval = 6 * 3600
+    /// Açılışta + saatte bir (tek zamanlayıcı, yoklama yok).
+    static let checkInterval: TimeInterval = 3600
 
     /// Aynı sürüm için yalnızca bir kez bildirim.
     static func shouldNotify(version: String, lastNotified: String?) -> Bool { version != lastNotified }
