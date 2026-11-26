@@ -8,6 +8,8 @@ import Foundation
 ///   workstation://clean/scan · workstation://clean/auto
 ///   workstation://fit?res=WxH (Remote sürerken sanal ekranı istemciye uydur)
 ///   workstation://update (denetle, varsa kur) · workstation://update/check (yalnızca denetle)
+///   workstation://input/test[?sec=30] (Masaüstünde yerel girdi algılamayı dener, yalnızca günlüğe yazar)
+///   workstation://input/access (Giriş İzleme iznini ister / ayarı açar)
 enum URLRoute: Equatable {
     enum CleanAction: Equatable { case scan, auto }
 
@@ -19,6 +21,8 @@ enum URLRoute: Equatable {
     case update(install: Bool)
     /// Remote sürerken sanal ekranı istemcinin Ekran Paylaşımı alanına uydur: workstation://fit?res=WxH
     case fit(String)
+    case inputTest(seconds: Int)
+    case inputAccess
 
     static func parse(_ str: String, scheme: String = "workstation") -> URLRoute? {
         let full = str.contains("://") ? str : "\(scheme)://\(str)"
@@ -43,6 +47,14 @@ enum URLRoute: Equatable {
         case "fit", "uydur":
             guard let r = (q("res") ?? pathParts.first).flatMap(RemotePreset.normalize) else { return nil }
             return .fit(r)
+        case "input", "girdi":
+            switch (pathParts.first ?? "test").lowercased() {
+            case "access", "izin": return .inputAccess
+            case "test":
+                let s = q("sec").flatMap(Int.init) ?? 30
+                return .inputTest(seconds: min(max(s, 5), 120))
+            default: return nil
+            }
         case "update", "guncelle":
             let arg = (pathParts.first ?? "install").lowercased()
             return .update(install: arg != "check" && arg != "denetle")

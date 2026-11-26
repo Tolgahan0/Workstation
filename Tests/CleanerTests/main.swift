@@ -474,6 +474,40 @@ do {
     check(ClientConfig.parse(out) == ClientConfig.parse(out) && ClientConfig.parse(out).values == user.values, "yaz-oku tutarlı")
 }
 
+// MARK: Pencere kipinde uydurma (ızgara) + izinsiz yerel girdi
+do {
+    let base = ["1512x945", "1728x1080"] + FitGrid.entries
+    check(FitGrid.entries.count >= 30 && FitGrid.entries.allSatisfy { $0.hasPrefix("1512x") }, "oran ızgarası")
+    check(FitGrid.snap("1512x945", list: base) == "1512x945", "listedeki çözünürlük aynen")
+    let w = FitGrid.snap("1180x700", list: base)   // pencere: oran 1.686
+    let ra = FitGrid.aspect(w)!, want = 1180.0 / 700.0
+    check(abs(ra - want) / want < 0.012 && w.hasPrefix("1512x"), "pencere oranı ızgaraya yuvarlanır (\(w))")
+    check(FitGrid.snap("3000x700", list: base) == "3000x700", "uzak oran: istenen aynen")
+    check(URLRoute.parse("workstation://input/test?sec=20") == .inputTest(seconds: 20), "girdi testi URL")
+    check(URLRoute.parse("workstation://input/access") == .inputAccess, "Giriş İzleme URL")
+    check(ClientGeometry.differsEnough("1512x945", "1500x938") == false, "aynı oran, küçük fark: yeniden uydurma yok")
+    check(ClientGeometry.differsEnough("1512x945", "1200x800"), "pencere oranı değişti: uydur")
+
+    let t0 = Date(timeIntervalSince1970: 1000)
+    var r = IdleResetRule(armedAt: t0)
+    _ = r.sample(idle: 50, at: t0.addingTimeInterval(30), viewerActive: false)
+    check(r.sample(idle: 0.1, at: t0.addingTimeInterval(30.25), viewerActive: false), "izleyici yokken tuş → yerel")
+    var r2 = IdleResetRule(armedAt: t0)
+    _ = r2.sample(idle: 50, at: t0.addingTimeInterval(30), viewerActive: false)
+    r2.mouse(at: t0.addingTimeInterval(30.2))
+    check(!r2.sample(idle: 0.1, at: t0.addingTimeInterval(30.25), viewerActive: false), "fare kaynaklı sıfırlama fare katmanına kalır")
+    var r3 = IdleResetRule(armedAt: t0)
+    _ = r3.sample(idle: 50, at: t0.addingTimeInterval(30), viewerActive: true)
+    check(!r3.sample(idle: 0.1, at: t0.addingTimeInterval(31), viewerActive: true), "Ekran Paylaşımı bağlıyken sayılmaz")
+    _ = r3.sample(idle: 5, at: t0.addingTimeInterval(40), viewerActive: false)
+    check(!r3.sample(idle: 0.1, at: t0.addingTimeInterval(45), viewerActive: false), "izleyici ayrıldıktan hemen sonra sayılmaz")
+    _ = r3.sample(idle: 9, at: t0.addingTimeInterval(60), viewerActive: false)
+    check(r3.sample(idle: 0.1, at: t0.addingTimeInterval(61), viewerActive: false), "20 sn sessizlikten sonra sayılır")
+    var r4 = IdleResetRule(armedAt: t0.addingTimeInterval(100))
+    _ = r4.sample(idle: 9, at: t0.addingTimeInterval(50), viewerActive: false)
+    check(!r4.sample(idle: 0.1, at: t0.addingTimeInterval(51), viewerActive: false), "bekleme süresinde sayılmaz")
+}
+
 // MARK: Dil
 do {
     check(L10n.isTurkish, "test ortamı Türkçe")

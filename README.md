@@ -95,13 +95,13 @@ stateDiagram-v2
 2. **MacBook'ta** Workstation'ı aç (iki Mac'te de [Tailscale](https://tailscale.com) kurulu olsun). Komut yazmak gerekmez:
    - Mac mini kendini ev ağında duyurur; MacBook evdeyken onu bulur, ev adresini, Tailscale adresini, SSH kullanıcısını ve MAC adresini `~/.config/workstation/config`'e kendisi yazar (ilk seferde **Yerel Ağ** iznine onay ver).
    - Remote sekmesindeki **Mac mini'ye bağlan** kartında **Bağlan**: evde değilsen Tailscale'i açar ve bağlanmasını bekler, Mac mini'yi uyandırır, bu MacBook'un tam ekran alanına (14": çentik altı 1512x945) uyan sanal ekranla Remote'a alır ve Ekran Paylaşımı'nı gerçekten yanıt veren adresle açar.
-   - Ekran Paylaşımı penceresini tam ekran yapınca ya da ekranı dolduracak kadar büyütünce sanal ekran birkaç saniye içinde yeni alana yeniden uydurulur (Ekran Paylaşımı'nı elle açsan da). Bu yüzden yanlarda bant kalmaz.
+   - Ekran Paylaşımı penceresini tam ekran yapınca ya da pencereyi yeniden boyutlandırınca sanal ekran birkaç saniye içinde pencerenin oranına yeniden uydurulur (Ekran Paylaşımı'nı elle açsan da). Pencere oranları için hazır bir mod ızgarası vardır (1512 genişlikte 1.40–2.10), bu yüzden uydurma sanal ekranı yeniden bağlamaz ve yanlarda bant kalmaz.
    - Tailscale kapalıysa Workstation açılışta onu arka planda başlatır ve kartta uyarır. Güncellemeler MacBook'ta Mac boştayken (Ekran Paylaşımı kapalıyken) kendiliğinden kurulur.
    - Terminalden: `workstation-connect` (aynı akış), `workstation fit 1512x945` (Mac mini'de sanal ekranı elle uydurur).
 
 - **Evden dışarıda:** `studio.local` ve `192.168.…` yalnızca ev ağında çalışır; Tailscale adresine kendiliğinden geçilir. Ekran Paylaşımı, SSH'nin gerçekten ulaştığı adres üzerinden açılır; hiçbir adres erişilemezse ne kontrol edileceğini söyler. Ekran Paylaşımı uygulamasıyla elle bağlanıyorsan Remote kartındaki **Dışarıdan** adresini (`vnc://…ts.net`) kullan.
 - **Neden bant oluyordu:** Ekran Paylaşımı görüntüyü ölçekler ama en-boy oranını korur. Eski otomatik algılama MacBook'tan ölçü almadığında 1512x982'ye (çentik dahil tüm ekran) düşüyordu; tam ekran Ekran Paylaşımı ise çentiğin altındaki 1512x945 alanı kullanır, bu yüzden iki yanda bant kalıyordu. Artık varsayılan 1512x945 ve gerçek ölçü istemciden gelir; en-boy oranı bağlıyken değiştirilmez (sanal ekran yeniden bağlanmaz).
-- **Eve dönünce:** Remote'tayken Mac mini'ye **takılı** klavye/fareye dokunmak (USB/Bluetooth; tık, tuş ya da belirgin hareket) monitörleri geri açar. Ekran Paylaşımı'ndan gelen girdi bir HID aygıtından gelmediği için monitörleri asla açmaz; biri uzaktan bağlıyken yalnızca 3 sn içinde iki tık/tuş sayılır. Ayarlar › **Eve dönünce** (varsayılan açık). Klavye için Giriş İzleme izni gerekir; yoksa fare yeterlidir. Bağlanan olmadı diye Remote kendiliğinden bırakılmaz; 10 dk sonra günlüğe teşhis yazılır.
+- **Eve dönünce:** Remote'tayken Mac mini'ye **takılı** klavye/fareye dokunmak (USB/Bluetooth; tık, tuş ya da belirgin hareket) monitörleri geri açar. Ekran Paylaşımı'ndan gelen girdi bir HID aygıtından gelmediği için monitörleri asla açmaz; biri uzaktan bağlıyken yalnızca 3 sn içinde iki tık/tuş sayılır. Ayarlar › **Eve dönünce** (varsayılan açık). Giriş İzleme izni olmadan da çalışır: Ekran Paylaşımı bağlı değilken fare hareketi/tıklaması ve sistemin "son girdi" sayacı (klavye dahil) yeter; izin verilirse biri uzaktan bağlıyken de takılı klavye/fare (3 sn içinde 2 tuş/tık) monitörleri açar. İzin penceresi ilk açılışta bir kez çıkar; sonradan `workstation://input/access`. Denemek için Masaüstünde `open 'workstation://input/test'` (yalnızca günlüğe yazar). Bağlanan olmadı diye Remote kendiliğinden bırakılmaz; 10 dk sonra günlüğe teşhis yazılır.
 - Uyandırma kablolu ağda (Ethernet) en güveniliridir; Remote sekmesindeki **Uyandır ve bağlan** kartı bağlantı türünü ve gerçek MAC adresini gösterir.
 - Sanal ekran için [BetterDisplay](https://github.com/waydabber/BetterDisplay) kullanılır; yoksa uygulama ilk Remote'ta kendisi kurar. BetterDisplay'de bir kez **Settings › Integration › CLI** erişimini aç.
 
@@ -240,7 +240,7 @@ Tests/run-tests.sh                 # çekirdek testleri (macOS ya da Linux)
 - **Yeni sürüm yayınlamak:** `VERSION`'ı artır, `scripts/version.sh sync` çalıştır, commit'le, sonra
 
   ```bash
-  git tag v1.9.8 && git push origin v1.9.8
+  git tag v1.9.9 && git push origin v1.9.9
   ```
 
   GitHub Actions ([`release.yml`](.github/workflows/release.yml)) testleri çalıştırır, evrensel derler ve sürüme `Workstation-<sürüm>.dmg`, `.zip`, `SHA256SUMS.txt` ve `latest.json` ekler. Sürüm adında `-` varsa (ör. `v1.9.0-beta.1`) beta olarak yayınlanır.

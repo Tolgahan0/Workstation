@@ -75,6 +75,33 @@ struct LocalInputDetector {
     }
 }
 
+/// İzin gerektirmeyen yedek: sistemin "son girdi" sayacı (HIDIdleTime) sıfırlandı mı?
+/// Ekran Paylaşımı da bu sayacı sıfırlar; bu yüzden yalnızca bağlı izleyici YOKKEN (ve son 20 sn'de olmamışken) sayılır.
+/// Fare kaynaklı sıfırlamalar fare katmanına bırakılır (titreşim eşiği orada); fare olayı olmayan sıfırlama = klavye.
+struct IdleResetRule {
+    var armedAt: Date
+    var viewerQuiet: TimeInterval = 20
+    var mouseWindow: TimeInterval = 0.6
+    private var lastIdle: Double?
+    private var viewerSeenAt = Date.distantPast
+    private var mouseSeenAt = Date.distantPast
+
+    init(armedAt: Date) { self.armedAt = armedAt }
+
+    mutating func viewer(at now: Date) { viewerSeenAt = now }
+    mutating func mouse(at now: Date) { mouseSeenAt = now }
+
+    /// `idle`: saniye. Sayaç geriye gittiyse (yeni girdi) ve koşullar uygunsa true.
+    mutating func sample(idle: Double, at now: Date, viewerActive: Bool) -> Bool {
+        defer { lastIdle = idle }
+        if viewerActive { viewerSeenAt = now; return false }
+        guard let prev = lastIdle, idle + 0.05 < prev, idle < 1.0 else { return false }
+        guard now >= armedAt, now.timeIntervalSince(viewerSeenAt) > viewerQuiet else { return false }
+        guard abs(now.timeIntervalSince(mouseSeenAt)) > mouseWindow else { return false }
+        return true
+    }
+}
+
 /// Uzaktan erişimin önkoşulları (yalnızca okunur; arka planda çağrılmalı).
 struct RemoteAccessDiagnostics {
     var screenSharingEnabled: Bool
@@ -111,9 +138,13 @@ final class LocalInputWatcher {
     private var viewerActive = false
     private var fired = false
     private var fallbackMonitor: Any?
+    private var idleTimer: Timer?
+    private var idleRule = IdleResetRule(armedAt: .distantFuture)
+    /// Son başlatmanın açılış sonucu (teşhis).
+    private(set) var openResult: String = "?"
     /// Tetiklenince bir kez çağrılır (aygıt adıyla).
     var onLocalInput: ((String) -> Void)?
-    var isRunning: Bool { manager != nil }
+    var isRunning: Bool { manager != nil || fallbackMonitor != nil }
     var deviceNames: [String] { Array(Set(names.values)).sorted() }
 
     /// Klavyeler için Giriş İzleme izni gerekir; izin yokken yalnızca fareler izlenir (izin penceresi açılmaz).
@@ -124,6 +155,29 @@ final class LocalInputWatcher {
     /// Kullanıcı ayarlardan isteyince: sistem izin penceresini açar.
     static func requestKeyboardAccess() -> Bool {
         IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+    }
+
+    /// İzin hiç sorulmadıysa sistem penceresini açar (Workstation Giriş İzleme listesine eklenir);
+    /// reddedildiyse Sistem Ayarları › Gizlilik › Giriş İzleme'yi açar.
+    static func ensureAccessRequested(openSettingsIfDenied: Bool) {
+        let s = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
+        if s == kIOHIDAccessTypeGranted { return }
+        if s == kIOHIDAccessTypeUnknown {
+            let ok = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+            Log.info("Giriş İzleme izni istendi (sistem penceresi): \(ok ? "verildi" : "bekleniyor")")
+            if ok || !openSettingsIfDenied { return }
+        }
+        if openSettingsIfDenied, let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    static var accessStateText: String {
+        switch IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) {
+        case kIOHIDAccessTypeGranted: return "verildi"
+        case kIOHIDAccessTypeDenied: return "reddedildi"
+        default: return "sorulmadı"
+        }
     }
 
     func start(grace: TimeInterval = LocalInputPolicy.graceSeconds) {
@@ -156,28 +210,57 @@ final class LocalInputWatcher {
         IOHIDManagerScheduleWithRunLoop(m, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
         let r = IOHIDManagerOpen(m, IOOptionBits(kIOHIDOptionsTypeNone))
         manager = m
-        let openText = r == kIOReturnSuccess ? "tamam" : String(format: "0x%x", r)
+        let openText = r == kIOReturnSuccess ? "tamam" : (r == kIOReturnNotPermitted ? "izin yok (0x\(String(r, radix: 16)))" : String(format: "0x%x", r))
+        openResult = openText
+        // Yedekler HER ZAMAN açık: HID açılışı izin yüzünden başarısız olsa da (0xe00002e2, aygıtlar listelenir ama
+        // olay gelmez) fare olayları ve sistem boşta sayacı monitörleri geri getirir.
+        installFallback()
+        startIdleWatch()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
             guard let self = self, self.manager != nil else { return }
-            Log.info("Yerel giriş izleniyor (Remote'tan çıkış için): fareler\(keyboards ? " + klavyeler" : " (klavye için Giriş İzleme izni yok)") · açılış \(openText) · aygıtlar: \(self.deviceNames.joined(separator: ", "))")
-            if self.allowed.isEmpty { self.installFallback() }
+            Log.info("Yerel giriş izleniyor (Remote'tan çıkış için): HID \(openText)\(keyboards ? " (fare + klavye)" : " (yalnız fare; Giriş İzleme: \(Self.accessStateText))") · yedek: fare olayları + boşta sayacı · aygıtlar: \(self.deviceNames.joined(separator: ", "))")
         }
+    }
+
+    /// Sistem boşta sayacı (izin gerekmez): klavye dahil her yerel girdi sayacı sıfırlar.
+    private func startIdleWatch() {
+        idleTimer?.invalidate()
+        idleRule = IdleResetRule(armedAt: detector.armedAt)
+        let t = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
+            guard let self = self, !self.fired else { return }
+            let now = Date()
+            let idle = ClientEnvironment.idleSeconds
+            // İzleyici durumunu sayaç sıfırlandığında taze oku (Ekran Paylaşımı bağlanınca sayacı o da sıfırlar).
+            var viewer = self.viewerActive
+            if now.timeIntervalSince(self.viewerCheckedAt) > (idle < 1.0 ? 0.5 : 2) {
+                viewer = RemoteSessionProbe.current().screenSharing
+                self.viewerActive = viewer
+                self.viewerCheckedAt = now
+            }
+            if self.idleRule.sample(idle: idle, at: now, viewerActive: viewer) {
+                self.fired = true
+                self.onLocalInput?(L("klavye (sistem girdisi)"))
+            }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        idleTimer = t
     }
 
     /// Yedek (HID aygıtları açılamazsa): pencere sunucusunun fare olayları; yalnızca donanımdan gelenler
     /// (kaynak süreç 0 + HID sistem durumu) ve Ekran Paylaşımı bağlı DEĞİLKEN sayılır.
     private func installFallback() {
         guard fallbackMonitor == nil else { return }
-        Log.warn("Yerel giriş: HID aygıtları açılamadı; yedek olarak fare olayları izleniyor")
         fallbackMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .mouseMoved, .scrollWheel]) { [weak self] e in
             guard let self = self, !self.fired, let c = e.cgEvent else { return }
             guard c.getIntegerValueField(.eventSourceUnixProcessID) == 0,
                   c.getIntegerValueField(.eventSourceStateID) == Int64(CGEventSourceStateID.hidSystemState.rawValue) else { return }
             let now = Date()
+            self.idleRule.mouse(at: now)
             if now.timeIntervalSince(self.viewerCheckedAt) > 2 {
                 self.viewerActive = RemoteSessionProbe.current().screenSharing
                 self.viewerCheckedAt = now
             }
+            // Ekran Paylaşımı bağlıyken enjekte edilen olaylar buradan ayırt edilemeyebilir: yalnız HID katmanı sayar.
             guard !self.viewerActive else { return }
             let ev: LocalInputDetector.Event
             switch e.type {
@@ -194,6 +277,7 @@ final class LocalInputWatcher {
 
     func stop() {
         if let f = fallbackMonitor { NSEvent.removeMonitor(f); fallbackMonitor = nil }
+        idleTimer?.invalidate(); idleTimer = nil
         guard let m = manager else { return }
         IOHIDManagerRegisterInputValueCallback(m, nil, nil)
         IOHIDManagerRegisterDeviceMatchingCallback(m, nil, nil)

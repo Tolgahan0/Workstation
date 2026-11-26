@@ -568,6 +568,7 @@ enum L10n {
         "Tailscale bulunamadı: studio.local ve ev IP'si yalnızca ev ağında çalışır; dışarıdan bağlanamazsın.": "Tailscale not found: studio.local and the home IP only work on the home network; you can't connect from outside.",
         "Yerel klavye/fare Remote'tan çıkarsın": "Local keyboard/mouse exits Remote",
         "yerel klavye/fare (%@)": "local keyboard/mouse (%@)",
+        "klavye (sistem girdisi)": "keyboard (system input)",
         "İzin ver": "Allow",
         "Şu an yalnızca fare tıklaması/hareketi algılanır. Klavye için Giriş İzleme izni gerekir.": "Right now only mouse clicks/movement are detected. The keyboard needs Input Monitoring permission.",
         // Remote › Mac mini'ye bağlan (istemci)

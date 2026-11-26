@@ -41,14 +41,22 @@ final class DisplayManager {
 
     /// Sanal ekranın özel çözünürlük listesi: tüm ön ayarlar + yaygın 16:10 / 16:9 değerler.
     static var virtualResolutionList: [String] {
+        var list = baseResolutionList
+        for r in [virtualResolution, RemoteResolution.lastClientResolution].compactMap({ $0 }) where !list.contains(r) {
+            list.insert(r, at: 0)
+        }
+        return list
+    }
+
+    /// Her zaman listede olan modlar (istemciye göre değişmez → uydurma bunlara yuvarlanır).
+    static var baseResolutionList: [String] {
         var list = RemotePreset.all.filter { $0.id != "auto" }.map { $0.resolution }
         list += ["1512x945", "1800x1169", "1352x878", "1680x1050", "1440x900", "1920x1200",
                  "1280x800", "1920x1080", "2560x1440", "1280x832", "1440x932"]
         // Çentikli MacBook'larda tam ekran Ekran Paylaşımı'nın kullandığı alan (çentik altı).
         list += ["1470x918", "1710x1068", "1728x1080", "1512x945"]
-        for r in [virtualResolution, RemoteResolution.lastClientResolution].compactMap({ $0 }) where !list.contains(r) {
-            list.insert(r, at: 0)
-        }
+        // Pencere kipi: her en-boy oranı için bir mod (uydurma isteği bunlara yuvarlanır, ekran yeniden bağlanmaz).
+        list += FitGrid.entries
         var seen = Set<String>()
         return list.filter { seen.insert($0).inserted }
     }

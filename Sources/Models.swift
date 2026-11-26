@@ -336,6 +336,37 @@ struct RemotePreset: Identifiable, Equatable {
 }
 
 /// Remote çözünürlük seçimi (UserDefaults).
+/// Pencere kipindeki Ekran Paylaşımı için en-boy ızgarası: 1512 genişlikte 1.40…2.10 oranları (0.02 adım).
+/// Sanal ekranın çözünürlük listesi bağlıyken değişirse ekran yeniden bağlanır; bu yüzden ızgara Remote
+/// başlamadan listeye konur ve uydurma isteği listedeki en yakın orana yuvarlanır (yan bant < %1).
+enum FitGrid {
+    static let entries: [String] = stride(from: 1.40, through: 2.1001, by: 0.02).map { a in
+        "1512x\(Int((1512 / a).rounded()))"
+    }
+
+    static func aspect(_ r: String) -> Double? {
+        let p = r.lowercased().split(separator: "x").compactMap { Double($0) }
+        guard p.count == 2, p[0] > 0, p[1] > 0 else { return nil }
+        return p[0] / p[1]
+    }
+
+    /// Listede aynısı varsa o; yoksa oranı %1,2'den yakın olan liste girdisi (aynı orandakilerden genişliği en yakın);
+    /// hiçbiri yakın değilse isteğin kendisi.
+    static func snap(_ res: String, list: [String], tolerance: Double = 0.012) -> String {
+        if list.contains(res) { return res }
+        guard let a = aspect(res), let w = Double(res.split(separator: "x").first ?? "") else { return res }
+        var best: (String, Double, Double)?
+        for e in list {
+            guard let ea = aspect(e), let ew = Double(e.split(separator: "x").first ?? "") else { continue }
+            let da = abs(ea - a) / a
+            guard da <= tolerance else { continue }
+            let dw = abs(ew - w)
+            if best == nil || da < best!.1 - 0.0005 || (abs(da - best!.1) <= 0.0005 && dw < best!.2) { best = (e, da, dw) }
+        }
+        return best?.0 ?? res
+    }
+}
+
 enum RemoteResolution {
     static let presetKey = "remotePreset"
     static let lastClientKey = "lastClientResolution"

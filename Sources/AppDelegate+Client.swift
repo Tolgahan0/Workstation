@@ -33,6 +33,12 @@ extension AppDelegate {
     // MARK: Studio (Mac mini)
 
     private func startStudioRole() {
+        // Remote'tan klavyeyle de çıkabilmek için Giriş İzleme izni: hiç sorulmadıysa açılışta bir kez sistem penceresi.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            guard let self = self, self.currentMode != .remote else { return }
+            LocalInputWatcher.ensureAccessRequested(openSettingsIfDenied: false)
+            self.panelModel.keyboardInputAccess = LocalInputWatcher.keyboardAccessGranted
+        }
         let publish: () -> Void = { [weak self] in
             DispatchQueue.global(qos: .utility).async {
                 guard let info = NetworkInfo.fetch() else { return }
@@ -188,6 +194,7 @@ extension AppDelegate {
         var stableTicks = 0
         var missing = 0
         var inFlight = false
+        var lastSent = Date.distantPast
         let sshTarget = (user.map { host.contains("@") ? host : "\($0)@\(host)" }) ?? host
         let t = Timer(timeInterval: 2, repeats: true) { [weak self] timer in
             guard let self = self else { timer.invalidate(); return }
@@ -198,12 +205,14 @@ extension AppDelegate {
             }
             missing = 0
             let geo = ClientEnvironment.screenGeometry(containing: win)
-            // Küçük pencerelerde uydurma yapılmaz (Ekran Paylaşımı pencereyi uzak ekrana göre yeniden boyutlar; döngü olmasın).
-            guard win.w >= geo.w * 0.9,
+            // Pencere kipinde de uydurulur (yan bantlar pencere oranı ≠ uzak ekran oranı yüzünden). Döngü olmasın diye:
+            // ölçü 2 kez sabit kalmalı, oran belirgin değişmeli ve en fazla 4 sn'de bir istek gider.
+            guard win.w >= 600, Date().timeIntervalSince(lastSent) >= 4,
                   let want = ClientGeometry.target(window: win, screen: (geo.w, geo.h), safeTop: geo.safeTop) else { return }
             if want == candidate { stableTicks += 1 } else { candidate = want; stableTicks = 0 }
             guard stableTicks >= 1, !inFlight, ClientGeometry.differsEnough(last, want) else { return }
             inFlight = true
+            lastSent = Date()
             last = want
             Log.info("İstemci: Ekran Paylaşımı alanı \(want) → Mac mini sanal ekranı uyduruluyor")
             DispatchQueue.global(qos: .utility).async {

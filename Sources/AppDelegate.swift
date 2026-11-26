@@ -284,8 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             if self.currentMode == .remote { self.startRemoteWatchers() }
         }
         m.onRequestKeyboardAccess = { [weak self] in
-            let granted = LocalInputWatcher.requestKeyboardAccess()
-            Log.info("Giriş İzleme izni (klavye): \(granted ? "verildi" : "bekleniyor/verilmedi")")
+            LocalInputWatcher.ensureAccessRequested(openSettingsIfDenied: true)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 guard let self = self else { return }
                 self.panelModel.keyboardInputAccess = LocalInputWatcher.keyboardAccessGranted
@@ -814,7 +813,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         switch route {
         case .mode(let mode, let res):
             requestMode(mode, source: source, resolution: res)
-        case .fit(let res):
+        case .fit(let asked):
+            let res = FitGrid.snap(asked, list: DisplayManager.baseResolutionList)
+            if res != asked { Log.info("Uydurma: \(asked) → listedeki en yakın oran \(res)") }
             RemoteResolution.lastClientResolution = res
             guard currentMode == .remote, !isTransitioning, !countdownActive else {
                 Log.info("İstemci görüntü alanı kaydedildi: \(res) (sonraki Remote'ta kullanılacak)")
@@ -843,6 +844,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 keepAwake.enable(seconds: seconds)
             } else {
                 keepAwake.disable(reason: source)
+            }
+        case .inputAccess:
+            LocalInputWatcher.ensureAccessRequested(openSettingsIfDenied: true)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                self?.panelModel.keyboardInputAccess = LocalInputWatcher.keyboardAccessGranted
+            }
+        case .inputTest(let secs):
+            guard currentMode != .remote else { Log.info("Girdi testi: Remote'tayken yapılmaz"); return }
+            Log.info("Girdi testi başladı (\(secs) sn): fareyi oynat ya da bir tuşa bas (Giriş İzleme: \(LocalInputWatcher.accessStateText))")
+            localInput.onLocalInput = { [weak self] device in
+                Log.info("Girdi testi: algılandı → \(device) (Remote'ta bu, monitörleri açardı)")
+                self?.localInput.stop()
+            }
+            localInput.start(grace: 1)
+            DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(secs)) { [weak self] in
+                guard let self = self, self.currentMode != .remote, self.localInput.isRunning else { return }
+                self.localInput.stop()
+                Log.info("Girdi testi bitti: \(secs) sn içinde yerel girdi algılanmadı")
             }
         case .update(let install):
             Log.info("Güncelleme isteği (\(source)): \(install ? "denetle ve kur" : "yalnızca denetle")")

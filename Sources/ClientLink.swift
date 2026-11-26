@@ -47,11 +47,13 @@ enum ClientGeometry {
     }
 
     /// Küçük oynamalarda (birkaç pt) yeniden uydurma yapılmaz (her uydurma bir anlık yeniden çizim demek).
-    static func differsEnough(_ a: String?, _ b: String, tolerance: Int = 6) -> Bool {
+    /// Bant en-boy oranından doğar: oran %0,8'den az değiştiyse (ve genişlik 24 pt'den az) yeniden uydurma yok.
+    static func differsEnough(_ a: String?, _ b: String) -> Bool {
         guard let a = a else { return true }
-        let p = a.split(separator: "x").compactMap { Int($0) }, q = b.split(separator: "x").compactMap { Int($0) }
-        guard p.count == 2, q.count == 2 else { return true }
-        return abs(p[0] - q[0]) > tolerance || abs(p[1] - q[1]) > tolerance
+        let p = a.split(separator: "x").compactMap { Double($0) }, q = b.split(separator: "x").compactMap { Double($0) }
+        guard p.count == 2, q.count == 2, p[1] > 0, q[1] > 0 else { return true }
+        let ra = p[0] / p[1], rb = q[0] / q[1]
+        return abs(ra - rb) / ra > 0.008 || abs(p[0] - q[0]) > 24
     }
 }
 
