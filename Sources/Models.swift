@@ -294,7 +294,9 @@ struct RemotePreset: Identifiable, Equatable {
         RemotePreset(id: "mbp16n", title: L("MacBook Pro 16\" · çentik altı"), width: 1728, height: 1080),
         RemotePreset(id: "imac24", title: "iMac 24\"", width: 2240, height: 1260),
     ]
-    static let fallback = all.first { $0.id == "mbp14" }!
+    /// İstemci boyutu bilinmiyorsa: 14" MacBook Pro'da tam ekran Ekran Paylaşımı'nın kullandığı alan (çentik altı).
+    /// (1512x982 tüm ekranı sayar; tam ekranda görüntü çentiğin altına sığdırıldığı için yanlarda şerit kalıyordu.)
+    static let fallback = all.first { $0.id == "mbp14n" }!
 
     static func preset(id: String) -> RemotePreset? { all.first { $0.id == id } }
 

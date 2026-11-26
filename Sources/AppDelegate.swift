@@ -54,6 +54,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// Remote: bu Mac'e takılı klavye/fare monitörleri geri açar (bkz. AppDelegate+LocalInput).
     let localInput = LocalInputWatcher()
     var remoteDiagItem: DispatchWorkItem?
+    /// İstemci / studio rolleri (bkz. AppDelegate+Client).
+    let advertiser = StudioAdvertiser()
+    let browser = StudioBrowser()
+    var studioBeaconTimer: Timer?
+    var clientStateTimer: Timer?
+    var fitTimer: Timer?
     /// Yerel bildirimler (aşırı ısınma, disk, beklenmedik kapanma).
     let notifier = Notifier()
     var notifySettings = NotificationSettings.load()
@@ -118,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         wireCleaner()
         wireUpdater()
         wireResources()
+        startRoles()
         registerObservers()
         updateUI()
 
@@ -807,6 +814,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         switch route {
         case .mode(let mode, let res):
             requestMode(mode, source: source, resolution: res)
+        case .fit(let res):
+            RemoteResolution.lastClientResolution = res
+            guard currentMode == .remote, !isTransitioning, !countdownActive else {
+                Log.info("İstemci görüntü alanı kaydedildi: \(res) (sonraki Remote'ta kullanılacak)")
+                return
+            }
+            Log.info("Sanal ekran istemciye uyduruluyor: \(res)")
+            controller.refit(res) { [weak self] ok in
+                if !ok { Log.warn("Uydurma başarısız: \(res)") }
+                self?.updateUI()
+            }
         case .profile(let name):
             if let p = ProfileStore.find(name, in: ProfileStore.load()) {
                 applyProfile(p, source: source)

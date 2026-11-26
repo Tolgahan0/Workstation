@@ -339,7 +339,7 @@ do {
     check(RemotePreset.preset(matching: "1512x945")?.id == "mbp14n", "14 inç çentik altı ön ayarı")
     check(RemotePreset.preset(matching: "1728x1080")?.id == "mbp16n", "16 inç çentik altı ön ayarı")
     check(RemotePreset.aspect(of: "1512x945").map { $0 == (8, 5) } == true, "1512x945 → 8:5")
-    check(RemotePreset.fallback.resolution == "1512x982", "varsayılan 14 inç tam boy")
+    check(RemotePreset.fallback.resolution == "1512x945", "varsayılan 14 inç tam ekran (çentik altı)")
 }
 
 // MARK: Yer tutucu ekran (macOS'un "Generic Display"i) fiziksel monitör sayılmaz
@@ -434,6 +434,44 @@ do {
     check(n.remoteAddress == "tolgahan-mac-mini.tail9cb433.ts.net", "dışarıdan adres MagicDNS adı")
     check(NetworkInfo.parse("TAILSCALE_IP=100.98.61.110").remoteAddress == "100.98.61.110", "ad yoksa Tailscale IP")
     check(NetworkInfo.parse("HOSTNAME=studio.local").remoteAddress.isEmpty, "Tailscale yoksa dışarıdan adres yok")
+}
+
+// MARK: İstemci: sanal ekranı Ekran Paylaşımı alanına uydurma
+do {
+    check(ClientGeometry.fullscreenTarget(screenWidth: 1512, screenHeight: 982, safeTop: 37) == "1512x945", "14\" tam ekran = çentik altı 1512x945")
+    check(ClientGeometry.fullscreenTarget(screenWidth: 1728, screenHeight: 1117, safeTop: 37) == "1728x1080", "16\" tam ekran = 1728x1080")
+    check(ClientGeometry.fullscreenTarget(screenWidth: 2560, screenHeight: 1440, safeTop: 0) == "2560x1440", "çentiksiz ekran tam boy")
+    let scr = (w: 1512.0, h: 982.0)
+    check(ClientGeometry.target(window: (0, 37, 1512, 945), screen: scr, safeTop: 37, toolbar: 52) == "1512x945", "tam ekran pencere (çentik altı): araç çubuğu yok")
+    check(ClientGeometry.target(window: (0, 0, 1512, 982), screen: scr, safeTop: 37, toolbar: 52) == "1512x945", "tüm ekranı kaplayan pencere: çentik payı düşülür")
+    check(ClientGeometry.target(window: (0, 37, 1512, 945 - 0), screen: scr, safeTop: 37, toolbar: 52) != "1512x893", "tam ekranda araç çubuğu düşülmez")
+    check(ClientGeometry.target(window: (0, 37, 1512, 900), screen: scr, safeTop: 37, toolbar: 52) == "1512x848", "büyütülmüş pencere: araç çubuğu düşülür")
+    check(ClientGeometry.target(window: (0, 0, 200, 100), screen: scr, safeTop: 37) == nil, "çok küçük pencere yok sayılır")
+    check(ClientGeometry.resolution(1511.4, 944.6) == "1511x945", "tam sayıya yuvarlanır")
+    check(!ClientGeometry.differsEnough("1512x945", "1512x948") && ClientGeometry.differsEnough("1512x945", "1512x893"), "küçük oynamada yeniden uydurma yok")
+    check(URLRoute.parse("workstation://fit?res=1512x945") == .fit("1512x945"), "fit URL'si")
+    check(URLRoute.parse("workstation://fit/1512x893") == .fit("1512x893"), "fit yol biçimi")
+    check(URLRoute.parse("workstation://fit?res=abc") == nil, "geçersiz fit")
+}
+
+// MARK: İstemci: Mac mini duyurusu → yapılandırma
+do {
+    var info = NetworkInfo()
+    info.hostname = "studio.local"; info.tailscaleName = "tolgahan-mac-mini.tail9cb433.ts.net"; info.tailscaleIP = "100.98.61.110"
+    info.mac = "c8:80:6d:38:80:c0"; info.broadcast = "192.168.1.255"
+    let txt = StudioBeacon.txt(info: info, user: "ayaz", version: "1.9.7")
+    let cfg = StudioBeacon.config(fromTXT: txt)
+    check(cfg?["HOST"] == "studio.local" && cfg?["ALT_HOST"] == "tolgahan-mac-mini.tail9cb433.ts.net", "duyurudan ev + Tailscale adresi")
+    check(cfg?["SSH_USER"] == "ayaz" && cfg?["MAC"] == "c8:80:6d:38:80:c0" && cfg?["BROADCAST"] == "192.168.1.255", "kullanıcı, MAC, yayın")
+    check(StudioBeacon.config(fromTXT: ["host": "x.local"]) == nil, "studio olmayan duyuru yok sayılır")
+    var user = ClientConfig.parse("# elle\nHOST=studio\nVNC_HOST=\"studio.local\"\nWAKE_TIMEOUT=60\n")
+    check(user.values["HOST"] == "studio" && user.values["VNC_HOST"] == "studio.local", "yapılandırma okunur (tırnaklar atılır)")
+    let changed = user.merge(cfg!, overwrite: ["ALT_HOST", "MAC", "BROADCAST", "SSH_USER"])
+    check(changed && user.values["HOST"] == "studio" && user.values["ALT_HOST"] == "tolgahan-mac-mini.tail9cb433.ts.net", "kullanıcının HOST'u korunur, Tailscale eklenir")
+    check(user.values["WAKE_TIMEOUT"] == "60", "diğer ayarlar korunur")
+    check(!user.merge(cfg!, overwrite: ["ALT_HOST"]), "aynı duyuru ikinci kez değişiklik yapmaz")
+    let out = user.serialized(header: "test")
+    check(ClientConfig.parse(out) == ClientConfig.parse(out) && ClientConfig.parse(out).values == user.values, "yaz-oku tutarlı")
 }
 
 // MARK: Dil

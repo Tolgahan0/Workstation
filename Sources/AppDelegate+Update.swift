@@ -80,6 +80,17 @@ extension AppDelegate {
                         self.installUpdate(automatic: false)
                     } else if u.settings.autoInstall && self.currentMode != .remote && !self.isTransitioning {
                         self.installUpdate(automatic: true)
+                    } else if self.clientAutoInstallAllowed() {
+                        Log.info("İstemci rolü: kullanıcı boşta, güncelleme kendiliğinden kuruluyor")
+                        self.installUpdate(automatic: true)
+                    } else if self.panelModel.client.isClient {
+                        // Kullanıcı şu an Mac'in başında: 15 dk sonra yeniden dene (boştayken kurulur).
+                        self.scheduleUpdateCheck(after: 900)
+                        if firstTime {
+                            UserDefaults.standard.set(c.version, forKey: notifiedKey)
+                            self.notifier.notify(kind: "update", title: L("Workstation %@ hazır — güncellemek için tıkla", c.version),
+                                                 body: L("Mac boştayken kendiliğinden kurulur."))
+                        }
                     } else if firstTime {
                         UserDefaults.standard.set(c.version, forKey: notifiedKey)
                         self.notifier.notify(kind: "update", title: L("Workstation %@ hazır — güncellemek için tıkla", c.version),

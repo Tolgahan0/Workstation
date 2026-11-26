@@ -44,8 +44,11 @@ final class DisplayManager {
         var list = RemotePreset.all.filter { $0.id != "auto" }.map { $0.resolution }
         list += ["1512x945", "1800x1169", "1352x878", "1680x1050", "1440x900", "1920x1200",
                  "1280x800", "1920x1080", "2560x1440", "1280x832", "1440x932"]
-        let current = virtualResolution
-        if !list.contains(current) { list.insert(current, at: 0) }
+        // Çentikli MacBook'larda tam ekran Ekran Paylaşımı'nın kullandığı alan (çentik altı).
+        list += ["1470x918", "1710x1068", "1728x1080", "1512x945"]
+        for r in [virtualResolution, RemoteResolution.lastClientResolution].compactMap({ $0 }) where !list.contains(r) {
+            list.insert(r, at: 0)
+        }
         var seen = Set<String>()
         return list.filter { seen.insert($0).inserted }
     }
@@ -338,6 +341,18 @@ final class DisplayManager {
         }
         Log.error("\(Self.virtualScreenName) çözünürlüğü \(res) yapılamadı (şu an: \(currentVirtualResolution() ?? "?")).")
         return false
+    }
+
+    /// Remote sürerken istemcinin Ekran Paylaşımı alanına yeniden uydurma: yalnızca sanal ekranın çözünürlüğü
+    /// değişir (fiziksel monitörlere dokunulmaz). Çözünürlük listede yoksa liste güncellenir (bir anlık yeniden bağlanma).
+    func refitVirtual(_ res: String) -> Bool {
+        let old = Self.resolutionOverride
+        Self.resolutionOverride = res
+        defer { Self.resolutionOverride = old }
+        guard isVirtualActive() else { return false }
+        let ok = setVirtualResolution()
+        cli(["set", "-name=\(Self.virtualScreenName)", "-main=on"], timeout: 3, logFailure: false)
+        return ok
     }
 
     /// Sanal ekranın macOS tarafından gerçekten bağlandığını bekler (en fazla `timeout` sn).
@@ -633,7 +648,8 @@ final class DisplayManager {
         if resolvedMethod == .betterDisplay { ensureDisconnectAllAllowed() }
         Log.info("Remote sanal ekran çözünürlüğü: \(Self.virtualResolution) HiDPI")
         ensureVirtualScreen()
-        applyVirtualAspect()
+        // En-boy oranı DEĞİŞTİRİLMEZ: özel çözünürlük listesi açıkken modlar orandan bağımsızdır; oran değişimi
+        // sanal ekranı yeniden oluşturuyordu (yeni displayID, ara 1920x1080 modu, Ekran Paylaşımı'nda kesinti).
         if !isVirtualActive() {
             configureVirtualScreen()
             setVirtualConnected(true)

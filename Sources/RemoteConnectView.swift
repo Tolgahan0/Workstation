@@ -83,3 +83,49 @@ enum PasteboardCopy {
         pb.setString(text, forType: .string)
     }
 }
+
+/// MacBook'ta (istemci) "Mac mini'ye bağlan"; Mac mini'de "Uzaktan uyandır ve bağlan" bilgisi.
+struct RoleConnectCard: View {
+    @ObservedObject var model: PanelModel
+    @ObservedObject var client: ClientModel
+
+    var body: some View {
+        if client.isClient {
+            ClientConnectCard(client: client)
+        } else {
+            WakeConnectCard(model: model)
+        }
+    }
+}
+
+struct ClientConnectCard: View {
+    @ObservedObject var client: ClientModel
+
+    var body: some View {
+        let c: ClientModel = client
+        return VStack(alignment: .leading, spacing: 8) {
+            Label(L("Mac mini'ye bağlan"), systemImage: "display.and.arrow.down")
+                .font(.system(size: 12, weight: .semibold))
+            CopyLine(label: L("Evde"), value: client.homeHost ?? "—", copy: "")
+            CopyLine(label: L("Dışarıdan"), value: client.awayHost ?? L("Tailscale yok"), copy: "")
+            if client.tailscaleInstalled && !client.tailscaleConnected {
+                HStack(spacing: 6) {
+                    NoteText(text: L("Tailscale bağlı değil: evden dışarıdayken bağlanmak için gerekli."))
+                    Button(L("Aç")) { c.onStartTailscale() }.controlSize(.small)
+                }
+            } else if !client.tailscaleInstalled {
+                NoteText(text: L("Tailscale kurulu değil: yalnızca ev ağından bağlanabilirsin."))
+            }
+            HStack {
+                Button(client.busy ? L("Bağlanılıyor…") : L("Bağlan")) { c.onConnect() }
+                    .disabled(client.busy)
+                    .keyboardShortcut(.defaultAction)
+                if let f = client.fitted {
+                    Text(L("Ekran: %@", f)).font(.system(size: 10).monospacedDigit()).foregroundColor(.secondary)
+                }
+            }
+            if let n = client.note { NoteText(text: n) }
+        }
+        .cardStyle()
+    }
+}

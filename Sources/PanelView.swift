@@ -140,6 +140,8 @@ final class PanelModel: ObservableObject {
     let cleaner = CleanerModel()
     /// Tools › Kaynaklar (ayrı model: 2 sn'lik örnekler yalnızca kendi kartlarını çizer).
     let resources = ResourceModel()
+    /// İstemci rolü (MacBook): Mac mini'ye tek tıkla bağlan.
+    let client = ClientModel()
     /// Güncelleyici (ayrı model: indirme durumu tüm paneli yeniden çizmez).
     let updater = UpdateModel()
     var toolsVisible: Bool { selectedTab == .tools && page == .main }
@@ -586,7 +588,7 @@ private struct RemoteTab: View {
             RemoteInfoCard(resolution: model.effectiveResolution)
             PresetCard(model: model)
             BetterDisplayStatusCard(model: model)
-            WakeConnectCard(model: model)
+            RoleConnectCard(model: model, client: model.client)
             RemoteStartButton(model: model)
         }
     }

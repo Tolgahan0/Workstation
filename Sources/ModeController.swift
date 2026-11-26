@@ -57,6 +57,16 @@ final class ModeController {
         }
     }
 
+    /// Remote'ta sanal ekranı istemcinin görüntü alanına uydur (bkz. `workstation fit`).
+    func refit(_ res: String, completion: @escaping (Bool) -> Void) {
+        queue.async {
+            let sw = Stopwatch("uydur \(res)")
+            let ok = self.display.refitVirtual(res)
+            sw.lap(ok ? "tamam" : "olmadı")
+            DispatchQueue.main.async { completion(ok) }
+        }
+    }
+
     /// Remote geri sayımı iptal edildi: hazırlıkta açılan sanal ekranı kapat.
     func cancelRemotePreparation() {
         queue.async { self.display.cancelRemotePreparation() }

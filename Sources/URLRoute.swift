@@ -6,6 +6,7 @@ import Foundation
 ///   workstation://fan/auto|half|max
 ///   workstation://keepawake/on|off[?hours=2|minutes=90] · workstation://keepawake/3h
 ///   workstation://clean/scan · workstation://clean/auto
+///   workstation://fit?res=WxH (Remote sürerken sanal ekranı istemciye uydur)
 ///   workstation://update (denetle, varsa kur) · workstation://update/check (yalnızca denetle)
 enum URLRoute: Equatable {
     enum CleanAction: Equatable { case scan, auto }
@@ -16,6 +17,8 @@ enum URLRoute: Equatable {
     case keepAwake(on: Bool, seconds: TimeInterval?)
     case clean(CleanAction)
     case update(install: Bool)
+    /// Remote sürerken sanal ekranı istemcinin Ekran Paylaşımı alanına uydur: workstation://fit?res=WxH
+    case fit(String)
 
     static func parse(_ str: String, scheme: String = "workstation") -> URLRoute? {
         let full = str.contains("://") ? str : "\(scheme)://\(str)"
@@ -37,6 +40,9 @@ enum URLRoute: Equatable {
             case "auto", "otomatik", "run": return .clean(.auto)
             default: return nil
             }
+        case "fit", "uydur":
+            guard let r = (q("res") ?? pathParts.first).flatMap(RemotePreset.normalize) else { return nil }
+            return .fit(r)
         case "update", "guncelle":
             let arg = (pathParts.first ?? "install").lowercased()
             return .update(install: arg != "check" && arg != "denetle")

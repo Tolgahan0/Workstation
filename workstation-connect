@@ -12,6 +12,7 @@
 #   MAC=aa:bb:cc:dd:ee:ff    Mac mini'nin Ethernet MAC adresi (Wake-on-LAN için)
 #   BROADCAST=192.168.1.255  yerel ağ yayın adresi (varsayılan 255.255.255.255)
 #   VNC_HOST=studio.local    Ekran Paylaşımı adresi (varsayılan HOST)
+#   SSH_USER=ayaz            SSH kullanıcı adı (Workstation uygulaması Mac mini'nin duyurusundan yazar)
 #   ALT_HOST=mini.tailnet.ts.net  dışarıdan erişim adresi (Tailscale); HOST erişilemezse SSH ve Ekran Paylaşımı için denenir
 #   WAKE_TIMEOUT=90          SSH erişilebilir olana kadar azami bekleme (sn)
 # Ortam: WS_VNC_HOST → VNC_HOST ile aynı (geriye dönük uyumluluk)
@@ -28,14 +29,14 @@ tn() { if (( WS_TR )); then print -rn -- "$1"; else print -rn -- "$2"; fi; }
 
 CONFIG_DIR="$HOME/.config/workstation"
 CONFIG="$CONFIG_DIR/config"
-HOST="studio"; MAC=""; BROADCAST="255.255.255.255"; VNC_HOST=""; ALT_HOST=""; WAKE_TIMEOUT=90
+HOST="studio"; MAC=""; BROADCAST="255.255.255.255"; VNC_HOST=""; ALT_HOST=""; SSH_USER=""; WAKE_TIMEOUT=90
 if [[ -f "$CONFIG" ]]; then
   # Yalnızca bilinen anahtarları oku (dosya kaynak olarak çalıştırılmaz).
   while IFS='=' read -r k v; do
     v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
     case "$k" in
       HOST) HOST="$v" ;; MAC) MAC="$v" ;; BROADCAST) BROADCAST="$v" ;;
-      VNC_HOST) VNC_HOST="$v" ;; WAKE_TIMEOUT) WAKE_TIMEOUT="$v" ;; ALT_HOST) ALT_HOST="$v" ;;
+      VNC_HOST) VNC_HOST="$v" ;; WAKE_TIMEOUT) WAKE_TIMEOUT="$v" ;; ALT_HOST) ALT_HOST="$v" ;; SSH_USER) SSH_USER="$v" ;;
     esac
   done < <(/usr/bin/grep -E '^[A-Z_]+=' "$CONFIG")
 fi
@@ -62,7 +63,10 @@ done
 [[ "$WAKE_TIMEOUT" =~ '^[0-9]+$' ]] || WAKE_TIMEOUT=90
 VNC_HOST="${WS_VNC_HOST:-${VNC_HOST:-$HOST}}"
 
-ssh_ok() { /usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=3 "$HOST" true >/dev/null 2>&1; }
+# SSH hedefi: SSH_USER tanımlıysa kullanici@adres (adreste zaten @ varsa dokunulmaz).
+tgt() { if [[ -n "$SSH_USER" && "$1" != *@* ]]; then print -r -- "$SSH_USER@$1"; else print -r -- "$1"; fi; }
+bare() { print -r -- "${1##*@}"; }
+ssh_ok() { /usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=3 "$(tgt "$HOST")" true >/dev/null 2>&1; }
 
 # --- Sihirli paket ------------------------------------------------------------
 valid_mac() { [[ "$1" =~ '^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$' ]]; }
@@ -114,7 +118,7 @@ wake() {
 # --- --setup: değerleri uzak Mac'ten al -----------------------------------------
 if (( SETUP )); then
   t "→ $HOST üzerinden ağ bilgisi alınıyor…" "→ Getting network info from $HOST…"
-  INFO=$(/usr/bin/ssh -o ConnectTimeout=5 "$HOST" "/usr/local/bin/workstation netinfo" 2>/dev/null) \
+  INFO=$(/usr/bin/ssh -o ConnectTimeout=5 "$(tgt "$HOST")" "/usr/local/bin/workstation netinfo" 2>/dev/null) \
     || { t "SSH başarısız: önce 'ssh $HOST' çalıştığından emin olun (Mac mini uyanık olmalı)." "SSH failed: first make sure 'ssh $HOST' works (the Mac mini must be awake)." >&2; exit 1; }
   R_MAC=$(echo "$INFO" | /usr/bin/awk -F= '$1=="MAC"{print $2}')
   R_BC=$(echo "$INFO" | /usr/bin/awk -F= '$1=="BROADCAST"{print $2}')
@@ -140,7 +144,18 @@ fi
 if (( WAKE_ONLY )); then wake; exit $?; fi
 
 # --- 1) Uyandır ve SSH'yi bekle ----------------------------------------------------
-# Dışarıdaysan (.local / ev IP'si çözülmez) Tailscale adresine geç.
+# Dışarıdaysan (.local / ev IP'si çözülmez) Tailscale adresine geç; Tailscale kapalıysa önce aç.
+ts_up() { /sbin/ifconfig 2>/dev/null | /usr/bin/awk '/inet 100\./{split($2,a,"."); if (a[2]>=64 && a[2]<=127) f=1} END{exit !f}'; }
+if [[ -n "$ALT_HOST" && "$ALT_HOST" != "$HOST" ]] && ! ssh_ok && ! ts_up; then
+  for id in io.tailscale.ipn.macsys io.tailscale.ipn.macos; do
+    if /usr/bin/open -g -j -b "$id" 2>/dev/null; then
+      tn "→ Tailscale açılıyor" "→ Starting Tailscale"
+      for i in {1..20}; do ts_up && break; echo -n "."; sleep 1; done; echo
+      break
+    fi
+  done
+  ts_up || t "Tailscale bağlı değil: menü çubuğundaki Tailscale simgesinden bağlan." "Tailscale isn't connected: connect from the Tailscale menu bar icon." >&2
+fi
 if [[ -n "$ALT_HOST" && "$ALT_HOST" != "$HOST" ]] && ! ssh_ok; then
   PRIMARY="$HOST"; HOST="$ALT_HOST"
   if ssh_ok; then
@@ -170,8 +185,9 @@ fi
 
 # --- 2) Çözünürlük algıla -----------------------------------------------------------
 if [[ -z "$RES" ]]; then
-  # Ana ekranın nokta (point) boyutu — Retina "Görünüm" ayarı ile aynı.
-  RES=$(/usr/bin/osascript -l JavaScript -e 'ObjC.import("AppKit"); var f = $.NSScreen.mainScreen.frame; Math.round(f.size.width) + "x" + Math.round(f.size.height)' 2>/dev/null)
+  # Tam ekran Ekran Paylaşımı'nın gerçekten kullandığı alan: ana ekranın nokta boyutu eksi çentik payı
+  # (14" MacBook Pro: 1512x982 değil 1512x945; aksi hâlde yanlarda siyah şerit kalır).
+  RES=$(/usr/bin/osascript -l JavaScript -e 'ObjC.import("AppKit"); var s = $.NSScreen.mainScreen; var f = s.frame; var t = 0; try { t = s.safeAreaInsets.top } catch (e) {} ; Math.round(f.size.width) + "x" + Math.round(f.size.height - t)' 2>/dev/null)
   # Yedek: system_profiler "UI Looks like: 1512 x 982 @ 120.00Hz"
   if [[ ! "$RES" =~ '^[0-9]+x[0-9]+$' ]]; then
     RES=$(/usr/sbin/system_profiler SPDisplaysDataType 2>/dev/null \
@@ -186,18 +202,19 @@ fi
 
 # --- 3) Remote + Ekran Paylaşımı ----------------------------------------------------
 t "→ $HOST Remote moduna alınıyor${RES:+ ($RES)}…" "→ Switching $HOST to Remote${RES:+ ($RES)}…"
-if ! /usr/bin/ssh "$HOST" "/usr/local/bin/workstation remote $RES"; then
+if ! /usr/bin/ssh -o ConnectTimeout=8 "$(tgt "$HOST")" "/usr/local/bin/workstation remote $RES"; then
   t "SSH komutu başarısız. 'ssh $HOST' bağlantısını ve uzak Mac'te Workstation kurulumunu kontrol edin." "SSH command failed. Check the 'ssh $HOST' connection and the Workstation install on the remote Mac." >&2
   exit 1
 fi
 
 if (( OPEN_VNC )); then
   # SSH'nin gerçekten ulaştığı adres (evde 192.168…, dışarıda Tailscale 100.x): Ekran Paylaşımı için en güvenilir yedek.
-  SSH_ADDR=$(/usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=5 "$HOST" 'echo $SSH_CONNECTION' 2>/dev/null | /usr/bin/awk '{print $3}')
-  vnc_ok() { /usr/bin/nc -z -G 3 "$1" 5900 >/dev/null 2>&1; }
+  SSH_ADDR=$(/usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=5 "$(tgt "$HOST")" 'echo $SSH_CONNECTION' 2>/dev/null | /usr/bin/awk '{print $3}')
+  vnc_ok() { /usr/bin/nc -z -G 3 "$(bare "$1")" 5900 >/dev/null 2>&1; }
   sleep 3   # sanal ekranın oluşup fiziksel monitörlerin kapanması için
   TARGET=""; TRIED=()
   for h in "$VNC_HOST" "$SSH_ADDR" "$HOST" "$ALT_HOST"; do
+    h="$(bare "$h")"
     [[ -n "$h" ]] || continue
     (( ${TRIED[(Ie)$h]} )) && continue
     TRIED+=("$h")
