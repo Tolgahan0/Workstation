@@ -210,7 +210,7 @@ final class LocalInputWatcher {
         IOHIDManagerScheduleWithRunLoop(m, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
         let r = IOHIDManagerOpen(m, IOOptionBits(kIOHIDOptionsTypeNone))
         manager = m
-        let openText = r == kIOReturnSuccess ? "tamam" : (r == kIOReturnNotPermitted ? "izin yok (0x\(String(r, radix: 16)))" : String(format: "0x%x", r))
+        let openText = r == kIOReturnSuccess ? "tamam" : (r == kIOReturnNotPermitted ? "izin yok (" + String(format: "0x%x", r) + ")" : String(format: "0x%x", r))
         openResult = openText
         // Yedekler HER ZAMAN açık: HID açılışı izin yüzünden başarısız olsa da (0xe00002e2, aygıtlar listelenir ama
         // olay gelmez) fare olayları ve sistem boşta sayacı monitörleri geri getirir.
