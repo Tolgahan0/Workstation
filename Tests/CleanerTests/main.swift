@@ -396,6 +396,46 @@ do {
     check(mb.used == 8, "kullanılan = uygulama + sabit + sıkıştırılmış (önbellek hariç)")
 }
 
+// MARK: Remote'tan yerel çıkış (takılı klavye/fare)
+do {
+    let P = LocalInputPolicy.isPhysical
+    check(P("USB", "AJAZZ 2.4G", false) && P("USB", "2.4G Wireless Receiver", false), "USB alıcılar fiziksel")
+    check(P("Bluetooth", "Magic Mouse", false) && P("Bluetooth Low Energy", "MX Keys", false), "Bluetooth fiziksel")
+    check(!P("Virtual", "Screen Sharing Keyboard", false) && !P(nil, "x", false) && !P("", "x", false), "sanal/taşıyıcısız aygıt fiziksel değil")
+    check(!P("USB", "Karabiner DriverKit VirtualHIDKeyboard", false), "Karabiner sanal klavye fiziksel değil")
+    check(!P("USB", "Mouse", true), "VirtualDevice işaretli aygıt fiziksel değil")
+    let t0 = Date()
+    var d = LocalInputDetector(armedAt: t0.addingTimeInterval(20))
+    check(!d.feed(.press, at: t0.addingTimeInterval(5), remoteViewerActive: false), "bekleme süresinde tık yok sayılır")
+    check(d.feed(.press, at: t0.addingTimeInterval(21), remoteViewerActive: false), "izleyici yokken tek tık yeter")
+    var m = LocalInputDetector(armedAt: t0)
+    check(!m.feed(.move(40), at: t0.addingTimeInterval(1), remoteViewerActive: false), "küçük titreme yetmez")
+    check(!m.feed(.move(100), at: t0.addingTimeInterval(1.3), remoteViewerActive: false), "henüz eşik altında")
+    check(m.feed(.move(-200), at: t0.addingTimeInterval(1.6), remoteViewerActive: false), "1 sn içinde belirgin hareket tetikler")
+    var slow = LocalInputDetector(armedAt: t0)
+    var fired = false
+    for i in 0..<20 { fired = fired || slow.feed(.move(50), at: t0.addingTimeInterval(Double(i) * 2), remoteViewerActive: false) }
+    check(!fired, "seyrek küçük hareketler (titreşim) tetiklemez")
+    var v = LocalInputDetector(armedAt: t0)
+    check(!v.feed(.move(5000), at: t0.addingTimeInterval(1), remoteViewerActive: true), "izleyici bağlıyken hareket yok sayılır")
+    check(!v.feed(.press, at: t0.addingTimeInterval(2), remoteViewerActive: true), "izleyici bağlıyken tek tık yetmez")
+    check(v.feed(.press, at: t0.addingTimeInterval(3.5), remoteViewerActive: true), "izleyici bağlıyken 3 sn içinde 2 tık tetikler")
+    var w = LocalInputDetector(armedAt: t0)
+    check(w.feed(.scroll(6), at: t0.addingTimeInterval(1), remoteViewerActive: false), "belirgin kaydırma tetikler")
+}
+
+// MARK: Uzaktan erişim teşhisi
+do {
+    check(RemoteAccessDiagnostics.screenSharingEnabled(launchctlOutput: "disabled services = {\n\t\t\"com.apple.screensharing\" => enabled\n}"), "Ekran Paylaşımı açık")
+    check(!RemoteAccessDiagnostics.screenSharingEnabled(launchctlOutput: "\t\t\"com.apple.screensharing\" => disabled"), "Ekran Paylaşımı kapalı")
+    check(!RemoteAccessDiagnostics.screenSharingEnabled(launchctlOutput: "\"com.openssh.sshd\" => enabled"), "anahtar yoksa kapalı")
+    check(NetworkInfo.isTailscale("100.98.61.110") && !NetworkInfo.isTailscale("100.200.1.1") && !NetworkInfo.isTailscale("192.168.1.34"), "Tailscale CGNAT aralığı")
+    let n = NetworkInfo.parse("IP=192.168.1.34\nHOSTNAME=studio.local\nTAILSCALE_IP=100.98.61.110\nTAILSCALE_NAME=tolgahan-mac-mini.tail9cb433.ts.net\n")
+    check(n.remoteAddress == "tolgahan-mac-mini.tail9cb433.ts.net", "dışarıdan adres MagicDNS adı")
+    check(NetworkInfo.parse("TAILSCALE_IP=100.98.61.110").remoteAddress == "100.98.61.110", "ad yoksa Tailscale IP")
+    check(NetworkInfo.parse("HOSTNAME=studio.local").remoteAddress.isEmpty, "Tailscale yoksa dışarıdan adres yok")
+}
+
 // MARK: Dil
 do {
     check(L10n.isTurkish, "test ortamı Türkçe")

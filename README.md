@@ -99,6 +99,8 @@ workstation-connect --setup studio   # Mac mini'nin MAC adresini kaydeder (Mac m
 workstation-connect                  # uyandır → bekle → Remote → Ekran Paylaşımı
 ```
 
+- **Evden dışarıda:** `studio.local` ve `192.168.…` yalnızca ev ağında çalışır. İki Mac'te de [Tailscale](https://tailscale.com) açık olsun; `--setup` Mac mini'nin Tailscale adresini `ALT_HOST` olarak kaydeder ve `workstation-connect` dışarıdayken ona kendiliğinden geçer. Ekran Paylaşımı, SSH'nin gerçekten ulaştığı adres üzerinden açılır; hiçbir adres erişilemezse ne kontrol edileceğini söyler. Ekran Paylaşımı uygulamasıyla elle bağlanıyorsan Remote kartındaki **Dışarıdan** adresini (`vnc://…ts.net`) kullan.
+- **Eve dönünce:** Remote'tayken Mac mini'ye **takılı** klavye/fareye dokunmak (USB/Bluetooth; tık, tuş ya da belirgin hareket) monitörleri geri açar. Ekran Paylaşımı'ndan gelen girdi bir HID aygıtından gelmediği için monitörleri asla açmaz; biri uzaktan bağlıyken yalnızca 3 sn içinde iki tık/tuş sayılır. Ayarlar › **Eve dönünce** (varsayılan açık). Klavye için Giriş İzleme izni gerekir; yoksa fare yeterlidir. Bağlanan olmadı diye Remote kendiliğinden bırakılmaz; 10 dk sonra günlüğe teşhis yazılır.
 - Uyandırma kablolu ağda (Ethernet) en güveniliridir; Remote sekmesindeki **Uyandır ve bağlan** kartı bağlantı türünü ve gerçek MAC adresini gösterir.
 - Sanal ekran için [BetterDisplay](https://github.com/waydabber/BetterDisplay) kullanılır; yoksa uygulama ilk Remote'ta kendisi kurar. BetterDisplay'de bir kez **Settings › Integration › CLI** erişimini aç.
 
@@ -237,7 +239,7 @@ Tests/run-tests.sh                 # çekirdek testleri (macOS ya da Linux)
 - **Yeni sürüm yayınlamak:** `VERSION`'ı artır, `scripts/version.sh sync` çalıştır, commit'le, sonra
 
   ```bash
-  git tag v1.9.5 && git push origin v1.9.5
+  git tag v1.9.6 && git push origin v1.9.6
   ```
 
   GitHub Actions ([`release.yml`](.github/workflows/release.yml)) testleri çalıştırır, evrensel derler ve sürüme `Workstation-<sürüm>.dmg`, `.zip`, `SHA256SUMS.txt` ve `latest.json` ekler. Sürüm adında `-` varsa (ör. `v1.9.0-beta.1`) beta olarak yayınlanır.

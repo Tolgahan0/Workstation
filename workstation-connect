@@ -12,6 +12,7 @@
 #   MAC=aa:bb:cc:dd:ee:ff    Mac mini'nin Ethernet MAC adresi (Wake-on-LAN için)
 #   BROADCAST=192.168.1.255  yerel ağ yayın adresi (varsayılan 255.255.255.255)
 #   VNC_HOST=studio.local    Ekran Paylaşımı adresi (varsayılan HOST)
+#   ALT_HOST=mini.tailnet.ts.net  dışarıdan erişim adresi (Tailscale); HOST erişilemezse SSH ve Ekran Paylaşımı için denenir
 #   WAKE_TIMEOUT=90          SSH erişilebilir olana kadar azami bekleme (sn)
 # Ortam: WS_VNC_HOST → VNC_HOST ile aynı (geriye dönük uyumluluk)
 WS_VERSION="@VERSION@"   # build.sh VERSION dosyasından yazar (tek sürüm kaynağı)
@@ -27,14 +28,14 @@ tn() { if (( WS_TR )); then print -rn -- "$1"; else print -rn -- "$2"; fi; }
 
 CONFIG_DIR="$HOME/.config/workstation"
 CONFIG="$CONFIG_DIR/config"
-HOST="studio"; MAC=""; BROADCAST="255.255.255.255"; VNC_HOST=""; WAKE_TIMEOUT=90
+HOST="studio"; MAC=""; BROADCAST="255.255.255.255"; VNC_HOST=""; ALT_HOST=""; WAKE_TIMEOUT=90
 if [[ -f "$CONFIG" ]]; then
   # Yalnızca bilinen anahtarları oku (dosya kaynak olarak çalıştırılmaz).
   while IFS='=' read -r k v; do
     v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
     case "$k" in
       HOST) HOST="$v" ;; MAC) MAC="$v" ;; BROADCAST) BROADCAST="$v" ;;
-      VNC_HOST) VNC_HOST="$v" ;; WAKE_TIMEOUT) WAKE_TIMEOUT="$v" ;;
+      VNC_HOST) VNC_HOST="$v" ;; WAKE_TIMEOUT) WAKE_TIMEOUT="$v" ;; ALT_HOST) ALT_HOST="$v" ;;
     esac
   done < <(/usr/bin/grep -E '^[A-Z_]+=' "$CONFIG")
 fi
@@ -52,7 +53,7 @@ while (( $# > 0 )); do
     --timeout) shift; WAKE_TIMEOUT="${1:-90}" ;;
     --setup) SETUP=1 ;;
     --wake-only) WAKE_ONLY=1 ;;
-    -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
     -*) t "Bilinmeyen seçenek: $1" "Unknown option: $1" >&2; exit 2 ;;
     *) HOST="$1" ;;
   esac
@@ -118,6 +119,8 @@ if (( SETUP )); then
   R_MAC=$(echo "$INFO" | /usr/bin/awk -F= '$1=="MAC"{print $2}')
   R_BC=$(echo "$INFO" | /usr/bin/awk -F= '$1=="BROADCAST"{print $2}')
   R_HOSTNAME=$(echo "$INFO" | /usr/bin/awk -F= '$1=="HOSTNAME"{print $2}')
+  R_TS=$(echo "$INFO" | /usr/bin/awk -F= '$1=="TAILSCALE_NAME"{print $2}')
+  [[ -n "$R_TS" ]] || R_TS=$(echo "$INFO" | /usr/bin/awk -F= '$1=="TAILSCALE_IP"{print $2}')
   valid_mac "$R_MAC" || { t "Uzak MAC okunamadı: $INFO" "Couldn't read the remote MAC: $INFO" >&2; exit 1; }
   mkdir -p "$CONFIG_DIR"
   {
@@ -126,15 +129,26 @@ if (( SETUP )); then
     echo "MAC=$R_MAC"
     echo "BROADCAST=${R_BC:-255.255.255.255}"
     [[ -n "$R_HOSTNAME" ]] && echo "VNC_HOST=$R_HOSTNAME"
+    [[ -n "$R_TS" ]] && echo "ALT_HOST=$R_TS"
     echo "WAKE_TIMEOUT=$WAKE_TIMEOUT"
   } > "$CONFIG"
   t "✓ Kaydedildi: $CONFIG" "✓ Saved: $CONFIG"; cat "$CONFIG"
+  [[ -z "$R_TS" ]] && t "Not: Mac mini'de Tailscale yok; .local adı ve ev IP'si yalnızca ev ağında çalışır, dışarıdan bağlanamazsın." "Note: no Tailscale on the Mac mini; the .local name and home IP only work on the home network, not from outside."
   exit 0
 fi
 
 if (( WAKE_ONLY )); then wake; exit $?; fi
 
 # --- 1) Uyandır ve SSH'yi bekle ----------------------------------------------------
+# Dışarıdaysan (.local / ev IP'si çözülmez) Tailscale adresine geç.
+if [[ -n "$ALT_HOST" && "$ALT_HOST" != "$HOST" ]] && ! ssh_ok; then
+  PRIMARY="$HOST"; HOST="$ALT_HOST"
+  if ssh_ok; then
+    t "→ $PRIMARY erişilemiyor; Tailscale adresi kullanılıyor: $HOST" "→ $PRIMARY unreachable; using the Tailscale address: $HOST"
+  else
+    HOST="$PRIMARY"
+  fi
+fi
 if ! ssh_ok; then
   if (( DO_WAKE )) && wake; then
     tn "→ $HOST bekleniyor (en fazla ${WAKE_TIMEOUT} sn)" "→ Waiting for $HOST (up to ${WAKE_TIMEOUT} s)"
@@ -178,6 +192,22 @@ if ! /usr/bin/ssh "$HOST" "/usr/local/bin/workstation remote $RES"; then
 fi
 
 if (( OPEN_VNC )); then
+  # SSH'nin gerçekten ulaştığı adres (evde 192.168…, dışarıda Tailscale 100.x): Ekran Paylaşımı için en güvenilir yedek.
+  SSH_ADDR=$(/usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=5 "$HOST" 'echo $SSH_CONNECTION' 2>/dev/null | /usr/bin/awk '{print $3}')
+  vnc_ok() { /usr/bin/nc -z -G 3 "$1" 5900 >/dev/null 2>&1; }
   sleep 3   # sanal ekranın oluşup fiziksel monitörlerin kapanması için
-  /usr/bin/open "vnc://$VNC_HOST"
+  TARGET=""; TRIED=()
+  for h in "$VNC_HOST" "$SSH_ADDR" "$HOST" "$ALT_HOST"; do
+    [[ -n "$h" ]] || continue
+    (( ${TRIED[(Ie)$h]} )) && continue
+    TRIED+=("$h")
+    if vnc_ok "$h"; then TARGET="$h"; break; fi
+  done
+  if [[ -z "$TARGET" ]]; then
+    t "Ekran Paylaşımı (5900) şu adreslerde erişilemiyor: ${TRIED[*]}" "Screen Sharing (5900) isn't reachable at: ${TRIED[*]}" >&2
+    t "Mac mini'de Ekran Paylaşımı açık mı? Dışarıdaysan iki Mac'te de Tailscale açık mı? (.local adları yalnızca ev ağında çalışır)" "Is Screen Sharing on on the Mac mini? If you're away, is Tailscale on on both Macs? (.local names only work on the home network)" >&2
+    exit 1
+  fi
+  [[ "$TARGET" != "$VNC_HOST" ]] && t "→ $VNC_HOST erişilemiyor; Ekran Paylaşımı $TARGET üzerinden açılıyor." "→ $VNC_HOST unreachable; opening Screen Sharing via $TARGET."
+  /usr/bin/open "vnc://$TARGET"
 fi

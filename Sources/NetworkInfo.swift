@@ -9,6 +9,9 @@ struct NetworkInfo: Equatable {
     var ip: String = ""
     var broadcast: String = "255.255.255.255"
     var hostname: String = ""
+    /// Dışarıdan erişim (Tailscale). Boşsa yalnızca ev ağından bağlanılabilir.
+    var tailscaleIP: String = ""
+    var tailscaleName: String = ""
 
     /// `KEY=değer` satırlarını çözer (workstation netinfo çıktısı).
     static func parse(_ text: String) -> NetworkInfo {
@@ -24,6 +27,8 @@ struct NetworkInfo: Equatable {
             case "IP": n.ip = v
             case "BROADCAST": if !v.isEmpty { n.broadcast = v }
             case "HOSTNAME": n.hostname = v == ".local" ? "" : v
+            case "TAILSCALE_IP": n.tailscaleIP = v
+            case "TAILSCALE_NAME": n.tailscaleName = v
             default: break
             }
         }
@@ -53,6 +58,9 @@ struct NetworkInfo: Equatable {
         return port.isEmpty ? interface : port
     }
 
+    /// Ev dışından Ekran Paylaşımı adresi (Tailscale MagicDNS adı, yoksa 100.x IP'si).
+    var remoteAddress: String { tailscaleName.isEmpty ? tailscaleIP : tailscaleName }
+
     /// İstemci Mac'e kopyalanacak komut: önce yapılandırma, sonra bağlan.
     var sshHost: String { hostname.isEmpty ? (ip.isEmpty ? "studio" : ip) : hostname }
 
@@ -66,6 +74,43 @@ struct NetworkInfo: Equatable {
         if Self.isUsableMAC(mac) { lines.append("MAC=\(mac)") }
         lines.append("BROADCAST=\(broadcast)")
         return lines.joined(separator: "\n")
+    }
+
+    /// Tailscale (CGNAT 100.64.0.0/10) adresi; komut çalıştırmaz (getifaddrs).
+    static func tailscaleIPv4() -> String? {
+        ipv4s().first { isTailscale($0.1) }?.1
+    }
+
+    /// Ev ağı adresleri (en*, Tailscale ve loopback hariç).
+    static func localIPv4s() -> [String] {
+        ipv4s().filter { $0.0.hasPrefix("en") && !isTailscale($0.1) }.map { $0.1 }
+    }
+
+    static func isTailscale(_ ip: String) -> Bool {
+        let p = ip.split(separator: ".").compactMap { Int($0) }
+        return p.count == 4 && p[0] == 100 && (64...127).contains(p[1])
+    }
+
+    private static func ipv4s() -> [(String, String)] {
+        #if !os(macOS)
+        return []
+        #else
+        var out: [(String, String)] = []
+        var head: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&head) == 0 else { return [] }
+        defer { freeifaddrs(head) }
+        var p = head
+        while let cur = p {
+            if let sa = cur.pointee.ifa_addr, sa.pointee.sa_family == UInt8(AF_INET) {
+                var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                if getnameinfo(sa, socklen_t(sa.pointee.sa_len), &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST) == 0 {
+                    out.append((String(cString: cur.pointee.ifa_name), String(cString: host)))
+                }
+            }
+            p = cur.pointee.ifa_next
+        }
+        return out
+        #endif
     }
 
     /// Arka planda çağrılmalı (kabuk komutu çalıştırır).

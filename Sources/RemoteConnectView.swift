@@ -26,8 +26,15 @@ private struct WakeConnectBody: View {
                 CopyLine(label: L("Bağlantı"), value: n.friendlyInterface.isEmpty ? "—" : n.friendlyInterface, copy: "")
                 CopyLine(label: "MAC", value: n.mac.isEmpty ? L("bulunamadı") : n.mac, copy: n.mac)
                 CopyLine(label: "IP", value: n.ip.isEmpty ? "—" : n.ip, copy: n.ip)
+                if n.remoteAddress.isEmpty {
+                    Text(L("Tailscale bulunamadı: studio.local ve ev IP'si yalnızca ev ağında çalışır; dışarıdan bağlanamazsın."))
+                        .font(.system(size: 10)).foregroundColor(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    CopyLine(label: L("Dışarıdan"), value: "vnc://\(n.remoteAddress)", copy: "vnc://\(n.remoteAddress)")
+                }
                 CopyLine(label: L("Komut"), value: n.connectCommand, copy: n.connectCommand)
-                Text(L("Bu komutu bağlanacağın Mac'te Terminal'e yapıştır. Bu Mac uyuyorsa uyanır, Remote'a geçer ve ekranı açılır."))
+                Text(L("Bu komutu bağlanacağın Mac'te Terminal'e yapıştır. Bu Mac uyuyorsa uyanır, Remote'a geçer ve ekranı açılır. Evden çıkmadan bir kez --setup çalıştır: dışarıdayken Tailscale adresine kendiliğinden geçer."))
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

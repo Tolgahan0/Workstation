@@ -199,6 +199,19 @@ case "${1:-}" in
     echo "IP=$IP"
     echo "BROADCAST=${BC:-255.255.255.255}"
     echo "HOSTNAME=$(/usr/sbin/scutil --get LocalHostName 2>/dev/null).local"
+    # Dışarıdan erişim (Tailscale): .local adı ve 192.168… yalnızca ev ağında çalışır.
+    TS_BIN="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+    [[ -x "$TS_BIN" ]] || TS_BIN="$(command -v tailscale 2>/dev/null)"
+    TS_IP=""; TS_NAME=""
+    if [[ -n "$TS_BIN" && -x "$TS_BIN" ]]; then
+      TS_IP=$("$TS_BIN" ip -4 2>/dev/null | /usr/bin/head -1)
+      TS_NAME=$("$TS_BIN" status --json 2>/dev/null | /usr/bin/plutil -extract Self.DNSName raw -o - - 2>/dev/null)
+      TS_NAME="${TS_NAME%.}"
+    fi
+    # Yedek: utun arabirimindeki 100.64.0.0/10 adresi
+    [[ -n "$TS_IP" ]] || TS_IP=$(/sbin/ifconfig 2>/dev/null | /usr/bin/awk '/inet 100\./{split($2,a,"."); if (a[2]>=64 && a[2]<=127) {print $2; exit}}')
+    [[ -n "$TS_IP" ]] && echo "TAILSCALE_IP=$TS_IP"
+    [[ -n "$TS_NAME" ]] && echo "TAILSCALE_NAME=$TS_NAME"
     ;;
   log)
     /usr/bin/tail -n 40 "$HOME/Library/Logs/Workstation.log"

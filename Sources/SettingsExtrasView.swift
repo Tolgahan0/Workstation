@@ -311,6 +311,29 @@ struct AudioCard: View {
     }
 }
 
+// MARK: - Remote'tan yerel çıkış
+
+struct LocalInputCard: View {
+    @ObservedObject var model: PanelModel
+
+    var body: some View {
+        let m: PanelModel = model
+        return VStack(alignment: .leading, spacing: 8) {
+            CardTitleRow(icon: "keyboard", title: L("Eve dönünce"),
+                         subtitle: L("Remote'tayken bu Mac'e takılı klavye/fareye dokununca monitörler açılır. Ekran Paylaşımı'ndan gelen girdi monitörleri açmaz."))
+            ToggleRow(title: L("Yerel klavye/fare Remote'tan çıkarsın"),
+                      isOn: Binding<Bool>(get: { m.localInputExitsRemote }, set: { m.onLocalInputSetting($0) }))
+            if model.localInputExitsRemote && !model.keyboardInputAccess {
+                HStack(spacing: 6) {
+                    NoteText(text: L("Şu an yalnızca fare tıklaması/hareketi algılanır. Klavye için Giriş İzleme izni gerekir."))
+                    Button(L("İzin ver")) { m.onRequestKeyboardAccess() }.controlSize(.small)
+                }
+            }
+        }
+        .cardStyle()
+    }
+}
+
 // MARK: - Bildirimler
 
 struct NotificationsCard: View {

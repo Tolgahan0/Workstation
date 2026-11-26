@@ -51,6 +51,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var resourceForegroundTimer: Timer?
     var resourceBackgroundTimer: Timer?
     var lastPressureLevel = 1
+    /// Remote: bu Mac'e takılı klavye/fare monitörleri geri açar (bkz. AppDelegate+LocalInput).
+    let localInput = LocalInputWatcher()
+    var remoteDiagItem: DispatchWorkItem?
     /// Yerel bildirimler (aşırı ısınma, disk, beklenmedik kapanma).
     let notifier = Notifier()
     var notifySettings = NotificationSettings.load()
@@ -266,6 +269,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self.panelModel.keepAwakeTick = Date()
         }
         keepAwake.restore()
+        m.keyboardInputAccess = LocalInputWatcher.keyboardAccessGranted
+        m.onLocalInputSetting = { [weak self] on in
+            guard let self = self else { return }
+            LocalInputPolicy.enabled = on
+            self.panelModel.localInputExitsRemote = on
+            if self.currentMode == .remote { self.startRemoteWatchers() }
+        }
+        m.onRequestKeyboardAccess = { [weak self] in
+            let granted = LocalInputWatcher.requestKeyboardAccess()
+            Log.info("Giriş İzleme izni (klavye): \(granted ? "verildi" : "bekleniyor/verilmedi")")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                guard let self = self else { return }
+                self.panelModel.keyboardInputAccess = LocalInputWatcher.keyboardAccessGranted
+                if self.currentMode == .remote { self.startRemoteWatchers() }
+            }
+        }
         m.onNotifySettings = { [weak self] settings in
             guard let self = self else { return }
             self.notifySettings = settings
@@ -582,6 +601,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         lastError = nil
         panelModel.statusNote = nil
         stopSleepInputMonitor()
+        stopRemoteWatchers()
         updateUI()
         let previousMode = previous
 
@@ -608,6 +628,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self.sleepModeEnteredAt = Date()
                 self.startSleepInputMonitor()
             }
+            if mode == .remote && self.currentMode == .remote { self.startRemoteWatchers() }
             if self.currentMode == mode {
                 self.isTransitioning = false
                 self.lastError = error

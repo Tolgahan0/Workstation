@@ -133,6 +133,9 @@ final class PanelModel: ObservableObject {
 
     // Ayarlar → bildirimler
     @Published var notifySettings = NotificationSettings.load()
+    /// Remote'tayken bu Mac'e takılı klavye/fare monitörleri geri açar.
+    @Published var localInputExitsRemote = LocalInputPolicy.enabled
+    @Published var keyboardInputAccess = false
     /// Geliştirici Temizleyici (kendi yayınları olan ayrı model: tarama ilerlemesi tüm paneli yeniden çizmez).
     let cleaner = CleanerModel()
     /// Tools › Kaynaklar (ayrı model: 2 sn'lik örnekler yalnızca kendi kartlarını çizer).
@@ -169,6 +172,8 @@ final class PanelModel: ObservableObject {
     var onMuteInRemote: (Bool) -> Void = { _ in }
     var onKeepAwake: (Bool, KeepAwake.Duration) -> Void = { _, _ in }
     var onNotifySettings: (NotificationSettings) -> Void = { _ in }
+    var onLocalInputSetting: (Bool) -> Void = { _ in }
+    var onRequestKeyboardAccess: () -> Void = {}
     var onFanMode: (FanMode) -> Void = { _ in }
 
     func selectPreset(_ id: String) {
@@ -755,6 +760,7 @@ private struct SettingsCards: View {
             AutoSwitchCard(model: model)
             ScheduleCard(model: model)
             AudioCard(model: model)
+            LocalInputCard(model: model)
             NotificationsCard(model: model)
             SectionTitle(text: L("DİSK TEMİZLİĞİ"))
             CleanerSettingsCard(cleaner: model.cleaner)
