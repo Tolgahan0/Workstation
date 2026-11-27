@@ -84,6 +84,21 @@ final class PhysicalDisplayController {
         return Array(ids.prefix(Int(count)))
     }
 
+    /// Ekranı ana ekran yapar (diğer etkin ekranlar sağına dizilir). Zaten ana ekransa nil.
+    func makeMain(_ id: CGDirectDisplayID) -> Bool? {
+        if CGMainDisplayID() == id { return nil }
+        let others = activeDisplayIDs().filter { $0 != id }
+        var cfg: CGDisplayConfigRef?
+        guard CGBeginDisplayConfiguration(&cfg) == .success, let c = cfg else { return false }
+        CGConfigureDisplayOrigin(c, id, 0, 0)
+        var x = Int32(CGDisplayBounds(id).width)
+        for o in others {
+            CGConfigureDisplayOrigin(c, o, x, 0)
+            x += Int32(CGDisplayBounds(o).width)
+        }
+        return CGCompleteDisplayConfiguration(c, .forSession) == .success
+    }
+
     func activeDisplayIDs() -> [CGDirectDisplayID] {
         var count: UInt32 = 0
         guard CGGetActiveDisplayList(0, nil, &count) == .success, count > 0 else { return [] }
@@ -264,7 +279,10 @@ final class PhysicalDisplayController {
             // bekleme modundadır (ör. Uyku'dan dönüş). Onu "açmaya" çalışmak BetterDisplay'de 10 sn zaman aşımı,
             // sistem API'sinde ~10 sn bekleyip CGError 1014 veriyordu. macOS'un kendi uyanma yolu: kullanıcı etkinliği.
             let remembered = loadRemembered()
-            let asleep = remaining.filter { r in !remembered.contains { $0.id == r.id || $0.sameHardware(r) } }
+            // Uykudaki monitör macOS'ta ÇEVRİMİÇİDİR; çevrimdışı olan (BetterDisplay ile kesilmiş) uyandırılarak gelmez:
+            // 4 sn beklemeden doğrudan açma yoluna geçilir.
+            let onlineNow = Set(onlineDisplayIDs())
+            let asleep = remaining.filter { r in onlineNow.contains(r.id) && !remembered.contains { $0.id == r.id || $0.sameHardware(r) } }
             if !asleep.isEmpty {
                 let sw = Stopwatch("uyandır")
                 let aid = Self.declareUserActivity()
@@ -442,6 +460,7 @@ final class PhysicalDisplayController {
     @discardableResult func enable(_ displays: [PhysicalDisplayRecord]) -> Bool { false }
     func isActive(_ id: UInt32) -> Bool { false }
     func activeDisplayIDs() -> [UInt32] { [] }
+    func makeMain(_ id: UInt32) -> Bool? { nil }
     func anyPhysicalLit(excludedIDs: Set<UInt32>, excludedNames: [String]) -> Bool { false }
     @discardableResult func forceEnable(extraIDs: [UInt32]) -> Bool { false }
     func wakeDisplaysIfNeeded(excludedIDs: Set<UInt32>, excludedNames: [String], wait: Bool = false) {}

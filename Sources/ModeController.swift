@@ -140,6 +140,10 @@ final class ModeController {
         }
     }
 
+    func adoptScreenSharingDisplay() {
+        queue.async { _ = self.display.adoptScreenSharingDisplay() }
+    }
+
     /// Monitör kartları için anlık görüntü.
     func monitorSnapshot(completion: @escaping ([MonitorSnapshot]) -> Void) {
         queue.async {

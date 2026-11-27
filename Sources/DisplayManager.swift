@@ -9,6 +9,9 @@ struct DisplayInfo: Codable, Equatable {
     var deviceType: String
     var originalName: String?
     var productName: String?
+    var vendor: String? = nil
+    var model: String? = nil
+    var serial: String? = nil
 
     var isVirtualScreen: Bool {
         let t = deviceType.lowercased()
@@ -249,8 +252,24 @@ final class DisplayManager {
             uuid: string(lower["uuid"]),
             deviceType: type,
             originalName: string(lower["originalname"]),
-            productName: string(lower["productname"])
+            productName: string(lower["productname"]),
+            vendor: string(lower["vendor"]),
+            model: string(lower["model"]),
+            serial: string(lower["serial"])
         )
+    }
+
+    /// BetterDisplay'in bildiği ama macOS'ta çevrimiçi OLMAYAN fiziksel monitörler (BetterDisplay ile bağlantısı
+    /// kesilmiş: "connected=off"). macOS listesinde görünmedikleri için panelde kayboluyorlardı; açılabilmeleri için listelenir.
+    func betterDisplayOfflinePhysical() -> [PhysicalDisplayRecord] {
+        guard isBetterDisplayRunning() else { return [] }
+        let online = Set(physical.onlineDisplayIDs())
+        return listAll().filter(Self.isPhysical).compactMap { d in
+            guard let idText = d.displayID, let id = UInt32(idText), id != 0, !online.contains(id),
+                  let v = d.vendor.flatMap(UInt32.init), let m = d.model.flatMap(UInt32.init) else { return nil }
+            return PhysicalDisplayRecord(id: id, vendor: v, model: m, serial: d.serial.flatMap(UInt32.init) ?? 0,
+                                         name: d.name)
+        }
     }
 
     // MARK: - Sanal ekran
@@ -353,6 +372,17 @@ final class DisplayManager {
 
     /// Remote sürerken istemcinin Ekran Paylaşımı alanına yeniden uydurma: yalnızca sanal ekranın çözünürlüğü
     /// değişir (fiziksel monitörlere dokunulmaz). Çözünürlük listede yoksa liste güncellenir (bir anlık yeniden bağlanma).
+    /// Remote'ta Ekran Paylaşımı "Yüksek Performans" bağlantısı kendi sanal ekranını ekler (Dinamik Çözünürlük ile
+    /// pencere boyutunu kendisi izler). Onu ana ekran yapar ki pencereler görünmeyen BetterDisplay ekranında kalmasın.
+    /// Oturum bitince ekran kaybolur, macOS ana ekranı kendiliğinden MacBook14Virtual'a döndürür.
+    @discardableResult
+    func adoptScreenSharingDisplay() -> String? {
+        let soft = monitors.activeSoftwareDisplays(excludedIDs: betterDisplayNonPhysicalIDs(), excludedNames: excludedNames)
+        guard soft.count == 1, let target = soft.first, let ok = physical.makeMain(target.id) else { return nil }
+        Log.info("Remote: Ekran Paylaşımı sanal ekranı (\(target.label)) ana ekran yapıldı → \(ok ? "tamam" : "hata")")
+        return target.label
+    }
+
     func refitVirtual(_ res: String) -> Bool {
         let old = Self.resolutionOverride
         Self.resolutionOverride = res
@@ -379,6 +409,7 @@ final class DisplayManager {
 
     init() {
         monitors = MonitorManager(physical: physical)
+        monitors.offlineProvider = { [weak self] in self?.betterDisplayOfflinePhysical() ?? [] }
     }
 
     // MARK: - Ekran kesme arka ucu (Ayarlar > Ekran kontrolü)

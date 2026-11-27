@@ -277,6 +277,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         keepAwake.restore()
         m.keyboardInputAccess = LocalInputWatcher.keyboardAccessGranted
+        // Remote sürerken ön ayar değişirse sanal ekran hemen o boyuta uyar (oran değişmez → yeniden bağlanma yok).
+        m.onPresetSelected = { [weak self] _ in
+            guard let self = self, self.currentMode == .remote, !self.isTransitioning, !self.countdownActive else { return }
+            let res = RemoteResolution.effective()
+            Log.info("Remote: ön ayar değişti → sanal ekran \(res)")
+            self.controller.refit(res) { [weak self] ok in
+                if !ok { Log.warn("Ön ayar uygulanamadı: \(res)") }
+                self?.updateUI()
+            }
+        }
         m.onLocalInputSetting = { [weak self] on in
             guard let self = self else { return }
             LocalInputPolicy.enabled = on
@@ -698,6 +708,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return
         }
         let added = flags.contains(.addFlag) || flags.contains(.enabledFlag)
+        if added, currentMode == .remote {
+            // Yüksek Performans Ekran Paylaşımı kendi sanal ekranını ekler: ana ekran yap (yalnızca biri bağlıyken).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                guard let self = self, self.currentMode == .remote, !self.isTransitioning,
+                      RemoteSessionProbe.current().screenSharing else { return }
+                self.controller.adoptScreenSharingDisplay()
+            }
+        }
         Log.info("Ekran yapılandırması değişti (displayID \(display), bayraklar 0x\(String(flags.rawValue, radix: 16))) → 3,5 sn sonra denetlenecek")
         scheduleReconcile(reason: L("ekran yapılandırması değişti (%@)", display), applyBrightness: added,
                           delays: [Self.callbackQuietPeriod + 0.5, 8])
@@ -844,6 +862,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 keepAwake.enable(seconds: seconds)
             } else {
                 keepAwake.disable(reason: source)
+            }
+        case .monitors:
+            controller.monitorSnapshot { [weak self] list in
+                Log.info("Monitörler (panel): " + list.map { "\($0.name) [\($0.port)] \($0.isActive ? "açık" : "kapalı") · istenen \($0.desiredEnabled ? "açık" : "kapalı")" }.joined(separator: " | "))
+                if self?.popover != nil, self?.panelModel.monitors != list { self?.panelModel.monitors = list }
             }
         case .inputAccess:
             LocalInputWatcher.ensureAccessRequested(openSettingsIfDenied: true)

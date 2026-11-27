@@ -23,6 +23,8 @@ enum URLRoute: Equatable {
     case fit(String)
     case inputTest(seconds: Int)
     case inputAccess
+    /// Panelin monitör listesini günlüğe yazar (teşhis): workstation://monitors
+    case monitors
 
     static func parse(_ str: String, scheme: String = "workstation") -> URLRoute? {
         let full = str.contains("://") ? str : "\(scheme)://\(str)"
@@ -47,6 +49,8 @@ enum URLRoute: Equatable {
         case "fit", "uydur":
             guard let r = (q("res") ?? pathParts.first).flatMap(RemotePreset.normalize) else { return nil }
             return .fit(r)
+        case "monitors", "monitorler":
+            return .monitors
         case "input", "girdi":
             switch (pathParts.first ?? "test").lowercased() {
             case "access", "izin": return .inputAccess

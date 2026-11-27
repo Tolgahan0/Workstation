@@ -92,6 +92,30 @@ final class MonitorManager {
         self.physical = physical
     }
 
+    /// macOS listesinde olmayan ama bilinen fiziksel monitörler (BetterDisplay ile kesilmiş). 20 sn önbellek.
+    var offlineProvider: () -> [PhysicalDisplayRecord] = { [] }
+    private var offlineCache: (at: Date, list: [PhysicalDisplayRecord])?
+
+    private func offlineRecords() -> [PhysicalDisplayRecord] {
+        stateLock.lock()
+        if let c = offlineCache, Date().timeIntervalSince(c.at) < 20 { stateLock.unlock(); return c.list }
+        stateLock.unlock()
+        let list = offlineProvider()
+        stateLock.lock(); offlineCache = (Date(), list); stateLock.unlock()
+        return list
+    }
+
+    /// Etkin, donanım çıkışı olmayan ekranlar (ör. Ekran Paylaşımı Yüksek Performans sanal ekranı).
+    func activeSoftwareDisplays(excludedIDs: Set<UInt32>, excludedNames: [String]) -> [PhysicalDisplayRecord] {
+        discover(excludedIDs: excludedIDs, excludedNames: excludedNames)
+            .filter { $0.outputPath == nil && physical.isActive($0.record.id) }
+            .map { $0.record }
+    }
+
+    func invalidateOfflineCache() {
+        stateLock.lock(); offlineCache = nil; stateLock.unlock()
+    }
+
     // MARK: IORegistry
 
     private static func regName(_ e: io_registry_entry_t) -> String {
@@ -216,6 +240,10 @@ final class MonitorManager {
     func discover(excludedIDs: Set<UInt32>, excludedNames: [String]) -> [ResolvedMonitor] {
         var records = physical.physicalDisplays(excludedIDs: excludedIDs, excludedNames: excludedNames, activeOnly: false)
         for r in physical.loadRemembered() where !records.contains(where: { $0.id == r.id || $0.sameHardware(r) }) {
+            records.append(r)
+        }
+        // BetterDisplay ile kesilmiş monitörler (acil kurtarma "hatırlananlar"ı silse de panelde kalsın, açılabilsin).
+        for r in offlineRecords() where !r.isPlaceholder && !records.contains(where: { $0.id == r.id || $0.sameHardware(r) }) {
             records.append(r)
         }
         records.sort { $0.id < $1.id }
@@ -426,6 +454,14 @@ final class MonitorManager {
         let mismatch = stableMismatches(list, mode: mode, samples: quick ? 1 : 2, gap: 0.5)
         var toEnable: [ResolvedMonitor] = mismatch.enable
         var toDisable: [ResolvedMonitor] = mismatch.disable
+        // Donanım çıkışı (dispext/framebuffer) olmayan ekranlar fiziksel monitör değildir: Ekran Paylaşımı'nın
+        // Yüksek Performans sanal ekranı, Sidecar, AirPlay… Bunları kapatmak uzak oturumu öldürürdü.
+        let rememberedHW = physical.loadRemembered()
+        let software = toDisable.filter { m in m.outputPath == nil && !rememberedHW.contains { $0.sameHardware(m.record) } }
+        if !software.isEmpty {
+            Log.info("Uzlaştırma: donanım çıkışı olmayan ekran(lar)a dokunulmadı: \(software.map { $0.record.label })")
+            toDisable.removeAll { s in software.contains { $0.key == s.key } }
+        }
 
         switch mode {
         case .sleep:
@@ -637,6 +673,8 @@ final class MonitorManager {
     func setForceSoftware(key: String, _ force: Bool) {}
     func method(for key: String) -> BrightnessMethod { .unknown }
     func knownDisplayIDs() -> [UInt32] { [] }
+    func activeSoftwareDisplays(excludedIDs: Set<UInt32>, excludedNames: [String]) -> [PhysicalDisplayRecord] { [] }
+    var offlineProvider: () -> [PhysicalDisplayRecord] = { [] }
 }
 
 #endif

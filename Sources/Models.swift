@@ -290,8 +290,11 @@ struct RemotePreset: Identifiable, Equatable {
         RemotePreset(id: "mbp14", title: "MacBook Pro 14\"", width: 1512, height: 982),
         // Ekran Paylaşımı tam ekranda çentiğin altını kullanır: bu boyut siyah kenar bırakmadan doldurur.
         RemotePreset(id: "mbp14n", title: L("MacBook Pro 14\" · çentik altı"), width: 1512, height: 945),
+        // Pencere kipi (büyütülmüş pencere: menü çubuğu + Ekran Paylaşımı araç çubuğu düşülür).
+        RemotePreset(id: "mbp14w", title: L("MacBook Pro 14\" · pencere"), width: 1512, height: 893),
         RemotePreset(id: "mbp16", title: "MacBook Pro 16\"", width: 1728, height: 1117),
         RemotePreset(id: "mbp16n", title: L("MacBook Pro 16\" · çentik altı"), width: 1728, height: 1080),
+        RemotePreset(id: "mbp16w", title: L("MacBook Pro 16\" · pencere"), width: 1728, height: 1028),
         RemotePreset(id: "imac24", title: "iMac 24\"", width: 2240, height: 1260),
     ]
     /// İstemci boyutu bilinmiyorsa: 14" MacBook Pro'da tam ekran Ekran Paylaşımı'nın kullandığı alan (çentik altı).

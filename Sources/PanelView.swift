@@ -178,9 +178,12 @@ final class PanelModel: ObservableObject {
     var onRequestKeyboardAccess: () -> Void = {}
     var onFanMode: (FanMode) -> Void = { _ in }
 
+    var onPresetSelected: (String) -> Void = { _ in }
+
     func selectPreset(_ id: String) {
         presetID = id
         RemoteResolution.selectedPresetID = id
+        onPresetSelected(id)
     }
 
     func setCountdownSeconds(_ value: Int) {

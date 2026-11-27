@@ -485,6 +485,8 @@ do {
     check(FitGrid.snap("3000x700", list: base) == "3000x700", "uzak oran: istenen aynen")
     check(URLRoute.parse("workstation://input/test?sec=20") == .inputTest(seconds: 20), "girdi testi URL")
     check(URLRoute.parse("workstation://input/access") == .inputAccess, "Giriş İzleme URL")
+    check(URLRoute.parse("workstation://monitors") == .monitors, "monitör listesi URL")
+    check(RemotePreset.preset(id: "mbp14w")?.resolution == "1512x893" && RemotePreset.preset(id: "mbp16w")?.resolution == "1728x1028", "pencere ön ayarları")
     check(ClientGeometry.differsEnough("1512x945", "1500x938") == false, "aynı oran, küçük fark: yeniden uydurma yok")
     check(ClientGeometry.differsEnough("1512x945", "1200x800"), "pencere oranı değişti: uydur")
 

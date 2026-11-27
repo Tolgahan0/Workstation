@@ -100,6 +100,7 @@ stateDiagram-v2
    - Terminalden: `workstation-connect` (aynı akış), `workstation fit 1512x945` (Mac mini'de sanal ekranı elle uydurur).
 
 - **Evden dışarıda:** `studio.local` ve `192.168.…` yalnızca ev ağında çalışır; Tailscale adresine kendiliğinden geçilir. Ekran Paylaşımı, SSH'nin gerçekten ulaştığı adres üzerinden açılır; hiçbir adres erişilemezse ne kontrol edileceğini söyler. Ekran Paylaşımı uygulamasıyla elle bağlanıyorsan Remote kartındaki **Dışarıdan** adresini (`vnc://…ts.net`) kullan.
+- **MacBook'ta Workstation yoksa (yalnızca Ekran Paylaşımı):** istemci boyutunu Mac mini bilemez (Standart bağlantı pencere boyutunu göndermez). En iyisi **Yüksek Performans** bağlantısı + **Dinamik Çözünürlük**: Ekran Paylaşımı Mac mini'de pencere boyutunda kendi sanal ekranını açar; Workstation ona dokunmaz ve Remote'tayken ana ekran yapar. Standart bağlantıda Remote kartından ön ayar seç: tam ekran için **MacBook Pro 14" · çentik altı** (1512x945), büyütülmüş pencere için **MacBook Pro 14" · pencere** (1512x893). Remote sürerken ön ayar değişince sanal ekran anında uyar.
 - **Neden bant oluyordu:** Ekran Paylaşımı görüntüyü ölçekler ama en-boy oranını korur. Eski otomatik algılama MacBook'tan ölçü almadığında 1512x982'ye (çentik dahil tüm ekran) düşüyordu; tam ekran Ekran Paylaşımı ise çentiğin altındaki 1512x945 alanı kullanır, bu yüzden iki yanda bant kalıyordu. Artık varsayılan 1512x945 ve gerçek ölçü istemciden gelir; en-boy oranı bağlıyken değiştirilmez (sanal ekran yeniden bağlanmaz).
 - **Eve dönünce:** Remote'tayken Mac mini'ye **takılı** klavye/fareye dokunmak (USB/Bluetooth; tık, tuş ya da belirgin hareket) monitörleri geri açar. Ekran Paylaşımı'ndan gelen girdi bir HID aygıtından gelmediği için monitörleri asla açmaz; biri uzaktan bağlıyken yalnızca 3 sn içinde iki tık/tuş sayılır. Ayarlar › **Eve dönünce** (varsayılan açık). Giriş İzleme izni olmadan da çalışır: Ekran Paylaşımı bağlı değilken fare hareketi/tıklaması ve sistemin "son girdi" sayacı (klavye dahil) yeter; izin verilirse biri uzaktan bağlıyken de takılı klavye/fare (3 sn içinde 2 tuş/tık) monitörleri açar. İzin penceresi ilk açılışta bir kez çıkar; sonradan `workstation://input/access`. Denemek için Masaüstünde `open 'workstation://input/test'` (yalnızca günlüğe yazar). Bağlanan olmadı diye Remote kendiliğinden bırakılmaz; 10 dk sonra günlüğe teşhis yazılır.
 - Uyandırma kablolu ağda (Ethernet) en güveniliridir; Remote sekmesindeki **Uyandır ve bağlan** kartı bağlantı türünü ve gerçek MAC adresini gösterir.
@@ -240,7 +241,7 @@ Tests/run-tests.sh                 # çekirdek testleri (macOS ya da Linux)
 - **Yeni sürüm yayınlamak:** `VERSION`'ı artır, `scripts/version.sh sync` çalıştır, commit'le, sonra
 
   ```bash
-  git tag v1.9.9 && git push origin v1.9.9
+  git tag v1.9.10 && git push origin v1.9.10
   ```
 
   GitHub Actions ([`release.yml`](.github/workflows/release.yml)) testleri çalıştırır, evrensel derler ve sürüme `Workstation-<sürüm>.dmg`, `.zip`, `SHA256SUMS.txt` ve `latest.json` ekler. Sürüm adında `-` varsa (ör. `v1.9.0-beta.1`) beta olarak yayınlanır.

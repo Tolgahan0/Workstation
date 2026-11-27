@@ -27,6 +27,8 @@ enum L10n {
         "Hata": "Error",
         "MacBook Pro 14\" · çentik altı": "MacBook Pro 14\" · below notch",
         "MacBook Pro 16\" · çentik altı": "MacBook Pro 16\" · below notch",
+        "MacBook Pro 14\" · pencere": "MacBook Pro 14\" · window",
+        "MacBook Pro 16\" · pencere": "MacBook Pro 16\" · window",
         "Sanal ekran aracı kurulamadı. Ayrıntı günlükte.": "Couldn't install the virtual display tool. Details in the log.",
         "Yeni sürüm %@": "New version %@",
         "Şu an %@ · tek tıkla güncellenir": "You have %@ · one click to update",
